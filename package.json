@@ -65,7 +65,7 @@
     "node": "^18.20.2 || >=20.9.0"
   },
   "author": "Delmare Digital",
-  "license": "MIT",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/delmaredigital/payload-better-auth.git"
