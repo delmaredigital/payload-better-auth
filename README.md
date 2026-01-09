@@ -38,19 +38,6 @@ Or install from GitHub:
 pnpm add github:delmaredigital/payload-better-auth
 ```
 
-### Local Development
-
-For local development with hot reloading:
-
-```bash
-# In the package directory
-cd path/to/payload-better-auth
-pnpm link --global
-
-# In your project
-pnpm link --global @delmaredigital/payload-better-auth
-```
-
 ---
 
 ## Quick Start
