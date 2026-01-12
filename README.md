@@ -66,55 +66,62 @@ export const collectionSlugs = {
 } as const
 ```
 
-### Step 2: Configure Payload
+### Step 2: Create Your Users Collection
+
+```ts
+// src/collections/Users.ts
+import type { CollectionConfig } from 'payload'
+import { betterAuthStrategy } from '@delmaredigital/payload-better-auth'
+
+export const Users: CollectionConfig = {
+  slug: 'users',
+  auth: {
+    disableLocalStrategy: true,
+    strategies: [betterAuthStrategy()],
+  },
+  access: {
+    read: ({ req }) => {
+      if (!req.user) return false
+      if (req.user.role === 'admin') return true
+      return { id: { equals: req.user.id } }
+    },
+    admin: ({ req }) => req.user?.role === 'admin',
+  },
+  fields: [
+    { name: 'email', type: 'email', required: true, unique: true },
+    { name: 'emailVerified', type: 'checkbox', defaultValue: false },
+    { name: 'name', type: 'text' },
+    { name: 'image', type: 'text' },
+    {
+      name: 'role',
+      type: 'select',
+      defaultValue: 'user',
+      options: [
+        { label: 'User', value: 'user' },
+        { label: 'Admin', value: 'admin' },
+      ],
+    },
+  ],
+}
+```
+
+### Step 3: Configure Payload
 
 ```ts
 // src/payload.config.ts
 import { buildConfig } from 'payload'
+import { postgresAdapter } from '@payloadcms/db-postgres'
 import { betterAuth } from 'better-auth'
 import {
   betterAuthCollections,
   createBetterAuthPlugin,
-  betterAuthStrategy,
   payloadAdapter,
 } from '@delmaredigital/payload-better-auth'
 import { betterAuthOptions, collectionSlugs } from './lib/auth/config'
+import { Users } from './collections/Users'
 
 export default buildConfig({
-  collections: [
-    // Your Users collection with Better Auth strategy
-    {
-      slug: 'users',
-      auth: {
-        disableLocalStrategy: true,
-        strategies: [betterAuthStrategy()],
-      },
-      access: {
-        read: ({ req }) => {
-          if (!req.user) return false
-          if (req.user.role === 'admin') return true
-          return { id: { equals: req.user.id } }
-        },
-        admin: ({ req }) => req.user?.role === 'admin',
-      },
-      fields: [
-        { name: 'email', type: 'email', required: true, unique: true },
-        { name: 'emailVerified', type: 'checkbox', defaultValue: false },
-        { name: 'name', type: 'text' },
-        { name: 'image', type: 'text' },
-        {
-          name: 'role',
-          type: 'select',
-          defaultValue: 'user',
-          options: [
-            { label: 'User', value: 'user' },
-            { label: 'Admin', value: 'admin' },
-          ],
-        },
-      ],
-    },
-    // ... other collections
-  ],
+  collections: [Users /* ...other collections */],
   plugins: [
     // Auto-generate sessions, accounts, verifications collections
     betterAuthCollections({
@@ -153,7 +160,7 @@ export default buildConfig({
 })
 ```
 
-### Step 3: Client-Side Auth
+### Step 4: Client-Side Auth
 
 ```ts
 // src/lib/auth/client.ts
@@ -171,7 +178,7 @@ export const authClient = createAuthClient({
 export const { useSession, signIn, signUp, signOut } = authClient
 ```
 
-### Step 4: Server-Side Session Access
+### Step 5: Server-Side Session Access
 
 ```ts
 // In a server component or API route
