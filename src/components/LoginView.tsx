@@ -37,6 +37,31 @@ export type LoginViewProps = {
    * - 'auto' (default): Auto-detect if passkey plugin is available
    */
   enablePasskey?: boolean | 'auto'
+  /**
+   * Enable user registration (sign up) option.
+   * - true: Always show "Create account" link
+   * - false: Never show registration option
+   * - 'auto' (default): Auto-detect if sign-up endpoint is available
+   */
+  enableSignUp?: boolean | 'auto'
+  /**
+   * Default role to assign to new users during registration.
+   * Default: 'user'
+   */
+  defaultSignUpRole?: string
+  /**
+   * Enable forgot password option.
+   * - true: Always show "Forgot password?" link
+   * - false: Never show forgot password option
+   * - 'auto' (default): Auto-detect if forget-password endpoint is available
+   */
+  enableForgotPassword?: boolean | 'auto'
+  /**
+   * Custom URL for password reset page. If provided, users will be redirected here
+   * instead of showing the inline password reset form.
+   * The reset token will be appended as ?token=xxx
+   */
+  resetPasswordUrl?: string
 }
 
 /**
@@ -66,6 +91,8 @@ function checkUserRoles(
  * Full login page component matching Payload's admin theme.
  * Registered as a custom admin view at /admin/login.
  */
+type ViewMode = 'login' | 'register' | 'forgotPassword' | 'resetSent' | 'twoFactor'
+
 export function LoginView({
   authClient: providedClient,
   logo,
@@ -74,19 +101,36 @@ export function LoginView({
   requiredRole = 'admin',
   requireAllRoles = false,
   enablePasskey = 'auto',
+  enableSignUp = 'auto',
+  defaultSignUpRole = 'user',
+  enableForgotPassword = 'auto',
+  resetPasswordUrl,
 }: LoginViewProps) {
   const router = useRouter()
+
+  // View state
+  const [viewMode, setViewMode] = useState<ViewMode>('login')
+
+  // Form fields
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [name, setName] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+
+  // UI state
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [passkeyLoading, setPasskeyLoading] = useState(false)
   const [checkingSession, setCheckingSession] = useState(true)
   const [accessDenied, setAccessDenied] = useState(false)
+
+  // Feature availability
   const [passkeyAvailable, setPasskeyAvailable] = useState(enablePasskey === true)
+  const [signUpAvailable, setSignUpAvailable] = useState(enableSignUp === true)
+  const [forgotPasswordAvailable, setForgotPasswordAvailable] = useState(enableForgotPassword === true)
 
   // Two-factor authentication state
-  const [twoFactorRequired, setTwoFactorRequired] = useState(false)
   const [totpCode, setTotpCode] = useState('')
   const [totpLoading, setTotpLoading] = useState(false)
 
@@ -140,10 +184,53 @@ export function LoginView({
     }
   }, [enablePasskey])
 
+  // Auto-detect sign up availability if set to 'auto'
+  useEffect(() => {
+    if (enableSignUp === 'auto') {
+      // Check if sign-up endpoint exists
+      fetch('/api/auth/sign-up/email', {
+        method: 'OPTIONS',
+        credentials: 'include',
+      })
+        .then((res) => {
+          // 404 means sign-up is not available
+          setSignUpAvailable(res.status !== 404)
+        })
+        .catch(() => {
+          // If OPTIONS fails, try a HEAD or just assume it's available since it's a core endpoint
+          setSignUpAvailable(true)
+        })
+    } else {
+      setSignUpAvailable(enableSignUp === true)
+    }
+  }, [enableSignUp])
+
+  // Auto-detect forgot password availability if set to 'auto'
+  useEffect(() => {
+    if (enableForgotPassword === 'auto') {
+      // Check if request-password-reset endpoint exists
+      fetch('/api/auth/request-password-reset', {
+        method: 'OPTIONS',
+        credentials: 'include',
+      })
+        .then((res) => {
+          // 404 means request-password-reset is not available
+          setForgotPasswordAvailable(res.status !== 404)
+        })
+        .catch(() => {
+          // If OPTIONS fails, assume it's available since it's a core endpoint
+          setForgotPasswordAvailable(true)
+        })
+    } else {
+      setForgotPasswordAvailable(enableForgotPassword === true)
+    }
+  }, [enableForgotPassword])
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setSuccessMessage(null)
     setAccessDenied(false)
 
     try {
@@ -155,7 +242,7 @@ export function LoginView({
 
       // Check if 2FA is required (use 'in' operator for proper TypeScript inference)
       if (result.data && 'twoFactorRedirect' in result.data && result.data.twoFactorRedirect) {
-        setTwoFactorRequired(true)
+        setViewMode('twoFactor')
         setLoading(false)
         return
       }
@@ -178,6 +265,95 @@ export function LoginView({
         router.push(afterLoginPath)
         router.refresh()
       }
+    } catch {
+      setError('An error occurred. Please try again.')
+      setLoading(false)
+    }
+  }
+
+  async function handleSignUp(e: FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    setSuccessMessage(null)
+
+    // Validate passwords match
+    if (password !== confirmPassword) {
+      setError('Passwords do not match')
+      setLoading(false)
+      return
+    }
+
+    // Validate password strength (basic)
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters')
+      setLoading(false)
+      return
+    }
+
+    try {
+      const client = getClient()
+      const result = await client.signUp.email({
+        email,
+        password,
+        name,
+        role: defaultSignUpRole,
+      } as Parameters<typeof client.signUp.email>[0])
+
+      if (result.error) {
+        setError(result.error.message ?? 'Registration failed')
+        setLoading(false)
+        return
+      }
+
+      // Registration successful - either auto-signed in or need to verify email
+      if (result.data?.user) {
+        const user = result.data.user as { role?: unknown }
+        // Check role if required
+        if (!checkUserRoles(user, requiredRole, requireAllRoles)) {
+          setAccessDenied(true)
+          setLoading(false)
+          return
+        }
+
+        router.push(afterLoginPath)
+        router.refresh()
+      } else {
+        // Likely requires email verification - show success and switch to login
+        setSuccessMessage('Account created! Please check your email to verify your account.')
+        setViewMode('login')
+        setPassword('')
+        setConfirmPassword('')
+        setLoading(false)
+      }
+    } catch {
+      setError('An error occurred. Please try again.')
+      setLoading(false)
+    }
+  }
+
+  async function handleForgotPassword(e: FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    setSuccessMessage(null)
+
+    try {
+      const client = getClient()
+      const result = await client.requestPasswordReset({
+        email,
+        redirectTo: resetPasswordUrl ?? `${window.location.origin}/admin/reset-password`,
+      })
+
+      if (result.error) {
+        setError(result.error.message ?? 'Failed to send reset email')
+        setLoading(false)
+        return
+      }
+
+      // Success - show confirmation
+      setViewMode('resetSent')
+      setLoading(false)
     } catch {
       setError('An error occurred. Please try again.')
       setLoading(false)
@@ -221,10 +397,24 @@ export function LoginView({
     }
   }
 
-  function handleBackToLogin() {
-    setTwoFactorRequired(false)
-    setTotpCode('')
+  function switchView(newView: ViewMode) {
+    setViewMode(newView)
     setError(null)
+    setSuccessMessage(null)
+    // Reset form fields based on context
+    if (newView === 'login') {
+      setTotpCode('')
+      setConfirmPassword('')
+    } else if (newView === 'register') {
+      setPassword('')
+      setConfirmPassword('')
+    } else if (newView === 'forgotPassword') {
+      setPassword('')
+    }
+  }
+
+  function handleBackToLogin() {
+    switchView('login')
   }
 
   async function handlePasskeySignIn() {
@@ -365,7 +555,7 @@ export function LoginView({
   }
 
   // Two-factor verification view
-  if (twoFactorRequired) {
+  if (viewMode === 'twoFactor') {
     return (
       <div
         style={{
@@ -522,6 +712,513 @@ export function LoginView({
     )
   }
 
+  // Registration view
+  if (viewMode === 'register') {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--theme-bg)',
+          padding: 'var(--base)',
+        }}
+      >
+        <div
+          style={{
+            background: 'var(--theme-elevation-50)',
+            padding: 'calc(var(--base) * 2)',
+            borderRadius: 'var(--style-radius-m)',
+            boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
+            width: '100%',
+            maxWidth: '400px',
+          }}
+        >
+          {logo && (
+            <div
+              style={{
+                textAlign: 'center',
+                marginBottom: 'calc(var(--base) * 1.5)',
+              }}
+            >
+              {logo}
+            </div>
+          )}
+
+          <h1
+            style={{
+              color: 'var(--theme-text)',
+              fontSize: 'var(--font-size-h3)',
+              fontWeight: 600,
+              margin: '0 0 calc(var(--base) * 1.5) 0',
+              textAlign: 'center',
+            }}
+          >
+            Create Account
+          </h1>
+
+          <form onSubmit={handleSignUp}>
+            <div style={{ marginBottom: 'var(--base)' }}>
+              <label
+                htmlFor="name"
+                style={{
+                  display: 'block',
+                  color: 'var(--theme-text)',
+                  marginBottom: 'calc(var(--base) * 0.5)',
+                  fontSize: 'var(--font-size-small)',
+                  fontWeight: 500,
+                }}
+              >
+                Name
+              </label>
+              <input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                autoComplete="name"
+                style={{
+                  width: '100%',
+                  padding: 'calc(var(--base) * 0.75)',
+                  background: 'var(--theme-input-bg)',
+                  border: '1px solid var(--theme-elevation-150)',
+                  borderRadius: 'var(--style-radius-s)',
+                  color: 'var(--theme-text)',
+                  fontSize: 'var(--font-size-base)',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 'var(--base)' }}>
+              <label
+                htmlFor="register-email"
+                style={{
+                  display: 'block',
+                  color: 'var(--theme-text)',
+                  marginBottom: 'calc(var(--base) * 0.5)',
+                  fontSize: 'var(--font-size-small)',
+                  fontWeight: 500,
+                }}
+              >
+                Email
+              </label>
+              <input
+                id="register-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                style={{
+                  width: '100%',
+                  padding: 'calc(var(--base) * 0.75)',
+                  background: 'var(--theme-input-bg)',
+                  border: '1px solid var(--theme-elevation-150)',
+                  borderRadius: 'var(--style-radius-s)',
+                  color: 'var(--theme-text)',
+                  fontSize: 'var(--font-size-base)',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 'var(--base)' }}>
+              <label
+                htmlFor="register-password"
+                style={{
+                  display: 'block',
+                  color: 'var(--theme-text)',
+                  marginBottom: 'calc(var(--base) * 0.5)',
+                  fontSize: 'var(--font-size-small)',
+                  fontWeight: 500,
+                }}
+              >
+                Password
+              </label>
+              <input
+                id="register-password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+                style={{
+                  width: '100%',
+                  padding: 'calc(var(--base) * 0.75)',
+                  background: 'var(--theme-input-bg)',
+                  border: '1px solid var(--theme-elevation-150)',
+                  borderRadius: 'var(--style-radius-s)',
+                  color: 'var(--theme-text)',
+                  fontSize: 'var(--font-size-base)',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
+              <label
+                htmlFor="confirm-password"
+                style={{
+                  display: 'block',
+                  color: 'var(--theme-text)',
+                  marginBottom: 'calc(var(--base) * 0.5)',
+                  fontSize: 'var(--font-size-small)',
+                  fontWeight: 500,
+                }}
+              >
+                Confirm Password
+              </label>
+              <input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+                style={{
+                  width: '100%',
+                  padding: 'calc(var(--base) * 0.75)',
+                  background: 'var(--theme-input-bg)',
+                  border: '1px solid var(--theme-elevation-150)',
+                  borderRadius: 'var(--style-radius-s)',
+                  color: 'var(--theme-text)',
+                  fontSize: 'var(--font-size-base)',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {error && (
+              <div
+                style={{
+                  color: 'var(--theme-error-500)',
+                  marginBottom: 'var(--base)',
+                  fontSize: 'var(--font-size-small)',
+                  padding: 'calc(var(--base) * 0.5)',
+                  background: 'var(--theme-error-50)',
+                  borderRadius: 'var(--style-radius-s)',
+                  border: '1px solid var(--theme-error-200)',
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: '100%',
+                padding: 'calc(var(--base) * 0.75)',
+                background: 'var(--theme-elevation-800)',
+                border: 'none',
+                borderRadius: 'var(--style-radius-s)',
+                color: 'var(--theme-elevation-50)',
+                fontSize: 'var(--font-size-base)',
+                fontWeight: 500,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.7 : 1,
+                transition: 'opacity 150ms ease',
+              }}
+            >
+              {loading ? 'Creating account...' : 'Create Account'}
+            </button>
+          </form>
+
+          <div
+            style={{
+              marginTop: 'calc(var(--base) * 1.5)',
+              textAlign: 'center',
+              fontSize: 'var(--font-size-small)',
+              color: 'var(--theme-text)',
+              opacity: 0.8,
+            }}
+          >
+            Already have an account?{' '}
+            <button
+              type="button"
+              onClick={handleBackToLogin}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--theme-elevation-800)',
+                cursor: 'pointer',
+                fontSize: 'inherit',
+                textDecoration: 'underline',
+                padding: 0,
+              }}
+            >
+              Sign in
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Forgot password view
+  if (viewMode === 'forgotPassword') {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--theme-bg)',
+          padding: 'var(--base)',
+        }}
+      >
+        <div
+          style={{
+            background: 'var(--theme-elevation-50)',
+            padding: 'calc(var(--base) * 2)',
+            borderRadius: 'var(--style-radius-m)',
+            boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
+            width: '100%',
+            maxWidth: '400px',
+          }}
+        >
+          {logo && (
+            <div
+              style={{
+                textAlign: 'center',
+                marginBottom: 'calc(var(--base) * 1.5)',
+              }}
+            >
+              {logo}
+            </div>
+          )}
+
+          <h1
+            style={{
+              color: 'var(--theme-text)',
+              fontSize: 'var(--font-size-h3)',
+              fontWeight: 600,
+              margin: '0 0 calc(var(--base) * 0.5) 0',
+              textAlign: 'center',
+            }}
+          >
+            Reset Password
+          </h1>
+
+          <p
+            style={{
+              color: 'var(--theme-text)',
+              opacity: 0.7,
+              fontSize: 'var(--font-size-small)',
+              textAlign: 'center',
+              marginBottom: 'calc(var(--base) * 1.5)',
+            }}
+          >
+            Enter your email and we&apos;ll send you a link to reset your password
+          </p>
+
+          <form onSubmit={handleForgotPassword}>
+            <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
+              <label
+                htmlFor="forgot-email"
+                style={{
+                  display: 'block',
+                  color: 'var(--theme-text)',
+                  marginBottom: 'calc(var(--base) * 0.5)',
+                  fontSize: 'var(--font-size-small)',
+                  fontWeight: 500,
+                }}
+              >
+                Email
+              </label>
+              <input
+                id="forgot-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+                style={{
+                  width: '100%',
+                  padding: 'calc(var(--base) * 0.75)',
+                  background: 'var(--theme-input-bg)',
+                  border: '1px solid var(--theme-elevation-150)',
+                  borderRadius: 'var(--style-radius-s)',
+                  color: 'var(--theme-text)',
+                  fontSize: 'var(--font-size-base)',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {error && (
+              <div
+                style={{
+                  color: 'var(--theme-error-500)',
+                  marginBottom: 'var(--base)',
+                  fontSize: 'var(--font-size-small)',
+                  padding: 'calc(var(--base) * 0.5)',
+                  background: 'var(--theme-error-50)',
+                  borderRadius: 'var(--style-radius-s)',
+                  border: '1px solid var(--theme-error-200)',
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: '100%',
+                padding: 'calc(var(--base) * 0.75)',
+                background: 'var(--theme-elevation-800)',
+                border: 'none',
+                borderRadius: 'var(--style-radius-s)',
+                color: 'var(--theme-elevation-50)',
+                fontSize: 'var(--font-size-base)',
+                fontWeight: 500,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.7 : 1,
+                transition: 'opacity 150ms ease',
+              }}
+            >
+              {loading ? 'Sending...' : 'Send Reset Link'}
+            </button>
+          </form>
+
+          <button
+            type="button"
+            onClick={handleBackToLogin}
+            style={{
+              width: '100%',
+              marginTop: 'var(--base)',
+              padding: 'calc(var(--base) * 0.5)',
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--theme-text)',
+              opacity: 0.7,
+              fontSize: 'var(--font-size-small)',
+              cursor: 'pointer',
+            }}
+          >
+            ← Back to login
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Reset link sent confirmation view
+  if (viewMode === 'resetSent') {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--theme-bg)',
+          padding: 'var(--base)',
+        }}
+      >
+        <div
+          style={{
+            background: 'var(--theme-elevation-50)',
+            padding: 'calc(var(--base) * 2)',
+            borderRadius: 'var(--style-radius-m)',
+            boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
+            width: '100%',
+            maxWidth: '400px',
+            textAlign: 'center',
+          }}
+        >
+          {logo && (
+            <div
+              style={{
+                marginBottom: 'calc(var(--base) * 1.5)',
+              }}
+            >
+              {logo}
+            </div>
+          )}
+
+          <div
+            style={{
+              width: '64px',
+              height: '64px',
+              background: 'var(--theme-success-100)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto calc(var(--base) * 1.5)',
+              fontSize: '28px',
+            }}
+          >
+            ✓
+          </div>
+
+          <h1
+            style={{
+              color: 'var(--theme-text)',
+              fontSize: 'var(--font-size-h3)',
+              fontWeight: 600,
+              margin: '0 0 calc(var(--base) * 0.5) 0',
+            }}
+          >
+            Check Your Email
+          </h1>
+
+          <p
+            style={{
+              color: 'var(--theme-text)',
+              opacity: 0.7,
+              fontSize: 'var(--font-size-small)',
+              marginBottom: 'calc(var(--base) * 1.5)',
+            }}
+          >
+            We&apos;ve sent a password reset link to <strong>{email}</strong>
+          </p>
+
+          <p
+            style={{
+              color: 'var(--theme-text)',
+              opacity: 0.6,
+              fontSize: 'var(--font-size-small)',
+              marginBottom: 'calc(var(--base) * 1.5)',
+            }}
+          >
+            Didn&apos;t receive the email? Check your spam folder or try again.
+          </p>
+
+          <button
+            type="button"
+            onClick={handleBackToLogin}
+            style={{
+              padding: 'calc(var(--base) * 0.75) calc(var(--base) * 1.5)',
+              background: 'var(--theme-elevation-150)',
+              border: 'none',
+              borderRadius: 'var(--style-radius-s)',
+              color: 'var(--theme-text)',
+              fontSize: 'var(--font-size-base)',
+              cursor: 'pointer',
+            }}
+          >
+            Back to login
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Main login view
   return (
     <div
       style={{
@@ -559,13 +1256,28 @@ export function LoginView({
             color: 'var(--theme-text)',
             fontSize: 'var(--font-size-h3)',
             fontWeight: 600,
-            marginBottom: 'calc(var(--base) * 1.5)',
             textAlign: 'center',
             margin: '0 0 calc(var(--base) * 1.5) 0',
           }}
         >
           {title}
         </h1>
+
+        {successMessage && (
+          <div
+            style={{
+              color: 'var(--theme-success-500)',
+              marginBottom: 'var(--base)',
+              fontSize: 'var(--font-size-small)',
+              padding: 'calc(var(--base) * 0.5)',
+              background: 'var(--theme-success-50)',
+              borderRadius: 'var(--style-radius-s)',
+              border: '1px solid var(--theme-success-200)',
+            }}
+          >
+            {successMessage}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 'var(--base)' }}>
@@ -602,7 +1314,7 @@ export function LoginView({
             />
           </div>
 
-          <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
+          <div style={{ marginBottom: 'var(--base)' }}>
             <label
               htmlFor="password"
               style={{
@@ -635,6 +1347,32 @@ export function LoginView({
               }}
             />
           </div>
+
+          {forgotPasswordAvailable && (
+            <div
+              style={{
+                marginBottom: 'calc(var(--base) * 1.5)',
+                textAlign: 'right',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => switchView('forgotPassword')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--theme-text)',
+                  opacity: 0.7,
+                  cursor: 'pointer',
+                  fontSize: 'var(--font-size-small)',
+                  padding: 0,
+                  textDecoration: 'underline',
+                }}
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
 
           {error && (
             <div
@@ -734,6 +1472,35 @@ export function LoginView({
               {passkeyLoading ? 'Authenticating...' : 'Sign in with Passkey'}
             </button>
           </>
+        )}
+
+        {signUpAvailable && (
+          <div
+            style={{
+              marginTop: 'calc(var(--base) * 1.5)',
+              textAlign: 'center',
+              fontSize: 'var(--font-size-small)',
+              color: 'var(--theme-text)',
+              opacity: 0.8,
+            }}
+          >
+            Don&apos;t have an account?{' '}
+            <button
+              type="button"
+              onClick={() => switchView('register')}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--theme-elevation-800)',
+                cursor: 'pointer',
+                fontSize: 'inherit',
+                textDecoration: 'underline',
+                padding: 0,
+              }}
+            >
+              Create account
+            </button>
+          </div>
         )}
       </div>
     </div>

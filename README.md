@@ -86,7 +86,7 @@ export const betterAuthOptions: Partial<BetterAuthOptions> = {
 ### Step 2: Create Your Users Collection
 
 ```ts
-// src/collections/Users.ts
+// src/collections/Users/index.ts (vanilla starter uses folder-based collections)
 import type { CollectionConfig } from 'payload'
 import { betterAuthStrategy } from '@delmaredigital/payload-better-auth'
 
@@ -157,9 +157,7 @@ export default buildConfig({
           ...betterAuthOptions,
           database: payloadAdapter({
             payloadClient: payload,
-            adapterConfig: {
-              enableDebugLogs: process.env.NODE_ENV === 'development',
-            },
+            // adapterConfig: { enableDebugLogs: true }, // Uncomment to enable debug logging
           }),
           // For Payload's default SERIAL IDs:
           advanced: {
@@ -180,6 +178,8 @@ export default buildConfig({
   }),
 })
 ```
+
+> **⚠️ Important:** Do NOT add a custom `beforeLogin` component to your admin config. The Better Auth plugin automatically injects its own login page, logout button, and redirect handling.
 
 ### Step 4: Client-Side Auth
 
@@ -355,6 +355,10 @@ createBetterAuthPlugin({
 | `admin.login.requiredRole` | `string \| string[] \| null` | `'admin'` | Required role(s) for admin access. Array = any role matches (unless `requireAllRoles`). Set to `null` to disable. |
 | `admin.login.requireAllRoles` | `boolean` | `false` | When `requiredRole` is an array, require ALL roles (true) or ANY role (false). |
 | `admin.login.enablePasskey` | `boolean` | `false` | Enable passkey (WebAuthn) sign-in option |
+| `admin.login.enableSignUp` | `boolean \| 'auto'` | `'auto'` | Enable user registration. `'auto'` detects if sign-up endpoint is available. |
+| `admin.login.defaultSignUpRole` | `string` | `'user'` | Default role assigned to new users during registration |
+| `admin.login.enableForgotPassword` | `boolean \| 'auto'` | `'auto'` | Enable forgot password link. `'auto'` detects if endpoint is available. |
+| `admin.login.resetPasswordUrl` | `string` | - | Custom URL for password reset. If not set, uses inline reset form. |
 | `admin.logoutButtonComponent` | `string` | - | Override logout button (import map format) |
 | `admin.beforeLoginComponent` | `string` | - | Override BeforeLogin component |
 | `admin.loginViewComponent` | `string` | - | Override login view component |
@@ -1013,9 +1017,48 @@ export const auth = betterAuth({
 
 ## Additional UI Components
 
+### User Registration
+
+The `LoginView` includes an optional "Create account" link that automatically detects if user registration is available. When enabled, users can register directly from the login page.
+
+**Configuration:**
+```typescript
+createBetterAuthPlugin({
+  createAuth,
+  admin: {
+    login: {
+      enableSignUp: true,       // or 'auto' (default) to detect availability
+      defaultSignUpRole: 'user', // Role assigned to new users (default: 'user')
+    },
+  },
+})
+```
+
+**Notes:**
+- New users are assigned `defaultSignUpRole` (default: `'user'`)
+- If email verification is required, users see a success message to check their email
+- Role-based access control still applies - users without `requiredRole` see "Access Denied"
+
 ### Password Reset Flow
 
-Components for implementing password reset functionality:
+The `LoginView` includes an inline "Forgot password?" link that automatically detects if password reset is available. When clicked, users can request a reset link without leaving the login page.
+
+**Configuration:**
+```typescript
+createBetterAuthPlugin({
+  createAuth,
+  admin: {
+    login: {
+      enableForgotPassword: true,  // or 'auto' (default) to detect availability
+      resetPasswordUrl: '/custom-reset',  // Optional: redirect to custom page instead
+    },
+  },
+})
+```
+
+#### Standalone Components
+
+For custom password reset pages outside the admin panel:
 
 ```typescript
 import { ForgotPasswordView, ResetPasswordView } from '@delmaredigital/payload-better-auth/components/auth'

@@ -5,6 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-01-15
+
+### Added
+
+#### User Registration in LoginView
+
+The `LoginView` component now supports inline user registration:
+
+```typescript
+createBetterAuthPlugin({
+  createAuth,
+  admin: {
+    login: {
+      enableSignUp: true,         // or 'auto' to detect availability (default)
+      defaultSignUpRole: 'user',  // Role for new users (default: 'user')
+    },
+  },
+})
+```
+
+Features:
+- "Create account" link appears when sign-up is available
+- Full registration form with name, email, password, and confirmation
+- Automatic role assignment via `defaultSignUpRole`
+- Email verification support (shows success message if verification required)
+- Role-based access control still applies after registration
+
+#### Forgot Password in LoginView
+
+The `LoginView` component now supports inline password reset:
+
+```typescript
+createBetterAuthPlugin({
+  createAuth,
+  admin: {
+    login: {
+      enableForgotPassword: true,   // or 'auto' to detect availability (default)
+      resetPasswordUrl: '/custom',  // Optional: redirect to custom page
+    },
+  },
+})
+```
+
+Features:
+- "Forgot password?" link appears when password reset is available
+- Inline email form to request reset link
+- Confirmation view after sending reset email
+- Optional redirect to custom reset page via `resetPasswordUrl`
+
+### Changed
+
+- Improved README Quick Start example with cleaner `adapterConfig` usage (debug logging now opt-in via comment)
+- Added note about vanilla starter folder-based collection structure
+- Added important warning about not adding custom `beforeLogin` component
+
+---
+
 ## [0.3.0] - 2026-01-14
 
 This is a major release with significant new features including security management UI, access control helpers, API key scopes, passkey support, and a comprehensive type system.
