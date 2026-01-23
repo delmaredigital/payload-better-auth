@@ -63,7 +63,7 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@better-auth/passkey": "^1.4.12"
+    "@better-auth/passkey": "^1.4.17"
   },
   "peerDependencies": {
     "@payloadcms/next": ">=3.69.0",
@@ -74,14 +74,14 @@
     "react": ">=19.2.1"
   },
   "devDependencies": {
-    "@payloadcms/next": "^3.71.1",
-    "@payloadcms/ui": "^3.71.1",
-    "@types/node": "^25.0.8",
-    "@types/react": "^19.2.8",
+    "@payloadcms/next": "^3.73.0",
+    "@payloadcms/ui": "^3.73.0",
+    "@types/node": "^25.0.10",
+    "@types/react": "^19.2.9",
     "@vitest/coverage-v8": "^2.1.9",
-    "better-auth": "^1.4.12",
-    "next": "^16.1.1",
-    "payload": "^3.71.1",
+    "better-auth": "^1.4.17",
+    "next": "^16.1.4",
+    "payload": "^3.73.0",
     "react": "^19.2.3",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
