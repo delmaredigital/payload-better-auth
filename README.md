@@ -279,6 +279,8 @@ payloadAdapter({
 | `payloadClient` | `BasePayload \| () => Promise<BasePayload>` | Payload instance or factory function |
 | `adapterConfig.enableDebugLogs` | `boolean` | Enable debug logging (default: `false`) |
 | `adapterConfig.idType` | `'number' \| 'text'` | ID type (default: `'number'` for Payload's SERIAL IDs) |
+| `adapterConfig.idFieldsAllowlist` | `string[]` | Additional fields to convert to numeric IDs (default: `[]`) |
+| `adapterConfig.idFieldsBlocklist` | `string[]` | Fields to exclude from numeric ID conversion (default: `[]`) |
 
 **ID Type:**
 - Defaults to `'number'` (SERIAL) - Payload's default
@@ -289,6 +291,25 @@ payloadAdapter({
 advanced: { database: { generateId: 'serial' } }
 ```
 This is not required - the adapter handles it automatically. A warning will only appear if you explicitly set `generateId` to something incompatible.
+
+**ID Field Conversion:**
+
+When using serial IDs (`idType: 'number'`), the adapter automatically converts string ID fields to numbers. This applies to fields matching `*Id` or `*_id` patterns (like `activeOrganizationId`). This ensures Payload relationship lookups work correctly in access control.
+
+Use `idFieldsAllowlist` and `idFieldsBlocklist` to customize this behavior:
+
+```typescript
+payloadAdapter({
+  payloadClient: payload,
+  adapterConfig: {
+    // Add fields that don't follow the *Id pattern but should be converted
+    idFieldsAllowlist: ['customOrgRef', 'legacyIdentifier'],
+
+    // Exclude fields that end in 'Id' but aren't actually ID references
+    idFieldsBlocklist: ['visitorId', 'correlationId'],
+  },
+})
+```
 
 **Custom Collection Names (Optional):**
 

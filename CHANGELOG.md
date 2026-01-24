@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+#### ID Field Type Conversion for Serial IDs
+
+When using `generateId: 'serial'`, fields like `activeOrganizationId` were returned as strings from Better Auth, but Payload expects numbers for relationship lookups. This caused access control queries like `{ organization: { equals: user.activeOrganizationId } }` to fail.
+
+The adapter now automatically converts ID fields matching `*Id` or `*_id` patterns to numbers when `idType` is `'number'`.
+
+### Added
+
+#### ID Field Conversion Customization
+
+New adapter config options to customize which fields are converted:
+
+```typescript
+payloadAdapter({
+  payloadClient: payload,
+  adapterConfig: {
+    // Add fields that don't follow the *Id pattern
+    idFieldsAllowlist: ['customOrgRef'],
+
+    // Exclude fields that end in 'Id' but aren't ID references
+    idFieldsBlocklist: ['visitorId', 'correlationId'],
+  },
+})
+```
+
+---
+
 ## [0.3.3] - 2026-01-23
 
 ### Fixed

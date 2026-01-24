@@ -43,6 +43,20 @@ export type PayloadAdapterConfig = {
      * - 'text' for UUID
      */
     idType?: 'number' | 'text'
+
+    /**
+     * Additional fields to convert to numeric IDs beyond the *Id heuristic.
+     * Use when you have ID fields that don't follow the naming convention.
+     * @example ['customOrgRef', 'legacyIdentifier']
+     */
+    idFieldsAllowlist?: string[]
+
+    /**
+     * Fields to exclude from numeric ID conversion.
+     * Use when a field ends in 'Id' but isn't actually an ID reference.
+     * @example ['visitorId', 'correlationId']
+     */
+    idFieldsBlocklist?: string[]
   }
 }
 
@@ -98,7 +112,9 @@ export function payloadAdapter({
   payloadClient,
   adapterConfig = {},
 }: PayloadAdapterConfig): (options: BetterAuthOptions) => Adapter {
-  const { enableDebugLogs = false } = adapterConfig
+  const { enableDebugLogs = false, idFieldsAllowlist = [], idFieldsBlocklist = [] } = adapterConfig
+  const idFieldsAllowlistSet = new Set(idFieldsAllowlist)
+  const idFieldsBlocklistSet = new Set(idFieldsBlocklist)
 
   // Resolve payload client (supports lazy initialization)
   async function resolvePayloadClient(): Promise<BasePayload> {
@@ -365,6 +381,28 @@ export function payloadAdapter({
               if (payloadFieldName in data && !(fieldKey in transformed)) {
                 transformed[fieldKey] = data[payloadFieldName]
                 // Keep both for compatibility - Better Auth expects userId
+              }
+            }
+          }
+
+          // Convert semantic ID fields to numbers when using serial IDs
+          // Heuristic: fields ending in 'Id' or '_id' containing numeric strings
+          // Modified by allowlist (add) and blocklist (exclude)
+          if (idType === 'number') {
+            for (const [key, value] of Object.entries(transformed)) {
+              // Skip if not a string or already processed as a reference
+              if (typeof value !== 'string') continue
+
+              // Check if field should be converted
+              const matchesHeuristic = /(?:Id|_id)$/.test(key)
+              const inAllowlist = idFieldsAllowlistSet.has(key)
+              const inBlocklist = idFieldsBlocklistSet.has(key)
+
+              if ((matchesHeuristic || inAllowlist) && !inBlocklist) {
+                // Only convert if it's a pure numeric string
+                if (/^\d+$/.test(value)) {
+                  transformed[key] = parseInt(value, 10)
+                }
               }
             }
           }
