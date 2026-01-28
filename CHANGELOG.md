@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.10] - 2026-01-28
+
+### Fixed
+
+#### Reduced Published Package Size
+
+Disabled source maps (`.js.map`) and declaration maps (`.d.ts.map`) from the published package. These files doubled the unpacked size and served no purpose since source files are no longer included in the package.
+
+---
+
 ## [0.3.9] - 2026-01-28
 
 ### Fixed
