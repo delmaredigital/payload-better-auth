@@ -383,6 +383,18 @@ export function payloadAdapter({
                 // Keep both for compatibility - Better Auth expects userId
               }
             }
+            // Convert date strings to Date objects based on schema type
+            // Better Auth expects Date objects for expiresAt comparisons
+            if (
+              fieldDef.type === 'date' &&
+              fieldKey in transformed &&
+              typeof transformed[fieldKey] === 'string'
+            ) {
+              const dateValue = new Date(transformed[fieldKey] as string)
+              if (!isNaN(dateValue.getTime())) {
+                transformed[fieldKey] = dateValue
+              }
+            }
           }
 
           // Convert semantic ID fields to numbers when using serial IDs
