@@ -13,6 +13,8 @@ Better Auth adapter and plugins for Payload CMS. Enables seamless integration be
 </p>
 
 ---
+## Documentation
+For additional documentation and references, visit: [https://deepwiki.com/delmaredigital/payload-better-auth](https://deepwiki.com/delmaredigital/payload-better-auth)
 
 ## Table of Contents
 

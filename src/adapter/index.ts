@@ -385,6 +385,21 @@ export function payloadAdapter({
             }
           }
 
+          // Convert date strings to Date objects
+          // Better Auth expects Date objects for date field comparisons
+          for (const [key, value] of Object.entries(transformed)) {
+            if (typeof value !== 'string') continue
+
+            // Check if schema defines this field as a date type
+            const fieldDef = modelSchema.fields[key]
+            if (fieldDef?.type === 'date') {
+              const dateValue = new Date(value)
+              if (!isNaN(dateValue.getTime())) {
+                transformed[key] = dateValue
+              }
+            }
+          }
+
           // Convert semantic ID fields to numbers when using serial IDs
           // Heuristic: fields ending in 'Id' or '_id' containing numeric strings
           // Modified by allowlist (add) and blocklist (exclude)
