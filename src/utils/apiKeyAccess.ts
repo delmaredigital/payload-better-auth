@@ -21,6 +21,7 @@
  * ```
  */
 
+import { createHash } from 'node:crypto'
 import type { Access, PayloadRequest } from 'payload'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -64,6 +65,14 @@ export type ApiKeyAccessConfig = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Hash an API key using the same algorithm as Better Auth's defaultKeyHasher.
+ * Produces a SHA-256 hash encoded as Base64URL (no padding).
+ */
+function hashApiKey(key: string): string {
+  return createHash('sha256').update(key).digest('base64url')
+}
+
+/**
  * Extract API key from request headers.
  * Supports Bearer token format: Authorization: Bearer <api-key>
  */
@@ -90,12 +99,26 @@ export async function getApiKeyInfo(
   apiKeysCollection = 'apiKeys'
 ): Promise<ApiKeyInfo | null> {
   try {
+    // Hash the raw API key to match Better Auth's storage format (SHA-256 + Base64URL).
+    // We query for both the hashed and raw key to support both modes:
+    // - Hashing enabled (default): only the hashed query matches
+    // - Hashing disabled (disableKeyHashing: true): only the plaintext query matches
+    const hashedKey = hashApiKey(apiKey)
+
     // Try the provided collection name first
     let results = await req.payload.find({
       collection: apiKeysCollection,
+      overrideAccess: true, // Must bypass access control for credential validation
       where: {
-        key: { equals: apiKey },
-        enabled: { not_equals: false },
+        and: [
+          { enabled: { not_equals: false } },
+          {
+            or: [
+              { key: { equals: hashedKey } },
+              { key: { equals: apiKey } },
+            ],
+          },
+        ],
       },
       limit: 1,
       depth: 0,
@@ -106,9 +129,17 @@ export async function getApiKeyInfo(
       const altSlug = apiKeysCollection === 'apiKeys' ? 'api-keys' : 'apiKeys'
       results = await req.payload.find({
         collection: altSlug,
+        overrideAccess: true,
         where: {
-          key: { equals: apiKey },
-          enabled: { not_equals: false },
+          and: [
+            { enabled: { not_equals: false } },
+            {
+              or: [
+                { key: { equals: hashedKey } },
+                { key: { equals: apiKey } },
+              ],
+            },
+          ],
         },
         limit: 1,
         depth: 0,
@@ -170,6 +201,14 @@ export async function getApiKeyInfo(
       } else {
         metadata = doc.metadata
       }
+    }
+
+    // Prefer scope names from metadata (stored by admin UI as original scope strings
+    // like ["pages:read", "*"]) over permissions-derived scopes, because the permissions
+    // field uses Better Auth's internal format (e.g. {"pages": {"$": ["read"]}}) and
+    // Object.keys() on that only yields collection names, not proper scope strings.
+    if (metadata?.scopes && Array.isArray(metadata.scopes)) {
+      scopes = metadata.scopes as string[]
     }
 
     return {
