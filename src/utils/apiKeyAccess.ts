@@ -168,8 +168,11 @@ export async function getApiKeyInfo(
         if (Array.isArray(parsed)) {
           scopes = parsed
         } else if (typeof parsed === 'object') {
-          // If it's an object, extract keys or flatten
-          scopes = Object.keys(parsed)
+          // Flatten Better Auth permissions format {"resource": ["action1", "action2"]}
+          // into scope strings like ["resource:action1", "resource:action2"]
+          scopes = Object.entries(parsed).flatMap(([resource, actions]) =>
+            Array.isArray(actions) ? actions.map(action => `${resource}:${action}`) : [resource]
+          )
         }
       } catch {
         // If not JSON, treat as comma-separated
