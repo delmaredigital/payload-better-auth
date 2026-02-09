@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.13] - 2026-02-09
+
+### Added
+
+#### Type-Safe Session Helpers
+
+`getServerSession` and `getServerUser` now accept a generic type parameter so the returned user is typed as your Payload `User` type instead of a loose `Record<string, unknown>`.
+
+**Option A — Pass the generic at each call site:**
+
+```ts
+import { getServerSession } from '@delmaredigital/payload-better-auth'
+import type { User } from '@/payload-types'
+
+const session = await getServerSession<User>(payload, headers)
+session.user.role       // ✅ fully typed
+session.user.firstName  // ✅ fully typed
+```
+
+**Option B (recommended) — Create typed helpers once, import everywhere:**
+
+```ts
+// lib/auth.ts
+import { createSessionHelpers } from '@delmaredigital/payload-better-auth'
+import type { User } from '@/payload-types'
+
+export const { getServerSession, getServerUser } = createSessionHelpers<User>()
+```
+
+```ts
+// app/page.tsx — no generic needed
+import { getServerSession } from '@/lib/auth'
+
+const session = await getServerSession(payload, headers)
+session.user.role  // ✅ typed
+```
+
+Both `getServerSession` and `getServerUser` are fully backward-compatible — omitting the generic returns the same loose type as before.
+
 ## [0.3.10] - 2026-01-28
 
 ### Fixed

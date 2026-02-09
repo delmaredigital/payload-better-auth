@@ -124,7 +124,7 @@ export { detectAuthConfig } from './utils/detectAuthConfig.js'
 export type { AuthDetectionResult } from './utils/detectAuthConfig.js'
 
 // Session utilities
-export { getServerSession, getServerUser } from './utils/session.js'
+export { getServerSession, getServerUser, createSessionHelpers } from './utils/session.js'
 export type { Session } from './utils/session.js'
 
 // First user admin hook utility

@@ -7,14 +7,16 @@
 import type { BasePayload } from 'payload'
 import type { PayloadWithAuth } from '../plugin/index.js'
 
-export type Session = {
-  user: {
-    id: string
-    email: string
-    name?: string
-    image?: string
-    [key: string]: unknown
-  }
+type DefaultUser = {
+  id: string
+  email: string
+  name?: string
+  image?: string
+  [key: string]: unknown
+}
+
+export type Session<TUser = DefaultUser> = {
+  user: TUser
   session: {
     id: string
     expiresAt: Date
@@ -25,27 +27,32 @@ export type Session = {
 /**
  * Get the current session from headers.
  *
+ * Accepts an optional generic type parameter to narrow the user type.
+ * Pass your Payload-generated `User` type for full type safety.
+ *
  * @example
  * ```ts
  * import { headers } from 'next/headers'
- * import { getServerSession } from '@delmare/payload-better-auth'
+ * import { getServerSession } from '@delmaredigital/payload-better-auth'
+ * import type { User } from '@/payload-types'
  *
  * export default async function Page() {
  *   const headersList = await headers()
- *   const session = await getServerSession(payload, headersList)
+ *   const session = await getServerSession<User>(payload, headersList)
  *
  *   if (!session) {
  *     redirect('/login')
  *   }
  *
+ *   // session.user.role is fully typed
  *   return <div>Hello {session.user.name}</div>
  * }
  * ```
  */
-export async function getServerSession(
+export async function getServerSession<TUser = DefaultUser>(
   payload: BasePayload,
   headers: Headers
-): Promise<Session | null> {
+): Promise<Session<TUser> | null> {
   try {
     const payloadWithAuth = payload as PayloadWithAuth
 
@@ -55,7 +62,7 @@ export async function getServerSession(
     }
 
     const session = await payloadWithAuth.betterAuth.api.getSession({ headers })
-    return session as Session | null
+    return session as Session<TUser> | null
   } catch (error) {
     console.error('[session] Error getting session:', error)
     return null
@@ -65,14 +72,17 @@ export async function getServerSession(
 /**
  * Get the current user from the session.
  *
+ * Accepts an optional generic type parameter to narrow the user type.
+ *
  * @example
  * ```ts
  * import { headers } from 'next/headers'
- * import { getServerUser } from '@delmare/payload-better-auth'
+ * import { getServerUser } from '@delmaredigital/payload-better-auth'
+ * import type { User } from '@/payload-types'
  *
  * export default async function Page() {
  *   const headersList = await headers()
- *   const user = await getServerUser(payload, headersList)
+ *   const user = await getServerUser<User>(payload, headersList)
  *
  *   if (!user) {
  *     redirect('/login')
@@ -82,10 +92,42 @@ export async function getServerSession(
  * }
  * ```
  */
-export async function getServerUser(
+export async function getServerUser<TUser = DefaultUser>(
   payload: BasePayload,
   headers: Headers
-): Promise<Session['user'] | null> {
-  const session = await getServerSession(payload, headers)
+): Promise<TUser | null> {
+  const session = await getServerSession<TUser>(payload, headers)
   return session?.user ?? null
+}
+
+/**
+ * Create typed session helpers bound to your User type.
+ *
+ * Define once in a shared file, then import the typed helpers
+ * everywhere — no generics needed at call sites.
+ *
+ * @example
+ * ```ts
+ * // lib/auth.ts
+ * import { createSessionHelpers } from '@delmaredigital/payload-better-auth'
+ * import type { User } from '@/payload-types'
+ *
+ * export const { getServerSession, getServerUser } = createSessionHelpers<User>()
+ * ```
+ *
+ * ```ts
+ * // app/page.tsx
+ * import { getServerSession } from '@/lib/auth'
+ *
+ * const session = await getServerSession(payload, headersList)
+ * // session.user is typed as User — no generic needed
+ * ```
+ */
+export function createSessionHelpers<TUser = DefaultUser>() {
+  return {
+    getServerSession: (payload: BasePayload, headers: Headers) =>
+      getServerSession<TUser>(payload, headers),
+    getServerUser: (payload: BasePayload, headers: Headers) =>
+      getServerUser<TUser>(payload, headers),
+  }
 }

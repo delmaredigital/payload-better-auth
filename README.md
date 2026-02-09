@@ -552,22 +552,48 @@ betterAuthStrategy({
 |--------|------|-------------|
 | `usersCollection` | `string` | The collection slug for users (default: `'users'`) |
 
-### `getServerSession(payload, headers)`
+### `getServerSession<TUser>(payload, headers)`
 
-Get the current session on the server.
+Get the current session on the server. Pass your Payload `User` type for full type safety:
 
 ```ts
-const session = await getServerSession(payload, headersList)
-// Returns: { user: { id, email, name, ... }, session: { id, expiresAt, ... } } | null
+import { getServerSession } from '@delmaredigital/payload-better-auth'
+import type { User } from '@/payload-types'
+
+const session = await getServerSession<User>(payload, headersList)
+// session.user.role, session.user.firstName, etc. are fully typed
 ```
 
-### `getServerUser(payload, headers)`
+### `getServerUser<TUser>(payload, headers)`
 
-Get the current user on the server (shorthand for `session.user`).
+Get the current user on the server (shorthand for `session.user`):
 
 ```ts
-const user = await getServerUser(payload, headersList)
-// Returns: { id, email, name, ... } | null
+import { getServerUser } from '@delmaredigital/payload-better-auth'
+import type { User } from '@/payload-types'
+
+const user = await getServerUser<User>(payload, headersList)
+// user.role, user.firstName, etc. are fully typed
+```
+
+### `createSessionHelpers<TUser>()`
+
+Create typed session helpers bound to your User type. Define once, import everywhere — no generics needed at call sites:
+
+```ts
+// lib/auth.ts
+import { createSessionHelpers } from '@delmaredigital/payload-better-auth'
+import type { User } from '@/payload-types'
+
+export const { getServerSession, getServerUser } = createSessionHelpers<User>()
+```
+
+```ts
+// app/page.tsx
+import { getServerSession } from '@/lib/auth'
+
+const session = await getServerSession(payload, headersList)
+// session.user is typed as User — no generic needed
 ```
 
 ### `withBetterAuthDefaults(options)`
