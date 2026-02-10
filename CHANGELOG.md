@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Better Auth's `api.getSession()` always returns string IDs, even when the database uses numeric serial IDs. This caused Payload relationship fields to reject values like `"31207"` when they expect `31207`.
 
-`createSessionHelpers` now accepts an `idType` option that mirrors the adapter's `adapterConfig.idType`. When set to `'number'`, all ID fields (`id`, `userId`, `activeOrganizationId`, etc.) on both the user and session objects are coerced from strings to numbers before returning.
+**`createSessionHelpers`** now accepts an `idType` option that mirrors the adapter's `adapterConfig.idType`. When set to `'number'`, all ID fields (`id`, `userId`, `activeOrganizationId`, etc.) on both the user and session objects are coerced from strings to numbers before returning.
 
 ```ts
 import { createSessionHelpers } from '@delmaredigital/payload-better-auth'
@@ -29,6 +29,20 @@ export const { getServerSession, getServerUser } = createSessionHelpers<User>({
 ```
 
 The standalone `getServerSession<TUser>()` and `getServerUser<TUser>()` functions are unaffected — coercion is opt-in through the factory only.
+
+#### Strategy Session Field ID Coercion
+
+`betterAuthStrategy` now coerces string IDs in session fields (e.g., `activeOrganizationId`, `impersonatedBy`) to numbers before merging them onto `req.user`. Previously, `req.user.id` was already correct (fetched from Payload's DB), but session fields from Better Auth were still strings.
+
+The new `idType` option defaults to `'number'` to match the adapter's default:
+
+```ts
+betterAuthStrategy({
+  idType: 'number', // default — coerces session field IDs to numbers
+})
+```
+
+Set to `'text'` if using UUID IDs.
 
 ## [0.3.13] - 2026-02-09
 

@@ -698,6 +698,17 @@ export type BetterAuthStrategyOptions = {
    * @default 'members'
    */
   membersCollection?: string
+  /**
+   * ID type strategy matching your adapter's `adapterConfig.idType`.
+   *
+   * When `'number'` (default), coerces string IDs in session fields
+   * (e.g., `activeOrganizationId`) to numbers before merging onto `req.user`.
+   * Better Auth always returns string IDs from `api.getSession()`, but Payload
+   * relationship fields expect numbers when using serial IDs.
+   *
+   * @default 'number'
+   */
+  idType?: 'number' | 'text'
 }
 
 /**
@@ -739,7 +750,7 @@ export type BetterAuthStrategyOptions = {
 export function betterAuthStrategy(
   options: BetterAuthStrategyOptions = {}
 ): AuthStrategy {
-  const { usersCollection = 'users', membersCollection = 'members' } = options
+  const { usersCollection = 'users', membersCollection = 'members', idType = 'number' } = options
 
   return {
     name: 'better-auth',
@@ -785,6 +796,20 @@ export function betterAuthStrategy(
           token: _token,
           ...sessionFields
         } = (sessionData.session as Record<string, unknown>) || {}
+
+        // Coerce string IDs in session fields to numbers when using serial IDs.
+        // BA's api.getSession() always returns strings, but Payload relationship
+        // fields expect numbers for serial IDs.
+        if (idType === 'number') {
+          for (const [key, value] of Object.entries(sessionFields)) {
+            if (typeof value !== 'string') continue
+            if (key === 'id' || /(?:Id|_id)$/.test(key)) {
+              if (/^\d+$/.test(value)) {
+                sessionFields[key] = parseInt(value, 10)
+              }
+            }
+          }
+        }
 
         // If there's an active organization, fetch the user's role in that org
         let organizationRole: string | undefined

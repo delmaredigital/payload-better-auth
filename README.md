@@ -545,12 +545,14 @@ Payload auth strategy for Better Auth session validation.
 ```ts
 betterAuthStrategy({
   usersCollection: 'users',
+  idType: 'number', // default — coerces session field IDs for serial IDs
 })
 ```
 
 | Option | Type | Description |
 |--------|------|-------------|
 | `usersCollection` | `string` | The collection slug for users (default: `'users'`) |
+| `idType` | `'number' \| 'text'` | Coerces string IDs in session fields (`activeOrganizationId`, etc.) to numbers. Defaults to `'number'` matching the adapter default. Set to `'text'` for UUID IDs. |
 
 ### `getServerSession<TUser>(payload, headers)`
 
