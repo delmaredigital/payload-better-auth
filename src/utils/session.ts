@@ -100,6 +100,38 @@ export async function getServerUser<TUser = DefaultUser>(
   return session?.user ?? null
 }
 
+export type SessionHelperOptions = {
+  /**
+   * ID type strategy matching your adapter's `adapterConfig.idType`.
+   *
+   * Set to `'number'` when using Payload's default serial IDs.
+   * Better Auth always returns string IDs from `api.getSession()` —
+   * this option coerces `id` and `*Id` / `*_id` fields to numbers
+   * so they work directly in Payload relationship fields.
+   *
+   * @default undefined (no coercion)
+   */
+  idType?: 'number' | 'text'
+}
+
+/**
+ * Coerce numeric-string ID fields to numbers on a shallow object.
+ * Matches the adapter's heuristic: `id`, fields ending in `Id` or `_id`.
+ */
+function coerceIds<T>(obj: T): T {
+  if (!obj || typeof obj !== 'object') return obj
+  const result = { ...obj } as Record<string, unknown>
+  for (const [key, value] of Object.entries(result)) {
+    if (typeof value !== 'string') continue
+    if (key === 'id' || /(?:Id|_id)$/.test(key)) {
+      if (/^\d+$/.test(value)) {
+        result[key] = parseInt(value, 10)
+      }
+    }
+  }
+  return result as T
+}
+
 /**
  * Create typed session helpers bound to your User type.
  *
@@ -115,19 +147,48 @@ export async function getServerUser<TUser = DefaultUser>(
  * export const { getServerSession, getServerUser } = createSessionHelpers<User>()
  * ```
  *
+ * @example
+ * ```ts
+ * // With serial IDs (Payload default) — coerces string IDs to numbers
+ * export const { getServerSession, getServerUser } = createSessionHelpers<User>({
+ *   idType: 'number',
+ * })
+ * ```
+ *
  * ```ts
  * // app/page.tsx
  * import { getServerSession } from '@/lib/auth'
  *
  * const session = await getServerSession(payload, headersList)
  * // session.user is typed as User — no generic needed
+ * // session.user.id is a number when idType: 'number'
  * ```
  */
-export function createSessionHelpers<TUser = DefaultUser>() {
+export function createSessionHelpers<TUser = DefaultUser>(
+  options?: SessionHelperOptions
+) {
+  const shouldCoerceIds = options?.idType === 'number'
+
+  const typedGetServerSession = async (
+    payload: BasePayload,
+    headers: Headers
+  ): Promise<Session<TUser> | null> => {
+    const session = await getServerSession<TUser>(payload, headers)
+    if (!session || !shouldCoerceIds) return session
+    return {
+      user: coerceIds(session.user),
+      session: coerceIds(session.session),
+    }
+  }
+
   return {
-    getServerSession: (payload: BasePayload, headers: Headers) =>
-      getServerSession<TUser>(payload, headers),
-    getServerUser: (payload: BasePayload, headers: Headers) =>
-      getServerUser<TUser>(payload, headers),
+    getServerSession: typedGetServerSession,
+    getServerUser: async (
+      payload: BasePayload,
+      headers: Headers
+    ): Promise<TUser | null> => {
+      const session = await typedGetServerSession(payload, headers)
+      return session?.user ?? null
+    },
   }
 }

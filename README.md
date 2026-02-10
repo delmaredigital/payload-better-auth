@@ -576,7 +576,7 @@ const user = await getServerUser<User>(payload, headersList)
 // user.role, user.firstName, etc. are fully typed
 ```
 
-### `createSessionHelpers<TUser>()`
+### `createSessionHelpers<TUser>(options?)`
 
 Create typed session helpers bound to your User type. Define once, import everywhere — no generics needed at call sites:
 
@@ -595,6 +595,18 @@ import { getServerSession } from '@/lib/auth'
 const session = await getServerSession(payload, headersList)
 // session.user is typed as User — no generic needed
 ```
+
+**Serial IDs (Payload default):** Better Auth always returns string IDs from `api.getSession()`, which causes Payload relationship fields to reject them. Pass `idType: 'number'` to coerce ID fields to numbers automatically:
+
+```ts
+export const { getServerSession, getServerUser } = createSessionHelpers<User>({
+  idType: 'number', // coerces user.id, session.userId, etc. to numbers
+})
+```
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `idType` | `'number' \| 'text'` | Set to `'number'` when using serial IDs to coerce string IDs to numbers. Matches the adapter's `adapterConfig.idType` option. |
 
 ### `withBetterAuthDefaults(options)`
 

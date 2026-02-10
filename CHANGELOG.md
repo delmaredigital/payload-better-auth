@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.14] - 2026-02-10
+
+### Fixed
+
+#### Session ID Coercion for Serial IDs
+
+Better Auth's `api.getSession()` always returns string IDs, even when the database uses numeric serial IDs. This caused Payload relationship fields to reject values like `"31207"` when they expect `31207`.
+
+`createSessionHelpers` now accepts an `idType` option that mirrors the adapter's `adapterConfig.idType`. When set to `'number'`, all ID fields (`id`, `userId`, `activeOrganizationId`, etc.) on both the user and session objects are coerced from strings to numbers before returning.
+
+```ts
+import { createSessionHelpers } from '@delmaredigital/payload-better-auth'
+import type { User } from '@/payload-types'
+
+export const { getServerSession, getServerUser } = createSessionHelpers<User>({
+  idType: 'number',
+})
+
+// session.user.id is now 31207 (number), not "31207" (string)
+```
+
+The standalone `getServerSession<TUser>()` and `getServerUser<TUser>()` functions are unaffected — coercion is opt-in through the factory only.
+
 ## [0.3.13] - 2026-02-09
 
 ### Added
