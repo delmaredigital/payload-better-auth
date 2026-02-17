@@ -548,6 +548,9 @@ function injectAdminComponents(
 
 /**
  * Injects management UI components into the Payload config based on enabled plugins.
+ *
+ * - 2FA and Passkeys are injected as `ui` fields on the auth collection (per-user settings)
+ * - API Keys remain as a sidebar admin view (admin-level feature)
  */
 function injectManagementComponents(
   config: Config,
@@ -565,9 +568,7 @@ function injectManagementComponents(
 
   // Get custom paths or use defaults
   const paths = {
-    twoFactor: adminOptions.managementPaths?.twoFactor ?? '/security/two-factor',
     apiKeys: adminOptions.managementPaths?.apiKeys ?? '/security/api-keys',
-    passkeys: adminOptions.managementPaths?.passkeys ?? '/security/passkeys',
   }
 
   const existingComponents = config.admin?.components ?? {}
@@ -575,19 +576,9 @@ function injectManagementComponents(
     (existingComponents.views as Record<string, unknown> | undefined) ?? {}
   const existingAfterNavLinks = existingComponents.afterNavLinks ?? []
 
-  // Build management views based on enabled plugins
-  // Note: Sessions and passkeys use Payload's default collection views
+  // Build management views — only API Keys stays as a sidebar view
   const managementViews: Record<string, { Component: string; path: string }> = {}
 
-  // Two-factor (if enabled)
-  if (enabledPlugins.hasTwoFactor) {
-    managementViews.securityTwoFactor = {
-      Component: '@delmaredigital/payload-better-auth/rsc#TwoFactorView',
-      path: paths.twoFactor,
-    }
-  }
-
-  // API keys (if enabled)
   if (enabledPlugins.hasApiKey) {
     managementViews.securityApiKeys = {
       Component: '@delmaredigital/payload-better-auth/rsc#ApiKeysView',
@@ -595,19 +586,8 @@ function injectManagementComponents(
     }
   }
 
-  // Passkeys (if enabled)
-  if (enabledPlugins.hasPasskey) {
-    managementViews.securityPasskeys = {
-      Component: '@delmaredigital/payload-better-auth/rsc#PasskeysView',
-      path: paths.passkeys,
-    }
-  }
-
-  // Only add nav links if at least one plugin is enabled
-  const hasAnyPlugin = enabledPlugins.hasTwoFactor || enabledPlugins.hasApiKey || enabledPlugins.hasPasskey
-
-  // Add SecurityNavLinks to afterNavLinks with clientProps for enabled plugins
-  const afterNavLinks = hasAnyPlugin
+  // Only add nav links if API Keys is enabled
+  const afterNavLinks = enabledPlugins.hasApiKey
     ? [
         ...(Array.isArray(existingAfterNavLinks)
           ? existingAfterNavLinks
@@ -615,16 +595,63 @@ function injectManagementComponents(
         {
           path: '@delmaredigital/payload-better-auth/components/management#SecurityNavLinks',
           clientProps: {
-            showTwoFactor: enabledPlugins.hasTwoFactor,
             showApiKeys: enabledPlugins.hasApiKey,
-            showPasskeys: enabledPlugins.hasPasskey,
           },
         },
       ]
     : existingAfterNavLinks
 
+  // Inject 2FA and Passkeys as ui fields on the auth collection
+  const securityFields: Array<{
+    type: 'ui'
+    name: string
+    label: string
+    admin: { components: { Field: string } }
+  }> = []
+
+  if (enabledPlugins.hasTwoFactor) {
+    securityFields.push({
+      type: 'ui',
+      name: 'twoFactorManagement',
+      label: 'Two-Factor Authentication',
+      admin: {
+        components: {
+          Field: '@delmaredigital/payload-better-auth/components#TwoFactorField',
+        },
+      },
+    })
+  }
+
+  if (enabledPlugins.hasPasskey) {
+    securityFields.push({
+      type: 'ui',
+      name: 'passkeysManagement',
+      label: 'Passkeys',
+      admin: {
+        components: {
+          Field: '@delmaredigital/payload-better-auth/components#PasskeysField',
+        },
+      },
+    })
+  }
+
+  // Add ui fields to the auth collection
+  const collections = (config.collections ?? []).map((collection) => {
+    const isAuthCollection =
+      collection.auth === true ||
+      (typeof collection.auth === 'object' && collection.auth.disableLocalStrategy)
+
+    if (!isAuthCollection || securityFields.length === 0) return collection
+
+    return {
+      ...collection,
+      fields: [...(collection.fields ?? []), ...securityFields],
+    }
+  })
+
   return {
     ...config,
+    collections,
     admin: {
       ...config.admin,
       components: {

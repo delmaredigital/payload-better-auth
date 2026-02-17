@@ -1,6 +1,9 @@
 'use client'
 
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect } from 'react'
+import { Button, Banner } from '@payloadcms/ui'
+import { PlusIcon } from '@payloadcms/ui/icons/Plus'
+import { XIcon } from '@payloadcms/ui/icons/X'
 import {
   createPayloadAuthClient,
   type PayloadAuthClient,
@@ -65,8 +68,7 @@ export function PasskeysManagementClient({
     }
   }
 
-  async function handleRegister(e: FormEvent) {
-    e.preventDefault()
+  async function handleRegister() {
     setRegistering(true)
     setError(null)
     setSuccess(null)
@@ -131,218 +133,83 @@ export function PasskeysManagementClient({
   }
 
   return (
-    <div
-      style={{
-        maxWidth: '900px',
-        margin: '0 auto',
-        padding: 'calc(var(--base) * 2)',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 'calc(var(--base) * 2)',
-        }}
-      >
-        <div>
-          <h1
-            style={{
-              color: 'var(--theme-text)',
-              fontSize: 'var(--font-size-h2)',
-              fontWeight: 600,
-              margin: 0,
-            }}
-          >
-            {title}
-          </h1>
-          <p
-            style={{
-              color: 'var(--theme-text)',
-              opacity: 0.7,
-              fontSize: 'var(--font-size-small)',
-              margin: 'calc(var(--base) * 0.5) 0 0 0',
-            }}
-          >
-            Passkeys provide secure, passwordless sign-in using your device's
-            biometrics or security keys.
-          </p>
-        </div>
+    <div className="field-type passkeys-management">
+      {error && <Banner type="error">{error}</Banner>}
+      {success && <Banner type="success">{success}</Banner>}
 
-        <button
-          onClick={() => setShowRegisterForm(true)}
-          style={{
-            padding: 'calc(var(--base) * 0.5) calc(var(--base) * 1)',
-            background: 'var(--theme-elevation-800)',
-            border: 'none',
-            borderRadius: 'var(--style-radius-s)',
-            color: 'var(--theme-elevation-50)',
-            fontSize: 'var(--font-size-small)',
-            cursor: 'pointer',
-          }}
-        >
-          Add Passkey
-        </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--base)' }}>
+        <p className="field-description" style={{ margin: 0 }}>
+          Passkeys provide secure, passwordless sign-in using your device&apos;s biometrics or security keys.
+        </p>
+        {!showRegisterForm && (
+          <Button
+            buttonStyle="secondary"
+            size="small"
+            icon={<PlusIcon />}
+            onClick={() => setShowRegisterForm(true)}
+          >
+            Add Passkey
+          </Button>
+        )}
       </div>
 
-      {error && (
-        <div
-          style={{
-            color: 'var(--theme-error-500)',
-            marginBottom: 'var(--base)',
-            fontSize: 'var(--font-size-small)',
-            padding: 'calc(var(--base) * 0.75)',
-            background: 'var(--theme-error-50)',
-            borderRadius: 'var(--style-radius-s)',
-            border: '1px solid var(--theme-error-200)',
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div
-          style={{
-            color: 'var(--theme-success-700)',
-            marginBottom: 'var(--base)',
-            fontSize: 'var(--font-size-small)',
-            padding: 'calc(var(--base) * 0.75)',
-            background: 'var(--theme-success-50)',
-            borderRadius: 'var(--style-radius-s)',
-            border: '1px solid var(--theme-success-200)',
-          }}
-        >
-          {success}
-        </div>
-      )}
-
       {showRegisterForm && (
-        <div
-          style={{
-            marginBottom: 'calc(var(--base) * 1.5)',
-            padding: 'calc(var(--base) * 1.5)',
-            background: 'var(--theme-elevation-50)',
-            borderRadius: 'var(--style-radius-m)',
-            border: '1px solid var(--theme-elevation-100)',
-          }}
-        >
-          <h2
-            style={{
-              color: 'var(--theme-text)',
-              fontSize: 'var(--font-size-h4)',
-              fontWeight: 500,
-              margin: '0 0 var(--base) 0',
-            }}
-          >
-            Register New Passkey
-          </h2>
-          <form onSubmit={handleRegister}>
-            <div style={{ marginBottom: 'var(--base)' }}>
-              <label
-                style={{
-                  display: 'block',
-                  color: 'var(--theme-text)',
-                  fontSize: 'var(--font-size-small)',
-                  marginBottom: 'calc(var(--base) * 0.25)',
-                }}
-              >
-                Name (optional)
-              </label>
-              <input
-                type="text"
-                value={passkeyName}
-                onChange={(e) => setPasskeyName(e.target.value)}
-                placeholder="e.g., MacBook Pro, iPhone"
-                style={{
-                  width: '100%',
-                  padding: 'calc(var(--base) * 0.5)',
-                  background: 'var(--theme-input-bg)',
-                  border: '1px solid var(--theme-elevation-150)',
-                  borderRadius: 'var(--style-radius-s)',
-                  color: 'var(--theme-text)',
-                  boxSizing: 'border-box',
-                }}
-              />
-              <p
-                style={{
-                  color: 'var(--theme-text)',
-                  opacity: 0.6,
-                  fontSize: 'var(--font-size-small)',
-                  margin: 'calc(var(--base) * 0.25) 0 0 0',
-                }}
-              >
-                Your browser will prompt you to use your device's biometrics or
-                security key.
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: 'calc(var(--base) * 0.5)' }}>
-              <button
-                type="submit"
-                disabled={registering}
-                style={{
-                  padding: 'calc(var(--base) * 0.5) calc(var(--base) * 1)',
-                  background: 'var(--theme-elevation-800)',
-                  border: 'none',
-                  borderRadius: 'var(--style-radius-s)',
-                  color: 'var(--theme-elevation-50)',
-                  fontSize: 'var(--font-size-small)',
-                  cursor: registering ? 'not-allowed' : 'pointer',
-                  opacity: registering ? 0.7 : 1,
-                }}
-              >
-                {registering ? 'Registering...' : 'Register Passkey'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowRegisterForm(false)}
-                style={{
-                  padding: 'calc(var(--base) * 0.5) calc(var(--base) * 1)',
-                  background: 'transparent',
-                  border: '1px solid var(--theme-elevation-200)',
-                  borderRadius: 'var(--style-radius-s)',
-                  color: 'var(--theme-text)',
-                  fontSize: 'var(--font-size-small)',
-                  cursor: 'pointer',
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+        <div style={{ marginBottom: 'var(--base)' }}>
+          <div style={{ marginBottom: 'var(--base)' }}>
+            <label className="field-label" style={{ marginBottom: 'calc(var(--base) * 0.5)', display: 'block' }}>
+              Name (optional)
+            </label>
+            <input
+              type="text"
+              value={passkeyName}
+              onChange={(e) => setPasskeyName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleRegister() } }}
+              placeholder="e.g., MacBook Pro, iPhone"
+              style={{
+                width: '100%',
+                padding: 'var(--base)',
+                background: 'var(--theme-input-bg)',
+                border: '1px solid var(--theme-border-color)',
+                borderRadius: 'var(--style-radius-s)',
+                color: 'var(--theme-text)',
+                fontSize: 'var(--base-body-size)',
+                boxSizing: 'border-box',
+              }}
+            />
+            <p className="field-description" style={{ marginTop: 'calc(var(--base) * 0.25)' }}>
+              Your browser will prompt you to use your device&apos;s biometrics or security key.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 'calc(var(--base) * 0.5)' }}>
+            <Button
+              buttonStyle="primary"
+              size="small"
+              onClick={handleRegister}
+              disabled={registering}
+            >
+              {registering ? 'Registering...' : 'Register Passkey'}
+            </Button>
+            <Button
+              buttonStyle="secondary"
+              size="small"
+              onClick={() => setShowRegisterForm(false)}
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
       )}
 
       {loading ? (
-        <div
-          style={{
-            color: 'var(--theme-text)',
-            opacity: 0.7,
-            textAlign: 'center',
-            padding: 'calc(var(--base) * 3)',
-          }}
-        >
-          Loading passkeys...
-        </div>
+        <p className="field-description">Loading passkeys...</p>
       ) : passkeys.length === 0 ? (
-        <div
-          style={{
-            color: 'var(--theme-text)',
-            opacity: 0.7,
-            textAlign: 'center',
-            padding: 'calc(var(--base) * 3)',
-          }}
-        >
-          No passkeys registered. Add one to enable passwordless sign-in.
-        </div>
+        <p className="field-description">No passkeys registered.</p>
       ) : (
         <div
           style={{
-            background: 'var(--theme-elevation-50)',
-            borderRadius: 'var(--style-radius-m)',
+            border: '1px solid var(--theme-border-color)',
+            borderRadius: 'var(--style-radius-s)',
             overflow: 'hidden',
-            border: '1px solid var(--theme-elevation-100)',
           }}
         >
           {passkeys.map((pk, index) => (
@@ -352,52 +219,32 @@ export function PasskeysManagementClient({
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: 'calc(var(--base) * 1)',
+                padding: 'var(--base)',
                 borderBottom:
                   index < passkeys.length - 1
-                    ? '1px solid var(--theme-elevation-100)'
+                    ? '1px solid var(--theme-border-color)'
                     : 'none',
               }}
             >
               <div>
-                <div
-                  style={{
-                    color: 'var(--theme-text)',
-                    fontWeight: 500,
-                    marginBottom: 'calc(var(--base) * 0.25)',
-                  }}
-                >
+                <div style={{ color: 'var(--theme-text)', fontWeight: 500 }}>
                   {pk.name || 'Passkey'}
                 </div>
-                <div
-                  style={{
-                    color: 'var(--theme-elevation-600)',
-                    fontSize: 'var(--font-size-small)',
-                  }}
-                >
-                  <span>Created: {formatDate(pk.createdAt)}</span>
-                  {pk.lastUsedAt && (
-                    <span> | Last used: {formatDate(pk.lastUsedAt)}</span>
-                  )}
-                </div>
+                <p className="field-description" style={{ margin: 'calc(var(--base) * 0.25) 0 0 0' }}>
+                  Created: {formatDate(pk.createdAt)}
+                  {pk.lastUsedAt && ` | Last used: ${formatDate(pk.lastUsedAt)}`}
+                </p>
               </div>
 
-              <button
+              <Button
+                buttonStyle="error"
+                size="small"
+                icon={<XIcon />}
                 onClick={() => handleDelete(pk.id)}
                 disabled={deleting === pk.id}
-                style={{
-                  padding: 'calc(var(--base) * 0.5) calc(var(--base) * 0.75)',
-                  background: 'transparent',
-                  border: '1px solid var(--theme-error-300)',
-                  borderRadius: 'var(--style-radius-s)',
-                  color: 'var(--theme-error-500)',
-                  fontSize: 'var(--font-size-small)',
-                  cursor: deleting === pk.id ? 'not-allowed' : 'pointer',
-                  opacity: deleting === pk.id ? 0.7 : 1,
-                }}
               >
                 {deleting === pk.id ? 'Deleting...' : 'Delete'}
-              </button>
+              </Button>
             </div>
           ))}
         </div>

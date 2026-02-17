@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect } from 'react'
+import { Button, Banner } from '@payloadcms/ui'
+import { CopyIcon } from '@payloadcms/ui/icons/Copy'
 import {
   createPayloadAuthClient,
   type PayloadAuthClient,
@@ -11,6 +13,8 @@ export type TwoFactorManagementClientProps = {
   authClient?: PayloadAuthClient
   /** Page title. Default: 'Two-Factor Authentication' */
   title?: string
+  /** Called after 2FA is enabled or disabled. Use to refresh form state. */
+  onComplete?: () => void | Promise<void>
 }
 
 /**
@@ -20,6 +24,7 @@ export type TwoFactorManagementClientProps = {
 export function TwoFactorManagementClient({
   authClient: providedClient,
   title = 'Two-Factor Authentication',
+  onComplete,
 }: TwoFactorManagementClientProps = {}) {
   const [isEnabled, setIsEnabled] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -64,8 +69,7 @@ export function TwoFactorManagementClient({
     setError(null)
   }
 
-  async function handleEnableWithPassword(e: FormEvent) {
-    e.preventDefault()
+  async function handleEnableWithPassword() {
     setActionLoading(true)
     setError(null)
 
@@ -91,8 +95,7 @@ export function TwoFactorManagementClient({
     }
   }
 
-  async function handleVerify(e: FormEvent) {
-    e.preventDefault()
+  async function handleVerify() {
     setActionLoading(true)
     setError(null)
 
@@ -108,6 +111,7 @@ export function TwoFactorManagementClient({
         } else {
           setIsEnabled(true)
           setStep('status')
+          onComplete?.()
         }
       }
     } catch {
@@ -133,6 +137,7 @@ export function TwoFactorManagementClient({
         setError(result.error.message ?? 'Failed to disable 2FA')
       } else {
         setIsEnabled(false)
+        onComplete?.()
       }
     } catch {
       setError('Failed to disable 2FA')
@@ -144,415 +149,213 @@ export function TwoFactorManagementClient({
   function handleBackupContinue() {
     setIsEnabled(true)
     setStep('status')
+    onComplete?.()
   }
 
   if (loading) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 'calc(var(--base) * 3)',
-        }}
-      >
-        <div style={{ color: 'var(--theme-text)', opacity: 0.7 }}>
-          Loading...
-        </div>
-      </div>
-    )
+    return <p className="field-description">Loading...</p>
   }
 
   return (
-    <div
-      style={{
-        maxWidth: '600px',
-        margin: '0 auto',
-        padding: 'calc(var(--base) * 2)',
-      }}
-    >
+    <div className="field-type two-factor-management">
+      {error && (
+        <Banner type="error">{error}</Banner>
+      )}
 
-        <h1
-          style={{
-            color: 'var(--theme-text)',
-            fontSize: 'var(--font-size-h2)',
-            fontWeight: 600,
-            margin: '0 0 calc(var(--base) * 2) 0',
-          }}
-        >
-          {title}
-        </h1>
+      {step === 'status' && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <p className="field-description" style={{ margin: 0 }}>
+            {isEnabled ? 'Two-factor authentication is enabled.' : 'Two-factor authentication is not enabled.'}
+          </p>
+          <Button
+            buttonStyle={isEnabled ? 'error' : 'secondary'}
+            size="small"
+            onClick={isEnabled ? handleDisable : handleEnableClick}
+            disabled={actionLoading}
+          >
+            {actionLoading ? 'Loading...' : isEnabled ? 'Disable' : 'Enable'}
+          </Button>
+        </div>
+      )}
 
-        {error && (
-          <div
+      {step === 'password' && (
+        <div>
+          <p className="field-description">
+            Enter your password to enable two-factor authentication.
+          </p>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && password) { e.preventDefault(); handleEnableWithPassword() } }}
+            placeholder="Enter your password"
+            className="field-type__wrap"
             style={{
-              color: 'var(--theme-error-500)',
-              marginBottom: 'var(--base)',
-              fontSize: 'var(--font-size-small)',
-              padding: 'calc(var(--base) * 0.75)',
-              background: 'var(--theme-error-50)',
+              width: '100%',
+              padding: 'var(--base)',
+              background: 'var(--theme-input-bg)',
+              border: '1px solid var(--theme-border-color)',
               borderRadius: 'var(--style-radius-s)',
-              border: '1px solid var(--theme-error-200)',
+              color: 'var(--theme-text)',
+              fontSize: 'var(--base-body-size)',
+              marginBottom: 'var(--base)',
+              boxSizing: 'border-box',
             }}
-          >
-            {error}
-          </div>
-        )}
-
-        {step === 'status' && (
-          <div
-            style={{
-              background: 'var(--theme-elevation-50)',
-              padding: 'calc(var(--base) * 1.5)',
-              borderRadius: 'var(--style-radius-m)',
-              border: '1px solid var(--theme-elevation-100)',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
+          />
+          <div style={{ display: 'flex', gap: 'calc(var(--base) * 0.5)' }}>
+            <Button
+              buttonStyle="primary"
+              size="small"
+              onClick={handleEnableWithPassword}
+              disabled={actionLoading || !password}
             >
-              <div>
-                <div
-                  style={{
-                    color: 'var(--theme-text)',
-                    fontWeight: 500,
-                    marginBottom: 'calc(var(--base) * 0.25)',
-                  }}
-                >
-                  Status
-                </div>
-                <div
-                  style={{
-                    color: isEnabled
-                      ? 'var(--theme-success-500)'
-                      : 'var(--theme-elevation-600)',
-                    fontSize: 'var(--font-size-small)',
-                  }}
-                >
-                  {isEnabled ? '✓ Enabled' : 'Not enabled'}
-                </div>
-              </div>
+              {actionLoading ? 'Enabling...' : 'Continue'}
+            </Button>
+            <Button
+              buttonStyle="secondary"
+              size="small"
+              onClick={() => setStep('status')}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
 
-              <button
-                onClick={isEnabled ? handleDisable : handleEnableClick}
-                disabled={actionLoading}
+      {step === 'setup' && totpUri && (
+        <div style={{ textAlign: 'center' }}>
+          <p className="field-description">
+            Scan this QR code with your authenticator app:
+          </p>
+
+          <img
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(totpUri)}`}
+            alt="QR Code"
+            style={{
+              width: '200px',
+              height: '200px',
+              border: '1px solid var(--theme-border-color)',
+              borderRadius: 'var(--style-radius-s)',
+              marginBottom: 'var(--base)',
+            }}
+          />
+
+          {secret && (
+            <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
+              <p className="field-description" style={{ marginBottom: 'calc(var(--base) * 0.5)' }}>
+                Or enter manually:
+              </p>
+              <code
                 style={{
-                  padding: 'calc(var(--base) * 0.5) calc(var(--base) * 1)',
-                  background: isEnabled
-                    ? 'var(--theme-error-500)'
-                    : 'var(--theme-elevation-800)',
-                  border: 'none',
+                  display: 'inline-block',
+                  padding: 'calc(var(--base) * 0.5)',
+                  background: 'var(--theme-elevation-100)',
                   borderRadius: 'var(--style-radius-s)',
-                  color: 'var(--theme-elevation-50)',
-                  fontSize: 'var(--font-size-small)',
-                  cursor: actionLoading ? 'not-allowed' : 'pointer',
-                  opacity: actionLoading ? 0.7 : 1,
+                  fontFamily: 'monospace',
+                  fontSize: 'var(--base-body-size)',
+                  color: 'var(--theme-text)',
                 }}
               >
-                {actionLoading
-                  ? 'Loading...'
-                  : isEnabled
-                    ? 'Disable'
-                    : 'Enable'}
-              </button>
+                {secret}
+              </code>
             </div>
-          </div>
-        )}
+          )}
 
-        {step === 'password' && (
-          <div
-            style={{
-              background: 'var(--theme-elevation-50)',
-              padding: 'calc(var(--base) * 2)',
-              borderRadius: 'var(--style-radius-m)',
-              border: '1px solid var(--theme-elevation-100)',
-            }}
-          >
-            <h2
-              style={{
-                color: 'var(--theme-text)',
-                fontSize: 'var(--font-size-h4)',
-                fontWeight: 500,
-                margin: '0 0 var(--base) 0',
-              }}
-            >
-              Confirm Your Password
-            </h2>
-            <p
-              style={{
-                color: 'var(--theme-text)',
-                opacity: 0.7,
-                fontSize: 'var(--font-size-small)',
-                marginBottom: 'calc(var(--base) * 1.5)',
-              }}
-            >
-              Enter your password to enable two-factor authentication.
-            </p>
-            <form onSubmit={handleEnableWithPassword}>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                required
-                style={{
-                  width: '100%',
-                  padding: 'calc(var(--base) * 0.75)',
-                  background: 'var(--theme-input-bg)',
-                  border: '1px solid var(--theme-elevation-150)',
-                  borderRadius: 'var(--style-radius-s)',
-                  color: 'var(--theme-text)',
-                  fontSize: 'var(--font-size-base)',
-                  marginBottom: 'var(--base)',
-                  boxSizing: 'border-box',
-                }}
-              />
-              <div style={{ display: 'flex', gap: 'calc(var(--base) * 0.5)' }}>
-                <button
-                  type="submit"
-                  disabled={actionLoading || !password}
-                  style={{
-                    padding: 'calc(var(--base) * 0.75) calc(var(--base) * 1.5)',
-                    background: 'var(--theme-elevation-800)',
-                    border: 'none',
-                    borderRadius: 'var(--style-radius-s)',
-                    color: 'var(--theme-elevation-50)',
-                    fontSize: 'var(--font-size-base)',
-                    cursor: actionLoading || !password ? 'not-allowed' : 'pointer',
-                    opacity: actionLoading || !password ? 0.7 : 1,
-                  }}
-                >
-                  {actionLoading ? 'Enabling...' : 'Continue'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStep('status')}
-                  style={{
-                    padding: 'calc(var(--base) * 0.75) calc(var(--base) * 1.5)',
-                    background: 'transparent',
-                    border: '1px solid var(--theme-elevation-200)',
-                    borderRadius: 'var(--style-radius-s)',
-                    color: 'var(--theme-text)',
-                    fontSize: 'var(--font-size-base)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {step === 'setup' && totpUri && (
-          <div
-            style={{
-              background: 'var(--theme-elevation-50)',
-              padding: 'calc(var(--base) * 2)',
-              borderRadius: 'var(--style-radius-m)',
-              textAlign: 'center',
-            }}
-          >
-            <p
-              style={{
-                color: 'var(--theme-text)',
-                opacity: 0.7,
-                marginBottom: 'calc(var(--base) * 1.5)',
-              }}
-            >
-              Scan this QR code with your authenticator app:
-            </p>
-
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(totpUri)}`}
-              alt="QR Code"
+          <div>
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={verificationCode}
+              onChange={(e) =>
+                setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))
+              }
+              onKeyDown={(e) => { if (e.key === 'Enter' && verificationCode.length === 6) { e.preventDefault(); handleVerify() } }}
+              placeholder="000000"
               style={{
                 width: '200px',
-                height: '200px',
-                border: '1px solid var(--theme-elevation-150)',
+                padding: 'var(--base)',
+                background: 'var(--theme-input-bg)',
+                border: '1px solid var(--theme-border-color)',
                 borderRadius: 'var(--style-radius-s)',
+                color: 'var(--theme-text)',
+                fontSize: '1.5rem',
+                fontFamily: 'monospace',
+                textAlign: 'center',
+                letterSpacing: '0.5em',
                 marginBottom: 'var(--base)',
+                boxSizing: 'border-box',
               }}
             />
-
-            {secret && (
-              <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
-                <p
-                  style={{
-                    color: 'var(--theme-text)',
-                    opacity: 0.7,
-                    fontSize: 'var(--font-size-small)',
-                    marginBottom: 'calc(var(--base) * 0.5)',
-                  }}
-                >
-                  Or enter manually:
-                </p>
-                <code
-                  style={{
-                    display: 'inline-block',
-                    padding: 'calc(var(--base) * 0.5)',
-                    background: 'var(--theme-elevation-100)',
-                    borderRadius: 'var(--style-radius-s)',
-                    fontFamily: 'monospace',
-                    fontSize: 'var(--font-size-small)',
-                    color: 'var(--theme-text)',
-                  }}
-                >
-                  {secret}
-                </code>
-              </div>
-            )}
-
-            <form onSubmit={handleVerify}>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={verificationCode}
-                onChange={(e) =>
-                  setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))
-                }
-                placeholder="Enter 6-digit code"
-                style={{
-                  width: '100%',
-                  maxWidth: '200px',
-                  padding: 'calc(var(--base) * 0.75)',
-                  background: 'var(--theme-input-bg)',
-                  border: '1px solid var(--theme-elevation-150)',
-                  borderRadius: 'var(--style-radius-s)',
-                  color: 'var(--theme-text)',
-                  fontSize: 'var(--font-size-h4)',
-                  fontFamily: 'monospace',
-                  textAlign: 'center',
-                  letterSpacing: '0.5em',
-                  marginBottom: 'var(--base)',
-                  boxSizing: 'border-box',
-                }}
-              />
-              <br />
-              <button
-                type="submit"
-                disabled={actionLoading || verificationCode.length !== 6}
-                style={{
-                  padding: 'calc(var(--base) * 0.75) calc(var(--base) * 2)',
-                  background: 'var(--theme-elevation-800)',
-                  border: 'none',
-                  borderRadius: 'var(--style-radius-s)',
-                  color: 'var(--theme-elevation-50)',
-                  fontSize: 'var(--font-size-base)',
-                  cursor:
-                    actionLoading || verificationCode.length !== 6
-                      ? 'not-allowed'
-                      : 'pointer',
-                  opacity:
-                    actionLoading || verificationCode.length !== 6 ? 0.7 : 1,
-                }}
-              >
-                {actionLoading ? 'Verifying...' : 'Verify'}
-              </button>
-            </form>
+            <br />
+            <Button
+              buttonStyle="primary"
+              size="small"
+              onClick={handleVerify}
+              disabled={actionLoading || verificationCode.length !== 6}
+            >
+              {actionLoading ? 'Verifying...' : 'Verify'}
+            </Button>
           </div>
-        )}
+        </div>
+      )}
 
-        {step === 'backup' && (
+      {step === 'backup' && (
+        <div>
+          <Banner type="info">
+            Save these backup codes in a safe place. You can use them to sign in if you lose access to your authenticator app.
+          </Banner>
+
           <div
             style={{
-              background: 'var(--theme-elevation-50)',
-              padding: 'calc(var(--base) * 2)',
-              borderRadius: 'var(--style-radius-m)',
+              background: 'var(--theme-elevation-100)',
+              padding: 'var(--base)',
+              borderRadius: 'var(--style-radius-s)',
+              marginTop: 'var(--base)',
+              marginBottom: 'var(--base)',
+              fontFamily: 'monospace',
             }}
           >
-            <h2
-              style={{
-                color: 'var(--theme-text)',
-                fontSize: 'var(--font-size-h3)',
-                fontWeight: 600,
-                margin: '0 0 var(--base) 0',
-                textAlign: 'center',
-              }}
-            >
-              Save Your Backup Codes
-            </h2>
-            <p
-              style={{
-                color: 'var(--theme-text)',
-                opacity: 0.7,
-                fontSize: 'var(--font-size-small)',
-                textAlign: 'center',
-                marginBottom: 'calc(var(--base) * 1.5)',
-              }}
-            >
-              Store these codes safely. Use them if you lose your authenticator.
-            </p>
-
             <div
               style={{
-                background: 'var(--theme-elevation-100)',
-                padding: 'var(--base)',
-                borderRadius: 'var(--style-radius-s)',
-                marginBottom: 'var(--base)',
-                fontFamily: 'monospace',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: 'calc(var(--base) * 0.5)',
               }}
             >
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: 'calc(var(--base) * 0.5)',
-                }}
-              >
-                {backupCodes.map((code, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      color: 'var(--theme-text)',
-                      padding: 'calc(var(--base) * 0.25)',
-                    }}
-                  >
-                    {code}
-                  </div>
-                ))}
-              </div>
+              {backupCodes.map((code, index) => (
+                <div
+                  key={index}
+                  style={{
+                    color: 'var(--theme-text)',
+                    padding: 'calc(var(--base) * 0.25)',
+                  }}
+                >
+                  {code}
+                </div>
+              ))}
             </div>
+          </div>
 
-            <button
+          <div style={{ display: 'flex', gap: 'calc(var(--base) * 0.5)' }}>
+            <Button
+              buttonStyle="secondary"
+              size="small"
+              icon={<CopyIcon />}
               onClick={() => navigator.clipboard.writeText(backupCodes.join('\n'))}
-              style={{
-                width: '100%',
-                padding: 'calc(var(--base) * 0.5)',
-                background: 'var(--theme-elevation-150)',
-                border: 'none',
-                borderRadius: 'var(--style-radius-s)',
-                color: 'var(--theme-text)',
-                fontSize: 'var(--font-size-small)',
-                cursor: 'pointer',
-                marginBottom: 'var(--base)',
-              }}
             >
               Copy to Clipboard
-            </button>
-
-            <button
+            </Button>
+            <Button
+              buttonStyle="primary"
+              size="small"
               onClick={handleBackupContinue}
-              style={{
-                width: '100%',
-                padding: 'calc(var(--base) * 0.75)',
-                background: 'var(--theme-elevation-800)',
-                border: 'none',
-                borderRadius: 'var(--style-radius-s)',
-                color: 'var(--theme-elevation-50)',
-                fontSize: 'var(--font-size-base)',
-                cursor: 'pointer',
-              }}
             >
               I've Saved My Codes
-            </button>
+            </Button>
           </div>
-        )}
+        </div>
+      )}
     </div>
   )
 }

@@ -28,3 +28,7 @@ export type { PasskeySignInButtonProps } from '../components/PasskeySignInButton
 export { PasskeySignInButton } from '../components/PasskeySignInButton.js'
 export type { PasskeyRegisterButtonProps } from '../components/PasskeyRegisterButton.js'
 export { PasskeyRegisterButton } from '../components/PasskeyRegisterButton.js'
+
+// Management UI field wrappers (for Payload ui fields)
+export { TwoFactorField } from '../components/management/fields/TwoFactorField.js'
+export { PasskeysField } from '../components/management/fields/PasskeysField.js'

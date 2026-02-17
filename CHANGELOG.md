@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+#### 2FA and Passkeys moved to user document
+
+Two-Factor Authentication and Passkeys management UI are now embedded directly in the user document edit view as `ui` fields, rather than living as separate admin views in the sidebar. These are per-user security settings (like password) and belong on the user document.
+
+API Keys management remains in the sidebar under the "Security" nav group, as it is an admin-level feature.
+
 ### Security
 
 #### API key endpoints now require admin role

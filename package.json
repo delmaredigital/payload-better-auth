@@ -1,6 +1,6 @@
 {
   "name": "@delmaredigital/payload-better-auth",
-  "version": "0.4.1",
+  "version": "0.4.2-dev.3",
   "description": "Better Auth adapter and plugins for Payload CMS",
   "type": "module",
   "license": "MIT",
