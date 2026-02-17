@@ -24,6 +24,7 @@ import {
   buildAvailableScopes,
   scopesToPermissions,
 } from '../utils/generateScopes.js'
+import { hasAnyRole, normalizeRoles } from '../utils/access.js'
 
 export type Auth = ReturnType<typeof betterAuth>
 // PayloadWithAuth from types
@@ -302,7 +303,7 @@ async function handleApiKeyCreateWithScopes(
 /**
  * Creates the auth endpoint handler that proxies requests to Better Auth.
  */
-function createAuthEndpointHandler(): PayloadHandler {
+function createAuthEndpointHandler(adminOptions?: BetterAuthPluginAdminOptions): PayloadHandler {
   return async (req) => {
     const payloadWithAuth = req.payload as PayloadWithAuth
     const auth = payloadWithAuth.betterAuth
@@ -358,6 +359,55 @@ function createAuthEndpointHandler(): PayloadHandler {
         }
       }
 
+      // Guard API key mutation endpoints — require admin role
+      const isApiKeyMutation =
+        req.method === 'POST' &&
+        (pathname.endsWith('/api-key/create') ||
+          pathname.endsWith('/api-key/update') ||
+          pathname.endsWith('/api-key/delete'))
+
+      if (isApiKeyMutation) {
+        const session = await (auth.api as unknown as AuthApi).getSession({
+          headers: req.headers,
+        })
+        if (!session?.user?.id) {
+          return new Response(
+            JSON.stringify({ error: 'Unauthorized' }),
+            { status: 401, headers: { 'Content-Type': 'application/json' } }
+          )
+        }
+
+        // Resolve required role: apiKey config > login config > default 'admin'
+        const requiredRole =
+          apiKeyScopesConfig?.requiredRole ??
+          adminOptions?.login?.requiredRole ??
+          'admin'
+
+        if (requiredRole !== null) {
+          // Find the auth collection slug from Payload's config
+          const authSlug =
+            req.payload.config.collections.find(
+              (c) => typeof c.auth === 'object' || c.auth === true
+            )?.slug ?? 'users'
+
+          const user = (await req.payload.findByID({
+            collection: authSlug,
+            id: session.user.id,
+            depth: 0,
+            overrideAccess: true,
+          })) as Record<string, unknown> | null
+
+          if (!hasAnyRole(user as { role?: unknown } | null, normalizeRoles(requiredRole))) {
+            return new Response(
+              JSON.stringify({
+                error: 'Forbidden: insufficient permissions to manage API keys',
+              }),
+              { status: 403, headers: { 'Content-Type': 'application/json' } }
+            )
+          }
+        }
+      }
+
       // Intercept API key creation requests with scopes
       // Better Auth's API key create endpoint is POST /api-key/create
       const isApiKeyCreate =
@@ -398,8 +448,8 @@ function createAuthEndpointHandler(): PayloadHandler {
 /**
  * Generates Payload endpoints for Better Auth.
  */
-function generateAuthEndpoints(basePath: string): Endpoint[] {
-  const handler = createAuthEndpointHandler()
+function generateAuthEndpoints(basePath: string, adminOptions?: BetterAuthPluginAdminOptions): Endpoint[] {
+  const handler = createAuthEndpointHandler(adminOptions)
   const methods = ['get', 'post', 'patch', 'put', 'delete'] as const
 
   return methods.map((method) => ({
@@ -643,7 +693,7 @@ export function createBetterAuthPlugin(
 
     // Generate auth endpoints if enabled
     const authEndpoints = autoRegisterEndpoints
-      ? generateAuthEndpoints(authBasePath)
+      ? generateAuthEndpoints(authBasePath, options.admin)
       : []
 
     // Merge endpoints

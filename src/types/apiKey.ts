@@ -52,6 +52,14 @@ export type ApiKeyScopesConfig = {
    * If not provided, keys without scopes will have no permissions.
    */
   defaultScopes?: string[]
+  /**
+   * Role(s) required to create, update, and delete API keys.
+   * - string: Single role required (e.g., 'admin')
+   * - string[]: Any matching role grants access
+   * - null: Allow any authenticated user (not recommended)
+   * @default Inherits from admin.login.requiredRole, or 'admin' if unset
+   */
+  requiredRole?: string | string[] | null
 }
 
 /**

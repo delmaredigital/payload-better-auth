@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+#### API key endpoints now require admin role
+
+Better Auth's API key plugin does not restrict who can create, update, or delete API keys — any authenticated user could call these endpoints directly (e.g., via Postman) to create keys, even without admin panel access. This was a privilege escalation risk.
+
+API key mutation endpoints (`/api-key/create`, `/api-key/update`, `/api-key/delete`) now require the user to have an admin role before the request is forwarded to Better Auth. The required role defaults to `admin.login.requiredRole` (or `'admin'` if unset), and can be overridden per-project:
+
+```ts
+createBetterAuthPlugin({
+  admin: {
+    login: {
+      requiredRole: ['admin', 'editor'], // both can access admin panel
+    },
+    apiKey: {
+      requiredRole: 'admin', // only admins can manage API keys
+      // requiredRole: null, // disable guard (not recommended)
+    },
+  },
+})
+```
+
+API key **verification** is unaffected — existing keys continue to work regardless of who created them. This only restricts key management (create, update, delete).
+
 ## [0.4.0] - 2026-02-17
 
 ### Breaking Changes

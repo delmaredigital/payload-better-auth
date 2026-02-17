@@ -494,6 +494,27 @@ API keys can have granular permission scopes. By default, scopes are auto-genera
 | `includeCollectionScopes` | `boolean` | `true` when no custom scopes, `false` when custom scopes provided | Include auto-generated collection scopes |
 | `excludeCollections` | `string[]` | `['sessions', 'verifications', 'accounts', 'twoFactors', 'apikeys']` | Collections to exclude from auto-generated scopes |
 | `defaultScopes` | `string[]` | `[]` | Default scopes pre-selected when creating a key |
+| `requiredRole` | `string \| string[] \| null` | Inherits from `admin.login.requiredRole` or `'admin'` | Role(s) required to create/update/delete API keys. Set to `null` to allow any authenticated user (not recommended) |
+
+**Restricting API key management to admins:**
+
+If your `admin.login.requiredRole` includes non-admin roles (e.g., editors who need admin panel access but shouldn't manage API keys), set `requiredRole` explicitly:
+
+```typescript
+createBetterAuthPlugin({
+  createAuth,
+  admin: {
+    login: {
+      requiredRole: ['admin', 'content_editor'], // both can access admin panel
+    },
+    apiKey: {
+      requiredRole: 'admin', // only admins can create/update/delete API keys
+    },
+  },
+})
+```
+
+> **Note:** API key **verification** is not affected by this setting — existing keys continue to work regardless of who created them. This only restricts key management (create, update, delete).
 
 **Zero Config (recommended):**
 ```typescript
