@@ -41,6 +41,7 @@ For additional documentation and references, visit: [https://deepwiki.com/delmar
 | `@payloadcms/next` | >= 3.69.0 |
 | `@payloadcms/ui` | >= 3.69.0 |
 | `better-auth` | >= 1.4.0 |
+| `@better-auth/passkey` | >= 1.4.18 (if using passkeys) |
 | `next` | >= 15.4.8 |
 | `react` | >= 19.2.1 |
 
@@ -48,6 +49,9 @@ For additional documentation and references, visit: [https://deepwiki.com/delmar
 
 ```bash
 pnpm add @delmaredigital/payload-better-auth better-auth
+
+# If using passkeys:
+pnpm add @better-auth/passkey
 ```
 
 ### Environment Variables
@@ -994,9 +998,7 @@ The adapter uses Better Auth's `createAdapterFactory` which is **schema-aware** 
 | API Keys | `better-auth` (core) | Auto-generates apikeys collection |
 | Organizations | `better-auth` (core) | Auto-generates organizations, members, invitations |
 | Admin | `better-auth` (core) | Adds admin fields to users |
-| Passkey | Bundled | Auto-generates passkeys collection |
-
-**Note:** The `@better-auth/passkey` package is bundled with this package - no separate installation required.
+| Passkey | `@better-auth/passkey` (peer dep) | Auto-generates passkeys collection |
 
 ### Example: Core Plugins
 

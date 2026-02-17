@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-02-17
+
+### Breaking Changes
+
+#### `@better-auth/passkey` moved to peer dependency
+
+`@better-auth/passkey` is no longer bundled as a direct dependency. If you use passkeys, you must install it yourself:
+
+```bash
+pnpm add @better-auth/passkey
+```
+
+This gives you direct control over the passkey package version, which is important for receiving upstream bug fixes (e.g., the [passkey challenge expiration fix](https://github.com/better-auth/better-auth/pull/7731)) without waiting for a new release of this package.
+
+**Migration:** If you already have `@better-auth/passkey` in your `package.json` (most passkey users do), no action is needed. If you were relying on this package to provide it, add it to your dependencies.
+
+### Changed
+
+#### Native admin sidebar navigation
+
+Security management links (Two-Factor Auth, API Keys, Passkeys) now use Payload's native `NavGroup` component and `nav__link` CSS classes instead of custom-styled inline elements with emoji icons. The links now match the look and feel of Payload's built-in Collections and Globals navigation groups.
+
 ## [0.3.14] - 2026-02-10
 
 ### Fixed
