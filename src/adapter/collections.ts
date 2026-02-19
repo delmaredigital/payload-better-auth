@@ -435,11 +435,16 @@ function augmentCollectionWithMissingFields(
       } as Field)
     } else {
       const saveToJWT = configureSaveToJWT ? getSaveToJWT(modelKey, payloadFieldName) : undefined
+      // Fields managed exclusively by Better Auth should be read-only in the admin UI
+      const readOnlyFields = ['twoFactorEnabled']
+      const isReadOnly = readOnlyFields.includes(payloadFieldName)
+
       const field: Record<string, unknown> = {
         name: payloadFieldName,
         type: fieldType,
         admin: {
           description: `Auto-added by Better Auth (${fieldKey})`,
+          ...(isReadOnly && { readOnly: true }),
         },
         ...(saveToJWT !== undefined && { saveToJWT }),
       }

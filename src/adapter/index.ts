@@ -19,6 +19,37 @@ import type {
   CollectionSlug,
 } from 'payload'
 
+/**
+ * Database types supported by Payload CMS.
+ */
+export type DbType = 'postgres' | 'mongodb' | 'sqlite'
+
+/**
+ * Detect the database type from the Payload instance.
+ */
+export function detectDbType(payload: BasePayload): DbType {
+  const dbName = (payload.db as unknown as Record<string, unknown>)?.name
+  if (typeof dbName === 'string') {
+    if (dbName.includes('mongo') || dbName.includes('mongoose')) return 'mongodb'
+    if (dbName.includes('sqlite')) return 'sqlite'
+  }
+  return 'postgres'
+}
+
+/**
+ * Determine ID type based on database type and Better Auth config.
+ * MongoDB always uses text IDs (ObjectId strings).
+ * Postgres defaults to 'number' (SERIAL) unless generateId indicates otherwise.
+ */
+export function resolveIdType(dbType: DbType, options: BetterAuthOptions, explicitIdType?: 'number' | 'text'): 'number' | 'text' {
+  if (dbType === 'mongodb') return 'text'
+  if (explicitIdType) return explicitIdType
+  const generateId = options.advanced?.database?.generateId
+  if (generateId !== undefined && generateId !== 'serial') {
+    return 'text'
+  }
+  return 'number'
+}
 
 export type PayloadAdapterConfig = {
   /**
@@ -35,6 +66,12 @@ export type PayloadAdapterConfig = {
      * Enable debug logging for troubleshooting
      */
     enableDebugLogs?: boolean
+
+    /**
+     * Database type. Auto-detected from Payload's database adapter if not set.
+     * Set explicitly if auto-detection doesn't work for your adapter.
+     */
+    dbType?: DbType
 
     /**
      * ID type used by Payload.
@@ -58,20 +95,6 @@ export type PayloadAdapterConfig = {
      */
     idFieldsBlocklist?: string[]
   }
-}
-
-/**
- * Detect ID type from Better Auth options.
- * Defaults to 'number' (SERIAL) since Payload uses SERIAL IDs by default.
- */
-function detectIdType(options: BetterAuthOptions): 'number' | 'text' {
-  const generateId = options.advanced?.database?.generateId
-  // If explicitly set to something other than 'serial', use text (UUID)
-  if (generateId !== undefined && generateId !== 'serial') {
-    return 'text'
-  }
-  // Default to number (SERIAL) - Payload's default
-  return 'number'
 }
 
 /**
@@ -126,7 +149,8 @@ export function payloadAdapter({
 
   function convertOperator(
     operator: string,
-    value: unknown
+    value: unknown,
+    dbType: DbType
   ): Record<string, unknown> {
     switch (operator) {
       case 'eq':
@@ -143,11 +167,15 @@ export function payloadAdapter({
         return { less_than_equal: value }
       case 'in':
         return { in: value }
+      case 'not_in':
+        return { not_in: value }
       case 'contains':
         return { contains: value }
       case 'starts_with':
+        if (dbType === 'mongodb') return { contains: value }
         return { like: `${value}%` }
       case 'ends_with':
+        if (dbType === 'mongodb') return { contains: value }
         return { like: `%${value}` }
       default:
         return { equals: value }
@@ -173,9 +201,12 @@ export function payloadAdapter({
 
   // Return the adapter factory function
   return (options: BetterAuthOptions): Adapter => {
-    // Determine ID type: explicit config > auto-detect
-    // Defaults to 'number' (SERIAL) since Payload uses SERIAL IDs by default
-    const idType = adapterConfig.idType ?? detectIdType(options)
+    // Determine ID type based on database type
+    // If payloadClient is already resolved, detect dbType immediately
+    // Otherwise default to 'postgres' (will be updated on first operation)
+    const effectiveDbType = adapterConfig.dbType
+      ?? (typeof payloadClient !== 'function' ? detectDbType(payloadClient) : 'postgres')
+    const idType = resolveIdType(effectiveDbType, options, adapterConfig.idType)
     const generateId = options.advanced?.database?.generateId
 
     // Warn if using number IDs but Better Auth is explicitly configured to generate its own IDs
@@ -210,10 +241,10 @@ export function payloadAdapter({
       // Payload collections are plural by default (users, sessions, etc.)
       // Users can customize via BetterAuthOptions: user: { modelName: 'custom_users' }
       usePlural: true,
-      // Let Payload generate IDs when using serial/auto-increment
-      disableIdGeneration: idType === 'number',
-      // Payload supports these features
-      supportsNumericIds: true,
+      // Payload always generates IDs (SERIAL for postgres/sqlite, ObjectId for mongodb)
+      disableIdGeneration: true,
+      // MongoDB uses ObjectId strings, not numeric IDs
+      supportsNumericIds: effectiveDbType !== 'mongodb',
       supportsDates: true,
       supportsBooleans: true,
       supportsJSON: true,
@@ -229,12 +260,19 @@ export function payloadAdapter({
     // so we'll resolve it lazily on first operation
     let resolvedPayload: BasePayload | null = null
     let resolvePromise: Promise<BasePayload> | null = null
+    let resolvedDbType: DbType | null = adapterConfig.dbType ?? null
 
     const getPayload = async (): Promise<BasePayload> => {
       if (resolvedPayload) return resolvedPayload
       if (!resolvePromise) {
         resolvePromise = resolvePayloadClient().then((p) => {
           resolvedPayload = p
+          if (!resolvedDbType) {
+            resolvedDbType = detectDbType(p)
+            if (enableDebugLogs) {
+              console.log('[payload-adapter] Detected database type:', resolvedDbType)
+            }
+          }
           return p
         })
       }
@@ -385,21 +423,6 @@ export function payloadAdapter({
             }
           }
 
-          // Convert date strings to Date objects
-          // Better Auth expects Date objects for date field comparisons
-          for (const [key, value] of Object.entries(transformed)) {
-            if (typeof value !== 'string') continue
-
-            // Check if schema defines this field as a date type
-            const fieldDef = modelSchema.fields[key]
-            if (fieldDef?.type === 'date') {
-              const dateValue = new Date(value)
-              if (!isNaN(dateValue.getTime())) {
-                transformed[key] = dateValue
-              }
-            }
-          }
-
           // Convert semantic ID fields to numbers when using serial IDs
           // Heuristic: fields ending in 'Id' or '_id' containing numeric strings
           // Modified by allowlist (add) and blocklist (exclude)
@@ -443,7 +466,7 @@ export function payloadAdapter({
           if (where.length === 1) {
             const w = where[0]
             return {
-              [getPayloadFieldName(model, w.field)]: convertOperator(w.operator, w.value),
+              [getPayloadFieldName(model, w.field)]: convertOperator(w.operator, w.value, resolvedDbType ?? 'postgres'),
             }
           }
 
@@ -454,13 +477,13 @@ export function payloadAdapter({
 
           if (andConditions.length > 0) {
             result.and = andConditions.map((w) => ({
-              [getPayloadFieldName(model, w.field)]: convertOperator(w.operator, w.value),
+              [getPayloadFieldName(model, w.field)]: convertOperator(w.operator, w.value, resolvedDbType ?? 'postgres'),
             }))
           }
 
           if (orConditions.length > 0) {
             result.or = orConditions.map((w) => ({
-              [getPayloadFieldName(model, w.field)]: convertOperator(w.operator, w.value),
+              [getPayloadFieldName(model, w.field)]: convertOperator(w.operator, w.value, resolvedDbType ?? 'postgres'),
             }))
           }
 
@@ -499,7 +522,11 @@ export function payloadAdapter({
               // Transform back and merge with input data for Better Auth
               // Database result takes precedence (handles hooks that modify data like firstUserAdmin)
               const transformed = transformDataFromPayload(model, result as Record<string, unknown>)
-              return { ...data, ...transformed } as typeof data
+              const merged = { ...data, ...transformed }
+              if (enableDebugLogs) {
+                debugLog('create result', { collection, resultId: (result as Record<string, unknown>).id, transformedKeys: Object.keys(transformed), mergedKeys: Object.keys(merged as Record<string, unknown>) })
+              }
+              return merged as typeof data
             } catch (error) {
               console.error('[payload-adapter] create failed:', {
                 collection,
@@ -529,13 +556,20 @@ export function payloadAdapter({
                     depth: join ? 1 : 0,
                     overrideAccess: true,
                   })
-                  return transformDataFromPayload(model, result as Record<string, unknown>)
+                  const transformed = transformDataFromPayload(model, result as Record<string, unknown>)
+                  if (enableDebugLogs) {
+                    debugLog('findOne result (byID)', { collection, id: convertId(id), found: true, transformedKeys: Object.keys(transformed) })
+                  }
+                  return transformed
                 } catch (error) {
                   if (
                     error instanceof Error &&
                     'status' in error &&
                     (error as Error & { status: number }).status === 404
                   ) {
+                    if (enableDebugLogs) {
+                      debugLog('findOne result (byID)', { collection, id: convertId(id), found: false })
+                    }
                     return null
                   }
                   throw error
@@ -543,6 +577,11 @@ export function payloadAdapter({
               }
 
               const payloadWhere = convertWhereToPayload(model, where)
+
+              if (enableDebugLogs) {
+                debugLog('findOne query', { collection, payloadWhere: JSON.stringify(payloadWhere), resolvedDbType, idType })
+              }
+
               const result = await payload.find({
                 collection,
                 where: payloadWhere,
@@ -551,8 +590,16 @@ export function payloadAdapter({
                 overrideAccess: true,
               })
 
+              if (enableDebugLogs) {
+                debugLog('findOne result', { collection, totalDocs: result.totalDocs, found: result.docs.length > 0 })
+              }
+
               if (!result.docs[0]) return null
-              return transformDataFromPayload(model, result.docs[0] as Record<string, unknown>)
+              const transformed = transformDataFromPayload(model, result.docs[0] as Record<string, unknown>)
+              if (enableDebugLogs) {
+                debugLog('findOne transformed', { collection, transformedKeys: Object.keys(transformed) })
+              }
+              return transformed
             } catch (error) {
               console.error('[payload-adapter] findOne failed:', {
                 model,

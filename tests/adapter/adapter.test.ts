@@ -3,9 +3,82 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { payloadAdapter } from '../../src/adapter/index.js'
+import { payloadAdapter, detectDbType, resolveIdType } from '../../src/adapter/index.js'
 import { createMockPayload, resetMockPayload } from './mocks.js'
+import type { BasePayload } from 'payload'
 import type { BetterAuthOptions } from 'better-auth'
+
+function mockPayloadDb(dbName: string): BasePayload {
+  return { db: { name: dbName } } as unknown as BasePayload
+}
+
+describe('detectDbType', () => {
+  it('detects mongodb from mongoose adapter', () => {
+    expect(detectDbType(mockPayloadDb('mongoose'))).toBe('mongodb')
+  })
+
+  it('detects mongodb from mongo adapter', () => {
+    expect(detectDbType(mockPayloadDb('mongo'))).toBe('mongodb')
+  })
+
+  it('detects sqlite', () => {
+    expect(detectDbType(mockPayloadDb('sqlite'))).toBe('sqlite')
+  })
+
+  it('returns postgres for vercel-postgres', () => {
+    expect(detectDbType(mockPayloadDb('vercel-postgres'))).toBe('postgres')
+  })
+
+  it('returns postgres for postgres', () => {
+    expect(detectDbType(mockPayloadDb('postgres'))).toBe('postgres')
+  })
+
+  it('defaults to postgres when db.name is missing', () => {
+    expect(detectDbType({ db: {} } as unknown as BasePayload)).toBe('postgres')
+  })
+
+  it('defaults to postgres when db is undefined', () => {
+    expect(detectDbType({} as unknown as BasePayload)).toBe('postgres')
+  })
+})
+
+describe('resolveIdType', () => {
+  const emptyOptions = {} as BetterAuthOptions
+
+  it('returns text for mongodb regardless of explicit idType', () => {
+    expect(resolveIdType('mongodb', emptyOptions, 'number')).toBe('text')
+  })
+
+  it('returns text for mongodb with no explicit idType', () => {
+    expect(resolveIdType('mongodb', emptyOptions)).toBe('text')
+  })
+
+  it('returns number for postgres when generateId is undefined', () => {
+    expect(resolveIdType('postgres', emptyOptions)).toBe('number')
+  })
+
+  it('returns number for postgres when generateId is serial', () => {
+    const options = {
+      advanced: { database: { generateId: 'serial' } },
+    } as unknown as BetterAuthOptions
+    expect(resolveIdType('postgres', options)).toBe('number')
+  })
+
+  it('returns text for postgres with non-serial generateId', () => {
+    const options = {
+      advanced: { database: { generateId: true } },
+    } as unknown as BetterAuthOptions
+    expect(resolveIdType('postgres', options)).toBe('text')
+  })
+
+  it('respects explicit idType override for postgres', () => {
+    expect(resolveIdType('postgres', emptyOptions, 'text')).toBe('text')
+  })
+
+  it('returns number for sqlite when generateId is undefined', () => {
+    expect(resolveIdType('sqlite', emptyOptions)).toBe('number')
+  })
+})
 
 describe('payloadAdapter', () => {
   const mockPayload = createMockPayload({

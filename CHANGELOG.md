@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### MongoDB Support
+
+The adapter now auto-detects MongoDB and configures itself accordingly. No special adapter configuration is needed — just use Payload's `@payloadcms/db-mongodb` adapter and everything works.
+
+- **Auto-detection**: Reads `payload.db.name` to determine database type (`postgres`, `mongodb`, or `sqlite`)
+- **ID type**: Automatically uses `'text'` (ObjectId strings) for MongoDB, `'number'` (SERIAL) for Postgres/SQLite
+- **Database-aware operators**: `starts_with` and `ends_with` use `contains` on MongoDB (SQL `LIKE` patterns aren't supported)
+- **`not_in` operator**: Added support for the `not_in` where clause operator
+- **New `dbType` config option**: Explicit override if auto-detection doesn't work for your adapter
+
+New exported utilities: `detectDbType()`, `resolveIdType()`, and the `DbType` type.
+
+See the [MongoDB Setup](README.md#mongodb-setup) section in the README for configuration details and migration guide.
+
+### Fixed
+
+#### 2FA and Passkey fields now scoped to the viewed user
+
+The Two-Factor Authentication and Passkeys management UI fields on user documents were displaying the logged-in admin's own data when viewing another user's document. This is because Better Auth's passkey and 2FA APIs are session-based (always operate on the logged-in user).
+
+Both fields now compare the document ID with the logged-in user's ID and show an informational message ("can only be managed by the account owner") when viewing someone else's profile.
+
 ### Changed
 
 #### 2FA and Passkeys moved to user document

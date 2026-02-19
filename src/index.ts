@@ -8,8 +8,8 @@
  */
 
 // Adapter
-export { payloadAdapter } from './adapter/index.js'
-export type { PayloadAdapterConfig } from './adapter/index.js'
+export { payloadAdapter, detectDbType, resolveIdType } from './adapter/index.js'
+export type { PayloadAdapterConfig, DbType } from './adapter/index.js'
 
 // Collection generator plugin
 export { betterAuthCollections } from './adapter/collections.js'

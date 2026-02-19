@@ -31,3 +31,6 @@ coverage/
 *.tsbuildinfo
 CLAUDE.md
 WARP.md
+
+# Internal planning docs
+docs/

@@ -20,6 +20,7 @@ For additional documentation and references, visit: [https://deepwiki.com/delmar
 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [MongoDB Setup](#mongodb-setup)
 - [API Reference](#api-reference)
 - [Customization](#customization)
 - [Access Control Helpers](#access-control-helpers)
@@ -166,7 +167,9 @@ export const Users: CollectionConfig = {
 > [better-auth] Auto-adding fields to 'users': ['twoFactorEnabled']
 > ```
 
-### Step 3: Configure Payload
+### Step 3: Configure Payload (Postgres)
+
+> For MongoDB, see [MongoDB Setup](#mongodb-setup).
 
 ```ts
 // src/payload.config.ts
@@ -292,6 +295,111 @@ export default async function Dashboard() {
 
 ---
 
+## MongoDB Setup
+
+The adapter auto-detects MongoDB and configures itself accordingly. No special adapter configuration is needed.
+
+### Key Differences from Postgres
+
+| | Postgres (default) | MongoDB |
+|---|---|---|
+| **ID type** | `'number'` (SERIAL) | `'text'` (ObjectId strings) |
+| **`generateId`** | Set to `'serial'` | Do not set (MongoDB generates ObjectIds) |
+| **`idType`** | `'number'` (default) | Auto-detected as `'text'` |
+| **`betterAuthStrategy`** | `idType: 'number'` (default) | `idType: 'text'` |
+| **`createSessionHelpers`** | `idType: 'number'` | `idType: 'text'` (or omit) |
+
+### Quick Start (MongoDB)
+
+```ts
+// src/payload.config.ts
+import { buildConfig } from 'payload'
+import { mongooseAdapter } from '@payloadcms/db-mongodb'
+import { betterAuth } from 'better-auth'
+import {
+  betterAuthCollections,
+  createBetterAuthPlugin,
+  payloadAdapter,
+} from '@delmaredigital/payload-better-auth'
+import { betterAuthOptions } from './lib/auth/config'
+import { Users } from './collections/Users'
+
+export default buildConfig({
+  collections: [Users],
+  plugins: [
+    betterAuthCollections({
+      betterAuthOptions,
+      skipCollections: ['user'],
+    }),
+    createBetterAuthPlugin({
+      createAuth: (payload) =>
+        betterAuth({
+          ...betterAuthOptions,
+          database: payloadAdapter({ payloadClient: payload }),
+          // Do NOT set advanced.database.generateId — MongoDB generates ObjectIds
+          secret: process.env.BETTER_AUTH_SECRET,
+          trustedOrigins: ['http://localhost:3000'],
+        }),
+    }),
+  ],
+  db: mongooseAdapter({
+    url: process.env.DATABASE_URI!,
+  }),
+})
+```
+
+**Users collection:**
+
+```ts
+import { betterAuthStrategy } from '@delmaredigital/payload-better-auth'
+
+export const Users: CollectionConfig = {
+  slug: 'users',
+  auth: {
+    disableLocalStrategy: true,
+    strategies: [betterAuthStrategy({ idType: 'text' })],
+  },
+  // ... fields and access control same as Postgres setup
+}
+```
+
+**Session helpers:**
+
+```ts
+import { createSessionHelpers } from '@delmaredigital/payload-better-auth'
+import type { User } from '@/payload-types'
+
+export const { getServerSession, getServerUser } = createSessionHelpers<User>({
+  idType: 'text',
+})
+```
+
+### Migrating from Postgres to MongoDB
+
+1. **Remove `generateId: 'serial'`** from your Better Auth config (the `advanced.database` block)
+2. **Change `betterAuthStrategy()`** to use `idType: 'text'`:
+   ```ts
+   strategies: [betterAuthStrategy({ idType: 'text' })]
+   ```
+3. **Update `createSessionHelpers`** (if using) to `idType: 'text'`:
+   ```ts
+   createSessionHelpers<User>({ idType: 'text' })
+   ```
+4. **Remove `idType: 'number'`** from `adapterConfig` if you had it set explicitly — the adapter auto-detects `'text'` for MongoDB
+5. **Switch the Payload database adapter**:
+   ```ts
+   // Before
+   import { postgresAdapter } from '@payloadcms/db-postgres'
+   db: postgresAdapter({ pool: { connectionString: process.env.DATABASE_URL } })
+
+   // After
+   import { mongooseAdapter } from '@payloadcms/db-mongodb'
+   db: mongooseAdapter({ url: process.env.DATABASE_URI! })
+   ```
+6. **Remove `idFieldsAllowlist`/`idFieldsBlocklist`** from `adapterConfig` if set — these are only relevant for serial ID conversion
+
+---
+
 ## API Reference
 
 ### `payloadAdapter(config)`
@@ -312,13 +420,16 @@ payloadAdapter({
 |--------|------|-------------|
 | `payloadClient` | `BasePayload \| () => Promise<BasePayload>` | Payload instance or factory function |
 | `adapterConfig.enableDebugLogs` | `boolean` | Enable debug logging (default: `false`) |
-| `adapterConfig.idType` | `'number' \| 'text'` | ID type (default: `'number'` for Payload's SERIAL IDs) |
+| `adapterConfig.dbType` | `'postgres' \| 'mongodb' \| 'sqlite'` | Database type (auto-detected from Payload's adapter) |
+| `adapterConfig.idType` | `'number' \| 'text'` | ID type (auto-detected: `'number'` for Postgres/SQLite, `'text'` for MongoDB) |
 | `adapterConfig.idFieldsAllowlist` | `string[]` | Additional fields to convert to numeric IDs (default: `[]`) |
 | `adapterConfig.idFieldsBlocklist` | `string[]` | Fields to exclude from numeric ID conversion (default: `[]`) |
 
-**ID Type:**
-- Defaults to `'number'` (SERIAL) - Payload's default
-- Set `idType: 'text'` if using UUIDs
+**Database & ID Type:**
+- **Auto-detected**: The adapter reads `payload.db.name` to determine the database type, then sets `idType` accordingly
+- **Postgres/SQLite**: `idType` defaults to `'number'` (SERIAL IDs)
+- **MongoDB**: `idType` is always `'text'` (ObjectId strings)
+- Set `dbType` explicitly only if auto-detection doesn't work for your adapter
 
 **Note:** When using number IDs (default), you can optionally set `generateId: 'serial'` in Better Auth to be explicit:
 ```typescript

@@ -6,6 +6,9 @@ import { useRouter } from 'next/navigation.js'
 /**
  * Logout button component styled to match Payload's admin nav.
  * Uses Payload's CSS classes and variables for native theme integration.
+ *
+ * Clears both Better Auth session and Payload's JWT cookie to ensure
+ * clean state when switching between users.
  */
 export function LogoutButton() {
   const router = useRouter()
@@ -16,14 +19,21 @@ export function LogoutButton() {
     setIsLoading(true)
 
     try {
-      await fetch('/api/auth/sign-out', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
-      })
+      // Clear both sessions simultaneously while cookies are still valid.
+      // - Better Auth: clears BA session cookie
+      // - Payload: clears JWT cookie (payload-token) so useAuth() resets
+      await Promise.allSettled([
+        fetch('/api/auth/sign-out', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        }),
+        fetch('/api/users/logout', {
+          method: 'POST',
+          credentials: 'include',
+        }),
+      ])
 
       router.push('/admin/login')
     } catch (error) {
