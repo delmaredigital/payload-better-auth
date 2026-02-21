@@ -33,4 +33,5 @@ CLAUDE.md
 WARP.md
 
 # Internal planning docs
-docs/
+docs/*
+!docs/index.html

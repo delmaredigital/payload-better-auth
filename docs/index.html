@@ -1,0 +1,1878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>payload-better-auth &mdash; Documentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #010919;
+  --bg-raised: #041020;
+  --bg-surface: #0d1b2d;
+  --bg-hover: #142235;
+  --border: #1b2a3c;
+  --border-subtle: #091628;
+  --text: #e8f0f3;
+  --text-secondary: #a5b0b6;
+  --text-muted: #59656e;
+  --accent: #00b2b3;
+  --accent-dim: #009696;
+  --accent-glow: rgba(0, 178, 179, 0.08);
+  --code-bg: #000514;
+  --code-border: #051223;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --sidebar-w: 280px;
+  --header-h: 56px;
+  --font-body: 'DM Sans', -apple-system, sans-serif;
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-mono: 'DM Mono', 'SF Mono', monospace;
+  --radius: 8px;
+  --radius-sm: 5px;
+}
+
+html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 24px); }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── HEADER ── */
+.header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--header-h);
+  background: rgba(1, 9, 25, 0.82);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border-bottom: 1px solid var(--border-subtle);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 16px;
+}
+
+.header-brand {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 18px;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-brand span {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.header-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  padding: 2px 8px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+}
+
+.header-links {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.header-links a {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s, background 0.15s;
+}
+
+.header-links a:hover { color: var(--text); background: var(--bg-hover); }
+
+.header-links a.cta {
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+.header-links a.cta:hover { background: var(--accent-dim); }
+
+.menu-toggle {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+}
+
+.menu-toggle svg { display: block; }
+
+/* ── SEARCH ── */
+.search-wrap {
+  position: relative;
+  flex: 0 1 260px;
+  margin-left: 24px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 7px 12px 7px 34px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.search-input::placeholder { color: var(--text-muted); }
+.search-input:focus { border-color: var(--accent); }
+
+.search-icon {
+  position: absolute;
+  left: 10px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.search-kbd {
+  position: absolute;
+  right: 8px; top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg);
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  pointer-events: none;
+}
+
+/* ── LAYOUT ── */
+.layout {
+  display: flex;
+  margin-top: var(--header-h);
+  min-height: calc(100vh - var(--header-h));
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  position: fixed;
+  top: var(--header-h);
+  left: 0;
+  width: var(--sidebar-w);
+  height: calc(100vh - var(--header-h));
+  overflow-y: auto;
+  padding: 20px 16px 40px;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--bg);
+  z-index: 50;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.nav-section {
+  margin-bottom: 8px;
+}
+
+.nav-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  padding: 12px 12px 6px;
+}
+
+.nav-link {
+  display: block;
+  padding: 6px 12px;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  transition: color 0.12s, background 0.12s;
+  line-height: 1.4;
+}
+
+.nav-link:hover { color: var(--text); background: var(--bg-hover); }
+
+.nav-link.active {
+  color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.nav-link.sub {
+  padding-left: 28px;
+  font-size: 12.5px;
+}
+
+/* ── MAIN CONTENT ── */
+.main {
+  margin-left: var(--sidebar-w);
+  flex: 1;
+  min-width: 0;
+  padding: 40px 48px 80px;
+  max-width: 860px;
+}
+
+/* ── HERO ── */
+.hero {
+  padding: 48px 0 56px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 48px;
+}
+
+.hero h1 {
+  font-family: var(--font-display);
+  font-size: 38px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin-bottom: 14px;
+}
+
+.hero h1 em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+.hero p {
+  font-size: 17px;
+  color: var(--text-secondary);
+  max-width: 540px;
+  line-height: 1.7;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 28px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.15s;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.btn-primary:hover { background: var(--accent-dim); transform: translateY(-1px); }
+
+.btn-secondary {
+  background: var(--bg-surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover { background: var(--bg-hover); border-color: var(--text-muted); }
+
+/* ── SECTIONS ── */
+.section {
+  margin-bottom: 56px;
+  scroll-margin-top: calc(var(--header-h) + 24px);
+}
+
+.section h2 {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  line-height: 1.3;
+}
+
+.section h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-top: 36px;
+  margin-bottom: 10px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.section h4 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-top: 28px;
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+}
+
+.section p {
+  margin-bottom: 14px;
+  color: var(--text-secondary);
+}
+
+.section p strong { color: var(--text); font-weight: 500; }
+
+.section a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+
+.section a:hover { border-bottom-color: var(--accent); }
+
+.section ul, .section ol {
+  margin-bottom: 14px;
+  padding-left: 20px;
+  color: var(--text-secondary);
+}
+
+.section li { margin-bottom: 6px; }
+.section li code { font-size: 13px; }
+
+/* ── CODE BLOCKS ── */
+pre {
+  position: relative;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin: 14px 0 18px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+pre::-webkit-scrollbar { height: 4px; }
+pre::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+pre .copy-btn {
+  position: absolute;
+  top: 8px; right: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+
+pre:hover .copy-btn { opacity: 1; }
+pre .copy-btn:hover { color: var(--text); background: var(--bg-hover); }
+
+pre .lang-tag {
+  position: absolute;
+  top: 8px; left: 12px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: var(--bg-surface);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--accent);
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+/* ── SYNTAX COLORS ── */
+.hl-keyword { color: #a8b4e0; }
+.hl-string { color: #6cd4b0; }
+.hl-comment { color: #3d4f5e; font-style: italic; }
+.hl-type { color: #00b2b3; }
+.hl-func { color: #6aadeb; }
+.hl-const { color: #d4a07a; }
+.hl-prop { color: #6ec5bf; }
+
+/* ── TABLES ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0 18px;
+  font-size: 13.5px;
+}
+
+th {
+  text-align: left;
+  padding: 10px 14px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg-surface);
+  border-bottom: 2px solid var(--border);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  vertical-align: top;
+}
+
+td code { font-size: 12.5px; }
+
+tr:last-child td { border-bottom: none; }
+
+/* ── CALLOUTS ── */
+.callout {
+  padding: 14px 18px;
+  border-radius: var(--radius);
+  margin: 14px 0 18px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  border-left: 3px solid;
+}
+
+.callout p { margin-bottom: 0; }
+.callout p + p { margin-top: 8px; }
+
+.callout-note {
+  background: rgba(0, 178, 179, 0.06);
+  border-color: var(--accent);
+  color: var(--text-secondary);
+}
+
+.callout-warn {
+  background: rgba(251, 191, 36, 0.06);
+  border-color: var(--warning);
+  color: var(--text-secondary);
+}
+
+.callout-tip {
+  background: rgba(74, 222, 128, 0.06);
+  border-color: var(--success);
+  color: var(--text-secondary);
+}
+
+.callout strong { color: var(--text); }
+
+/* ── DETAILS / COLLAPSIBLE ── */
+details {
+  margin: 14px 0 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+details summary {
+  padding: 12px 18px;
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--bg-surface);
+  transition: background 0.12s;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+details summary::-webkit-details-marker { display: none; }
+
+details summary::before {
+  content: '\25B8';
+  font-size: 12px;
+  color: var(--text-muted);
+  transition: transform 0.15s;
+}
+
+details[open] summary::before { transform: rotate(90deg); }
+details summary:hover { background: var(--bg-hover); }
+
+details .details-body {
+  padding: 18px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+details .details-body > :first-child { margin-top: 0; }
+
+/* ── STEP INDICATOR ── */
+.steps {
+  counter-reset: step;
+}
+
+.step {
+  position: relative;
+  padding-left: 48px;
+  padding-bottom: 28px;
+  border-left: 1px solid var(--border);
+  margin-left: 14px;
+}
+
+.step:last-child { border-left: none; }
+
+.step::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  left: -14px;
+  top: 0;
+  width: 28px;
+  height: 28px;
+  background: var(--bg-surface);
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.step h3 {
+  margin-top: 0;
+  font-size: 16px;
+}
+
+/* ── INSTALL BLOCK ── */
+.install-block {
+  display: flex;
+  align-items: center;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  gap: 12px;
+  margin: 14px 0 18px;
+}
+
+.install-block code {
+  flex: 1;
+  background: none;
+  color: var(--text);
+  padding: 0;
+}
+
+.install-block .copy-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  transition: color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
+.install-block .copy-btn:hover { color: var(--text); background: var(--bg-hover); }
+
+/* ── SEARCH RESULTS OVERLAY ── */
+.search-results {
+  display: none;
+  position: fixed;
+  top: var(--header-h);
+  left: 0; right: 0; bottom: 0;
+  background: rgba(1, 9, 25, 0.92);
+  backdrop-filter: blur(8px);
+  z-index: 200;
+  overflow-y: auto;
+  padding: 40px;
+}
+
+.search-results.active { display: block; }
+
+.search-results-inner {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.search-result-item {
+  display: block;
+  padding: 14px 18px;
+  margin-bottom: 4px;
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: var(--text);
+  transition: background 0.12s;
+}
+
+.search-result-item:hover { background: var(--bg-surface); }
+
+.search-result-item .result-title {
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.search-result-item .result-preview {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.search-no-results {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-muted);
+}
+
+/* ── SCROLL TO TOP ── */
+.scroll-top {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  width: 40px; height: 40px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  z-index: 50;
+}
+
+.scroll-top:hover { color: var(--text); border-color: var(--text-muted); }
+.scroll-top.visible { display: flex; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 900px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.25s;
+  }
+
+  .sidebar.open { transform: translateX(0); box-shadow: 8px 0 30px rgba(0,0,0,0.4); }
+  .menu-toggle { display: block; }
+  .main { margin-left: 0; padding: 32px 20px 60px; }
+  .search-wrap { flex: 0 1 180px; }
+  .hero h1 { font-size: 28px; }
+
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 40;
+  }
+
+  .sidebar-overlay.active { display: block; }
+}
+
+@media (max-width: 600px) {
+  .search-wrap { display: none; }
+  .header-links a:not(.cta) { display: none; }
+  .hero-actions { flex-direction: column; }
+  .btn { justify-content: center; }
+  table { font-size: 12px; }
+  th, td { padding: 8px 10px; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Menu">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+  </button>
+  <div class="header-brand">
+    <span>payload</span>-better-auth
+  </div>
+  <span class="header-badge">v0.4.3</span>
+
+  <div class="search-wrap">
+    <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <input class="search-input" type="text" placeholder="Search docs..." id="searchInput" autocomplete="off">
+    <span class="search-kbd">/</span>
+  </div>
+
+  <div class="header-links">
+    <a href="https://github.com/delmaredigital/payload-better-auth">GitHub</a>
+    <a href="https://www.npmjs.com/package/@delmaredigital/payload-better-auth">npm</a>
+    <a href="https://demo.delmaredigital.com" class="cta">Live Demo</a>
+  </div>
+</header>
+
+<!-- SIDEBAR OVERLAY (mobile) -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar" id="sidebar">
+    <div class="nav-section">
+      <div class="nav-section-title">Getting Started</div>
+      <a class="nav-link" href="#installation">Installation</a>
+      <a class="nav-link" href="#quick-start">Quick Start</a>
+      <a class="nav-link sub" href="#step-1-auth-config">Auth Configuration</a>
+      <a class="nav-link sub" href="#step-2-users-collection">Users Collection</a>
+      <a class="nav-link sub" href="#step-3-payload-config">Payload Config</a>
+      <a class="nav-link sub" href="#step-4-client">Client-Side Auth</a>
+      <a class="nav-link sub" href="#step-5-server">Server-Side Session</a>
+      <a class="nav-link" href="#mongodb">MongoDB Setup</a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">API Reference</div>
+      <a class="nav-link" href="#payload-adapter">payloadAdapter</a>
+      <a class="nav-link" href="#better-auth-collections">betterAuthCollections</a>
+      <a class="nav-link" href="#create-better-auth-plugin">createBetterAuthPlugin</a>
+      <a class="nav-link" href="#better-auth-strategy">betterAuthStrategy</a>
+      <a class="nav-link" href="#session-helpers">Session Helpers</a>
+      <a class="nav-link" href="#with-better-auth-defaults">withBetterAuthDefaults</a>
+      <a class="nav-link" href="#api-key-with-defaults">apiKeyWithDefaults</a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">Guides</div>
+      <a class="nav-link" href="#customization">Customization</a>
+      <a class="nav-link" href="#access-control">Access Control</a>
+      <a class="nav-link" href="#api-key-scopes">API Key Scopes</a>
+      <a class="nav-link" href="#plugin-compatibility">Plugin Compatibility</a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">UI &amp; Components</div>
+      <a class="nav-link" href="#registration">User Registration</a>
+      <a class="nav-link" href="#password-reset">Password Reset</a>
+      <a class="nav-link" href="#two-factor">Two-Factor Auth</a>
+      <a class="nav-link" href="#passkeys">Passkeys</a>
+      <a class="nav-link" href="#security-management">Security Management</a>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-section-title">Advanced</div>
+      <a class="nav-link" href="#recipes">Recipes</a>
+      <a class="nav-link" href="#types">Types</a>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- HERO -->
+    <div class="hero">
+      <h1>Better Auth for <em>Payload CMS</em></h1>
+      <p>Seamless integration between Better Auth and Payload. Use Payload collections as your auth database with auto-generated schemas, session management, and admin UI components.</p>
+      <div class="hero-actions">
+        <a href="#quick-start" class="btn btn-primary">Get Started</a>
+        <a href="https://github.com/delmaredigital/dd-starter" class="btn btn-secondary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.866-.013-1.7-2.782.604-3.369-1.341-3.369-1.341-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z" fill="currentColor"/></svg>
+          Starter Template
+        </a>
+      </div>
+    </div>
+
+    <!-- ═══════ INSTALLATION ═══════ -->
+    <div class="section" id="installation">
+      <h2>Installation</h2>
+
+      <h3>Requirements</h3>
+      <table>
+        <thead><tr><th>Dependency</th><th>Version</th></tr></thead>
+        <tbody>
+          <tr><td><code>payload</code></td><td>&ge; 3.69.0</td></tr>
+          <tr><td><code>@payloadcms/next</code></td><td>&ge; 3.69.0</td></tr>
+          <tr><td><code>@payloadcms/ui</code></td><td>&ge; 3.69.0</td></tr>
+          <tr><td><code>better-auth</code></td><td>&ge; 1.4.0</td></tr>
+          <tr><td><code>next</code></td><td>&ge; 15.4.8</td></tr>
+          <tr><td><code>react</code></td><td>&ge; 19.2.1</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Install</h3>
+      <div class="install-block">
+        <code>pnpm add @delmaredigital/payload-better-auth better-auth</code>
+        <button class="copy-btn" onclick="copyText('pnpm add @delmaredigital/payload-better-auth better-auth', this)">Copy</button>
+      </div>
+
+      <p>If using passkeys:</p>
+      <div class="install-block">
+        <code>pnpm add @better-auth/passkey</code>
+        <button class="copy-btn" onclick="copyText('pnpm add @better-auth/passkey', this)">Copy</button>
+      </div>
+
+      <h3>Environment Variables</h3>
+      <pre><span class="lang-tag">bash</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment"># Required</span>
+BETTER_AUTH_SECRET=your-secret-key-min-32-chars
+
+<span class="hl-comment"># Optional &mdash; only needed if not using the getBaseUrl() helper</span>
+BETTER_AUTH_URL=http://localhost:3000
+
+<span class="hl-comment"># OAuth Providers (if using social login)</span>
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...</code></pre>
+
+      <div class="callout callout-tip">
+        <p><strong>Vercel Deployment:</strong> Use a <code>getBaseUrl()</code> helper to automatically handle local dev, Vercel preview, and production URLs:</p>
+      </div>
+      <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// src/lib/auth/getBaseUrl.ts</span>
+<span class="hl-keyword">export function</span> <span class="hl-func">getBaseUrl</span>() {
+  <span class="hl-keyword">if</span> (process.env.VERCEL_URL) <span class="hl-keyword">return</span> <span class="hl-string">`https://${process.env.VERCEL_URL}`</span>
+  <span class="hl-keyword">if</span> (process.env.BETTER_AUTH_URL) <span class="hl-keyword">return</span> process.env.BETTER_AUTH_URL
+  <span class="hl-keyword">return</span> <span class="hl-string">'http://localhost:3000'</span>
+}</code></pre>
+    </div>
+
+    <!-- ═══════ QUICK START ═══════ -->
+    <div class="section" id="quick-start">
+      <h2>Quick Start</h2>
+
+      <div class="steps">
+
+        <div class="step" id="step-1-auth-config">
+          <h3>Create Your Auth Configuration</h3>
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// src/lib/auth/config.ts</span>
+<span class="hl-keyword">import type</span> { <span class="hl-type">BetterAuthOptions</span> } <span class="hl-keyword">from</span> <span class="hl-string">'better-auth'</span>
+
+<span class="hl-keyword">export const</span> betterAuthOptions: <span class="hl-type">Partial</span>&lt;<span class="hl-type">BetterAuthOptions</span>&gt; = {
+  user: {
+    additionalFields: {
+      role: { type: <span class="hl-string">'string'</span>, defaultValue: <span class="hl-string">'user'</span> },
+    },
+  },
+  session: {
+    expiresIn: <span class="hl-const">60</span> * <span class="hl-const">60</span> * <span class="hl-const">24</span> * <span class="hl-const">30</span>, <span class="hl-comment">// 30 days</span>
+  },
+  emailAndPassword: { enabled: <span class="hl-const">true</span> },
+}</code></pre>
+        </div>
+
+        <div class="step" id="step-2-users-collection">
+          <h3>Create Your Users Collection</h3>
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// src/collections/Users/index.ts</span>
+<span class="hl-keyword">import type</span> { <span class="hl-type">CollectionConfig</span> } <span class="hl-keyword">from</span> <span class="hl-string">'payload'</span>
+<span class="hl-keyword">import</span> { <span class="hl-func">betterAuthStrategy</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth'</span>
+
+<span class="hl-keyword">export const</span> Users: <span class="hl-type">CollectionConfig</span> = {
+  slug: <span class="hl-string">'users'</span>,
+  auth: {
+    disableLocalStrategy: <span class="hl-const">true</span>,
+    strategies: [<span class="hl-func">betterAuthStrategy</span>()],
+  },
+  access: {
+    read: ({ req }) =&gt; {
+      <span class="hl-keyword">if</span> (!req.user) <span class="hl-keyword">return</span> <span class="hl-const">false</span>
+      <span class="hl-keyword">if</span> (req.user.role === <span class="hl-string">'admin'</span>) <span class="hl-keyword">return</span> <span class="hl-const">true</span>
+      <span class="hl-keyword">return</span> { id: { equals: req.user.id } }
+    },
+    admin: ({ req }) =&gt; req.user?.role === <span class="hl-string">'admin'</span>,
+  },
+  fields: [
+    { name: <span class="hl-string">'email'</span>, type: <span class="hl-string">'email'</span>, required: <span class="hl-const">true</span>, unique: <span class="hl-const">true</span> },
+    { name: <span class="hl-string">'emailVerified'</span>, type: <span class="hl-string">'checkbox'</span>, defaultValue: <span class="hl-const">false</span> },
+    { name: <span class="hl-string">'name'</span>, type: <span class="hl-string">'text'</span> },
+    { name: <span class="hl-string">'image'</span>, type: <span class="hl-string">'text'</span> },
+    {
+      name: <span class="hl-string">'role'</span>,
+      type: <span class="hl-string">'select'</span>,
+      defaultValue: <span class="hl-string">'user'</span>,
+      options: [
+        { label: <span class="hl-string">'User'</span>, value: <span class="hl-string">'user'</span> },
+        { label: <span class="hl-string">'Admin'</span>, value: <span class="hl-string">'admin'</span> },
+      ],
+    },
+  ],
+}</code></pre>
+          <div class="callout callout-note">
+            <p>Plugin-specific fields (e.g., <code>twoFactorEnabled</code> for 2FA) are <strong>automatically added</strong> to your Users collection by <code>betterAuthCollections()</code>.</p>
+          </div>
+        </div>
+
+        <div class="step" id="step-3-payload-config">
+          <h3>Configure Payload (Postgres)</h3>
+          <p>For MongoDB, see <a href="#mongodb">MongoDB Setup</a>.</p>
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// src/payload.config.ts</span>
+<span class="hl-keyword">import</span> { <span class="hl-func">buildConfig</span> } <span class="hl-keyword">from</span> <span class="hl-string">'payload'</span>
+<span class="hl-keyword">import</span> { <span class="hl-func">postgresAdapter</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@payloadcms/db-postgres'</span>
+<span class="hl-keyword">import</span> { <span class="hl-func">betterAuth</span> } <span class="hl-keyword">from</span> <span class="hl-string">'better-auth'</span>
+<span class="hl-keyword">import</span> {
+  <span class="hl-func">betterAuthCollections</span>,
+  <span class="hl-func">createBetterAuthPlugin</span>,
+  <span class="hl-func">payloadAdapter</span>,
+} <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth'</span>
+
+<span class="hl-keyword">export default</span> <span class="hl-func">buildConfig</span>({
+  collections: [Users],
+  plugins: [
+    <span class="hl-func">betterAuthCollections</span>({
+      betterAuthOptions,
+      skipCollections: [<span class="hl-string">'user'</span>],
+    }),
+    <span class="hl-func">createBetterAuthPlugin</span>({
+      createAuth: (payload) =&gt;
+        <span class="hl-func">betterAuth</span>({
+          ...betterAuthOptions,
+          database: <span class="hl-func">payloadAdapter</span>({ payloadClient: payload }),
+          advanced: { database: { generateId: <span class="hl-string">'serial'</span> } },
+          baseURL: baseUrl,
+          secret: process.env.BETTER_AUTH_SECRET,
+          trustedOrigins: [baseUrl],
+        }),
+    }),
+  ],
+  db: <span class="hl-func">postgresAdapter</span>({
+    pool: { connectionString: process.env.DATABASE_URL },
+  }),
+})</code></pre>
+        </div>
+
+        <div class="step" id="step-4-client">
+          <h3>Client-Side Auth</h3>
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// src/lib/auth/client.ts</span>
+<span class="hl-string">'use client'</span>
+
+<span class="hl-keyword">import</span> { <span class="hl-func">createPayloadAuthClient</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/client'</span>
+
+<span class="hl-keyword">export const</span> authClient = <span class="hl-func">createPayloadAuthClient</span>()
+
+<span class="hl-keyword">export const</span> { useSession, signIn, signUp, signOut, twoFactor, passkey } = authClient</code></pre>
+          <p><code>createPayloadAuthClient()</code> automatically uses <code>window.location.origin</code>, so it works across all deployment URLs.</p>
+
+          <details>
+            <summary>Adding custom plugins (e.g., Stripe)</summary>
+            <div class="details-body">
+              <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import</span> { <span class="hl-func">createAuthClient</span>, payloadAuthPlugins } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/client'</span>
+<span class="hl-keyword">import</span> { <span class="hl-func">stripeClient</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@better-auth/stripe/client'</span>
+
+<span class="hl-keyword">export const</span> authClient = <span class="hl-func">createAuthClient</span>({
+  plugins: [...payloadAuthPlugins, <span class="hl-func">stripeClient</span>({ subscription: <span class="hl-const">true</span> })],
+})</code></pre>
+            </div>
+          </details>
+        </div>
+
+        <div class="step" id="step-5-server">
+          <h3>Server-Side Session</h3>
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import</span> { headers } <span class="hl-keyword">from</span> <span class="hl-string">'next/headers'</span>
+<span class="hl-keyword">import</span> { <span class="hl-func">getPayload</span> } <span class="hl-keyword">from</span> <span class="hl-string">'payload'</span>
+<span class="hl-keyword">import</span> { <span class="hl-func">getServerSession</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth'</span>
+
+<span class="hl-keyword">export default async function</span> <span class="hl-func">Dashboard</span>() {
+  <span class="hl-keyword">const</span> payload = <span class="hl-keyword">await</span> <span class="hl-func">getPayload</span>({ config })
+  <span class="hl-keyword">const</span> headersList = <span class="hl-keyword">await</span> <span class="hl-func">headers</span>()
+  <span class="hl-keyword">const</span> session = <span class="hl-keyword">await</span> <span class="hl-func">getServerSession</span>(payload, headersList)
+
+  <span class="hl-keyword">if</span> (!session) { <span class="hl-func">redirect</span>(<span class="hl-string">'/login'</span>) }
+
+  <span class="hl-keyword">return</span> &lt;div&gt;Hello {session.user.name}&lt;/div&gt;
+}</code></pre>
+        </div>
+
+      </div>
+
+      <div class="callout callout-tip">
+        <p><strong>That's it!</strong> The plugin automatically registers auth API endpoints at <code>/api/auth/*</code>, injects admin UI components, and handles session management.</p>
+      </div>
+    </div>
+
+    <!-- ═══════ MONGODB ═══════ -->
+    <div class="section" id="mongodb">
+      <h2>MongoDB Setup</h2>
+      <p>The adapter auto-detects MongoDB and configures itself accordingly. No special adapter configuration is needed.</p>
+
+      <h3>Key Differences from Postgres</h3>
+      <table>
+        <thead><tr><th></th><th>Postgres (default)</th><th>MongoDB</th></tr></thead>
+        <tbody>
+          <tr><td><strong>ID type</strong></td><td><code>'number'</code> (SERIAL)</td><td><code>'text'</code> (ObjectId strings)</td></tr>
+          <tr><td><strong>generateId</strong></td><td>Set to <code>'serial'</code></td><td>Do not set</td></tr>
+          <tr><td><strong>betterAuthStrategy</strong></td><td>Default</td><td><code>idType: 'text'</code></td></tr>
+        </tbody>
+      </table>
+
+      <details>
+        <summary>Full MongoDB Payload config example</summary>
+        <div class="details-body">
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// src/payload.config.ts</span>
+<span class="hl-keyword">import</span> { <span class="hl-func">mongooseAdapter</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@payloadcms/db-mongodb'</span>
+
+<span class="hl-keyword">export default</span> <span class="hl-func">buildConfig</span>({
+  collections: [Users],
+  plugins: [
+    <span class="hl-func">betterAuthCollections</span>({ betterAuthOptions, skipCollections: [<span class="hl-string">'user'</span>] }),
+    <span class="hl-func">createBetterAuthPlugin</span>({
+      createAuth: (payload) =&gt;
+        <span class="hl-func">betterAuth</span>({
+          ...betterAuthOptions,
+          database: <span class="hl-func">payloadAdapter</span>({ payloadClient: payload }),
+          <span class="hl-comment">// Do NOT set advanced.database.generateId</span>
+          secret: process.env.BETTER_AUTH_SECRET,
+          trustedOrigins: [<span class="hl-string">'http://localhost:3000'</span>],
+        }),
+    }),
+  ],
+  db: <span class="hl-func">mongooseAdapter</span>({ url: process.env.DATABASE_URI! }),
+})</code></pre>
+        </div>
+      </details>
+
+      <details>
+        <summary>MongoDB Users collection &amp; session helpers</summary>
+        <div class="details-body">
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// Users collection</span>
+strategies: [<span class="hl-func">betterAuthStrategy</span>({ idType: <span class="hl-string">'text'</span> })]
+
+<span class="hl-comment">// Session helpers</span>
+<span class="hl-keyword">export const</span> { getServerSession, getServerUser } = <span class="hl-func">createSessionHelpers</span>&lt;<span class="hl-type">User</span>&gt;({
+  idType: <span class="hl-string">'text'</span>,
+})</code></pre>
+        </div>
+      </details>
+
+      <details>
+        <summary>Migrating from Postgres to MongoDB</summary>
+        <div class="details-body">
+          <ol>
+            <li>Remove <code>generateId: 'serial'</code> from your Better Auth config</li>
+            <li>Change <code>betterAuthStrategy()</code> to use <code>idType: 'text'</code></li>
+            <li>Update <code>createSessionHelpers</code> to <code>idType: 'text'</code></li>
+            <li>Remove explicit <code>idType: 'number'</code> from adapterConfig</li>
+            <li>Switch Payload's database adapter to <code>mongooseAdapter</code></li>
+            <li>Remove <code>idFieldsAllowlist</code>/<code>idFieldsBlocklist</code> if set</li>
+          </ol>
+        </div>
+      </details>
+    </div>
+
+    <!-- ═══════ API REFERENCE ═══════ -->
+    <div class="section" id="payload-adapter">
+      <h2>API Reference</h2>
+
+      <h3><code>payloadAdapter(config)</code></h3>
+      <p>Creates a Better Auth database adapter that uses Payload collections. Uses Better Auth's <code>createAdapterFactory</code> for schema-aware transformations.</p>
+
+      <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-func">payloadAdapter</span>({
+  payloadClient: payload,
+  adapterConfig: {
+    enableDebugLogs: <span class="hl-const">false</span>,
+    idType: <span class="hl-string">'number'</span>,
+  },
+})</code></pre>
+
+      <table>
+        <thead><tr><th>Option</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>payloadClient</code></td><td><code>BasePayload | () =&gt; Promise</code></td><td>Payload instance or factory function</td></tr>
+          <tr><td><code>adapterConfig.enableDebugLogs</code></td><td><code>boolean</code></td><td>Enable debug logging (default: <code>false</code>)</td></tr>
+          <tr><td><code>adapterConfig.dbType</code></td><td><code>'postgres' | 'mongodb' | 'sqlite'</code></td><td>Database type (auto-detected)</td></tr>
+          <tr><td><code>adapterConfig.idType</code></td><td><code>'number' | 'text'</code></td><td>ID type (auto-detected)</td></tr>
+          <tr><td><code>adapterConfig.idFieldsAllowlist</code></td><td><code>string[]</code></td><td>Additional fields to convert to numeric IDs</td></tr>
+          <tr><td><code>adapterConfig.idFieldsBlocklist</code></td><td><code>string[]</code></td><td>Fields to exclude from numeric ID conversion</td></tr>
+        </tbody>
+      </table>
+
+      <details>
+        <summary>ID field conversion details</summary>
+        <div class="details-body">
+          <p>When using serial IDs (<code>idType: 'number'</code>), the adapter automatically converts string ID fields to numbers. This applies to fields matching <code>*Id</code> or <code>*_id</code> patterns.</p>
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-func">payloadAdapter</span>({
+  payloadClient: payload,
+  adapterConfig: {
+    idFieldsAllowlist: [<span class="hl-string">'customOrgRef'</span>],
+    idFieldsBlocklist: [<span class="hl-string">'visitorId'</span>, <span class="hl-string">'correlationId'</span>],
+  },
+})</code></pre>
+        </div>
+      </details>
+
+      <details>
+        <summary>Custom collection names</summary>
+        <div class="details-body">
+          <p>By default, the adapter uses standard collection names. Only use <code>modelName</code> to <strong>customize</strong>:</p>
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-func">betterAuth</span>({
+  database: <span class="hl-func">payloadAdapter</span>({ payloadClient: payload }),
+  user: { modelName: <span class="hl-string">'member'</span> },        <span class="hl-comment">// 'users' → 'members'</span>
+  session: { modelName: <span class="hl-string">'auth_session'</span> }, <span class="hl-comment">// 'sessions' → 'auth_sessions'</span>
+})</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <!-- betterAuthCollections -->
+    <div class="section" id="better-auth-collections">
+      <h3><code>betterAuthCollections(options)</code></h3>
+      <p>Payload plugin that auto-generates collections from Better Auth schema.</p>
+
+      <table>
+        <thead><tr><th>Option</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>betterAuthOptions</code></td><td><code>BetterAuthOptions</code></td><td>Your Better Auth options</td></tr>
+          <tr><td><code>skipCollections</code></td><td><code>string[]</code></td><td>Collections to skip (default: <code>['user']</code>)</td></tr>
+          <tr><td><code>adminGroup</code></td><td><code>string</code></td><td>Admin panel group name (default: <code>'Auth'</code>)</td></tr>
+          <tr><td><code>access</code></td><td><code>CollectionConfig['access']</code></td><td>Custom access control for generated collections</td></tr>
+          <tr><td><code>usePlural</code></td><td><code>boolean</code></td><td>Pluralize slugs (default: <code>true</code>)</td></tr>
+          <tr><td><code>configureSaveToJWT</code></td><td><code>boolean</code></td><td>Auto-configure saveToJWT (default: <code>true</code>)</td></tr>
+          <tr><td><code>firstUserAdmin</code></td><td><code>boolean | object</code></td><td>Make first user admin (default: <code>true</code>)</td></tr>
+          <tr><td><code>customizeCollection</code></td><td><code>(key, config) =&gt; config</code></td><td>Customize generated collections</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-warn">
+        <p><strong>Custom Access Caution:</strong> The <code>access</code> option <strong>completely replaces</strong> the default access object. You must handle all access types explicitly.</p>
+      </div>
+
+      <details>
+        <summary>First User Admin configuration</summary>
+        <div class="details-body">
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// Customize roles</span>
+<span class="hl-func">betterAuthCollections</span>({
+  betterAuthOptions,
+  firstUserAdmin: {
+    adminRole: <span class="hl-string">'super-admin'</span>,
+    defaultRole: <span class="hl-string">'member'</span>,
+    roleField: <span class="hl-string">'userRole'</span>,
+  },
+})
+
+<span class="hl-comment">// Disable</span>
+<span class="hl-func">betterAuthCollections</span>({ betterAuthOptions, firstUserAdmin: <span class="hl-const">false</span> })</code></pre>
+        </div>
+      </details>
+
+      <details>
+        <summary>Collection customization example</summary>
+        <div class="details-body">
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-func">betterAuthCollections</span>({
+  betterAuthOptions,
+  customizeCollection: (modelKey, collection) =&gt; {
+    <span class="hl-keyword">if</span> (modelKey === <span class="hl-string">'session'</span>) {
+      <span class="hl-keyword">return</span> { ...collection, hooks: { afterDelete: [cleanupExpiredSessions] } }
+    }
+    <span class="hl-keyword">return</span> collection
+  },
+})</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <!-- createBetterAuthPlugin -->
+    <div class="section" id="create-better-auth-plugin">
+      <h3><code>createBetterAuthPlugin(options)</code></h3>
+      <p>Payload plugin that initializes Better Auth during Payload's <code>onInit</code>.</p>
+
+      <table>
+        <thead><tr><th>Option</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>createAuth</code></td><td><code>(payload) =&gt; Auth</code></td><td><em>required</em></td><td>Factory function for Better Auth instance</td></tr>
+          <tr><td><code>authBasePath</code></td><td><code>string</code></td><td><code>'/auth'</code></td><td>Base path for auth endpoints</td></tr>
+          <tr><td><code>autoRegisterEndpoints</code></td><td><code>boolean</code></td><td><code>true</code></td><td>Auto-register auth API endpoints</td></tr>
+          <tr><td><code>autoInjectAdminComponents</code></td><td><code>boolean</code></td><td><code>true</code></td><td>Auto-inject admin components</td></tr>
+        </tbody>
+      </table>
+
+      <details>
+        <summary>Full admin options reference</summary>
+        <div class="details-body">
+          <table>
+            <thead><tr><th>Option</th><th>Default</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>admin.disableLogoutButton</code></td><td><code>false</code></td><td>Disable logout button injection</td></tr>
+              <tr><td><code>admin.disableBeforeLogin</code></td><td><code>false</code></td><td>Disable BeforeLogin redirect</td></tr>
+              <tr><td><code>admin.disableLoginView</code></td><td><code>false</code></td><td>Disable login view injection</td></tr>
+              <tr><td><code>admin.login.title</code></td><td><code>'Login'</code></td><td>Custom login page title</td></tr>
+              <tr><td><code>admin.login.afterLoginPath</code></td><td><code>'/admin'</code></td><td>Redirect path after login</td></tr>
+              <tr><td><code>admin.login.requiredRole</code></td><td><code>'admin'</code></td><td>Required role(s) for admin. <code>null</code> to disable.</td></tr>
+              <tr><td><code>admin.login.requireAllRoles</code></td><td><code>false</code></td><td>Require ALL roles instead of any</td></tr>
+              <tr><td><code>admin.login.enablePasskey</code></td><td><code>false</code></td><td>Enable passkey sign-in. <code>'auto'</code> to detect.</td></tr>
+              <tr><td><code>admin.login.enableSignUp</code></td><td><code>'auto'</code></td><td>Enable registration</td></tr>
+              <tr><td><code>admin.login.defaultSignUpRole</code></td><td><code>'user'</code></td><td>Default role for new users</td></tr>
+              <tr><td><code>admin.login.enableForgotPassword</code></td><td><code>'auto'</code></td><td>Enable forgot password</td></tr>
+              <tr><td><code>admin.login.resetPasswordUrl</code></td><td>&mdash;</td><td>Custom password reset URL</td></tr>
+              <tr><td><code>admin.enableManagementUI</code></td><td><code>true</code></td><td>Enable security management views</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <details>
+        <summary>API Key Scopes configuration</summary>
+        <div class="details-body">
+          <table>
+            <thead><tr><th>Option</th><th>Default</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>scopes</code></td><td>&mdash;</td><td>Custom scope definitions</td></tr>
+              <tr><td><code>includeCollectionScopes</code></td><td>auto</td><td>Include auto-generated collection scopes</td></tr>
+              <tr><td><code>excludeCollections</code></td><td>auth collections</td><td>Collections to exclude from scopes</td></tr>
+              <tr><td><code>defaultScopes</code></td><td><code>[]</code></td><td>Default pre-selected scopes</td></tr>
+              <tr><td><code>requiredRole</code></td><td><code>'admin'</code></td><td>Role required to manage API keys</td></tr>
+            </tbody>
+          </table>
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// Custom scopes</span>
+admin: {
+  apiKey: {
+    scopes: {
+      <span class="hl-string">'content:read'</span>: {
+        label: <span class="hl-string">'Read Content'</span>,
+        description: <span class="hl-string">'View posts and pages'</span>,
+        permissions: { posts: [<span class="hl-string">'read'</span>], pages: [<span class="hl-string">'read'</span>] }
+      },
+    },
+    defaultScopes: [<span class="hl-string">'content:read'</span>]
+  }
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <!-- betterAuthStrategy -->
+    <div class="section" id="better-auth-strategy">
+      <h3><code>betterAuthStrategy(options?)</code></h3>
+      <p>Payload auth strategy for Better Auth session validation.</p>
+      <table>
+        <thead><tr><th>Option</th><th>Type</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>usersCollection</code></td><td><code>string</code></td><td>Collection slug for users (default: <code>'users'</code>)</td></tr>
+          <tr><td><code>idType</code></td><td><code>'number' | 'text'</code></td><td>Coerce IDs. Default <code>'number'</code>. Use <code>'text'</code> for MongoDB.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Session Helpers -->
+    <div class="section" id="session-helpers">
+      <h3>Session Helpers</h3>
+
+      <h4><code>getServerSession&lt;TUser&gt;(payload, headers)</code></h4>
+      <p>Get the current session on the server with full type safety.</p>
+
+      <h4><code>getServerUser&lt;TUser&gt;(payload, headers)</code></h4>
+      <p>Shorthand for <code>session.user</code>.</p>
+
+      <h4><code>createSessionHelpers&lt;TUser&gt;(options?)</code></h4>
+      <p>Create typed session helpers. Define once, import everywhere &mdash; no generics at call sites.</p>
+
+      <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// lib/auth.ts</span>
+<span class="hl-keyword">import</span> { <span class="hl-func">createSessionHelpers</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth'</span>
+<span class="hl-keyword">import type</span> { <span class="hl-type">User</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@/payload-types'</span>
+
+<span class="hl-keyword">export const</span> { getServerSession, getServerUser } = <span class="hl-func">createSessionHelpers</span>&lt;<span class="hl-type">User</span>&gt;()
+
+<span class="hl-comment">// app/page.tsx &mdash; no generic needed</span>
+<span class="hl-keyword">const</span> session = <span class="hl-keyword">await</span> <span class="hl-func">getServerSession</span>(payload, headersList)</code></pre>
+    </div>
+
+    <!-- withBetterAuthDefaults -->
+    <div class="section" id="with-better-auth-defaults">
+      <h3><code>withBetterAuthDefaults(options)</code></h3>
+      <p>Applies sensible defaults. Sets <code>trustedOrigins: [baseURL]</code> when not explicitly set.</p>
+    </div>
+
+    <!-- apiKeyWithDefaults -->
+    <div class="section" id="api-key-with-defaults">
+      <h3><code>apiKeyWithDefaults(options?)</code></h3>
+      <p>Wraps Better Auth's <code>apiKey()</code> with <code>enableMetadata: true</code> for scope display in admin UI.</p>
+    </div>
+
+    <!-- ═══════ CUSTOMIZATION ═══════ -->
+    <div class="section" id="customization">
+      <h2>Customization</h2>
+
+      <h3>Role-Based Access Control</h3>
+      <p>The login page checks for the <code>admin</code> role by default. Configure via <code>admin.login.requiredRole</code>.</p>
+
+      <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code>admin: {
+  login: {
+    requiredRole: <span class="hl-string">'admin'</span>,                          <span class="hl-comment">// Single role</span>
+    requiredRole: [<span class="hl-string">'admin'</span>, <span class="hl-string">'editor'</span>, <span class="hl-string">'moderator'</span>], <span class="hl-comment">// Any of these</span>
+    requiredRole: <span class="hl-const">null</span>,                              <span class="hl-comment">// Disable checking</span>
+  },
+}</code></pre>
+
+      <h3>Disabling Auto-Injection</h3>
+      <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-func">createBetterAuthPlugin</span>({
+  createAuth,
+  autoRegisterEndpoints: <span class="hl-const">false</span>,
+  autoInjectAdminComponents: <span class="hl-const">false</span>,
+})</code></pre>
+
+      <details>
+        <summary>Custom admin components</summary>
+        <div class="details-body">
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code>admin: {
+  loginViewComponent: <span class="hl-string">'@/components/admin/CustomLogin'</span>,
+  logoutButtonComponent: <span class="hl-string">'@/components/admin/CustomLogout'</span>,
+  disableBeforeLogin: <span class="hl-const">true</span>,
+}</code></pre>
+        </div>
+      </details>
+
+      <details>
+        <summary>Manual API route (advanced)</summary>
+        <div class="details-body">
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// src/app/api/auth/[...all]/route.ts</span>
+<span class="hl-keyword">import type</span> { <span class="hl-type">PayloadWithAuth</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth'</span>
+
+<span class="hl-keyword">export async function</span> <span class="hl-func">GET</span>(request: <span class="hl-type">NextRequest</span>) {
+  <span class="hl-keyword">const</span> payload = (<span class="hl-keyword">await</span> <span class="hl-func">getPayload</span>({ config })) <span class="hl-keyword">as</span> <span class="hl-type">PayloadWithAuth</span>
+  <span class="hl-keyword">return</span> payload.betterAuth.<span class="hl-func">handler</span>(request)
+}
+
+<span class="hl-keyword">export async function</span> <span class="hl-func">POST</span>(request: <span class="hl-type">NextRequest</span>) {
+  <span class="hl-keyword">const</span> payload = (<span class="hl-keyword">await</span> <span class="hl-func">getPayload</span>({ config })) <span class="hl-keyword">as</span> <span class="hl-type">PayloadWithAuth</span>
+  <span class="hl-keyword">return</span> payload.betterAuth.<span class="hl-func">handler</span>(request)
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <!-- ═══════ ACCESS CONTROL ═══════ -->
+    <div class="section" id="access-control">
+      <h2>Access Control Helpers</h2>
+      <p>Pre-built access control functions for common authorization patterns.</p>
+
+      <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import</span> {
+  <span class="hl-func">isAdmin</span>, <span class="hl-func">isAdminField</span>, <span class="hl-func">isAdminOrSelf</span>,
+  <span class="hl-func">hasRole</span>, <span class="hl-func">requireAllRoles</span>,
+  <span class="hl-func">isAuthenticated</span>, <span class="hl-func">isAuthenticatedField</span>,
+  <span class="hl-func">canUpdateOwnFields</span>,
+} <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth'</span>
+
+<span class="hl-keyword">export const</span> Posts: <span class="hl-type">CollectionConfig</span> = {
+  slug: <span class="hl-string">'posts'</span>,
+  access: {
+    read: <span class="hl-func">isAuthenticated</span>(),
+    create: <span class="hl-func">hasRole</span>([<span class="hl-string">'editor'</span>, <span class="hl-string">'admin'</span>]),
+    update: <span class="hl-func">hasRole</span>([<span class="hl-string">'editor'</span>, <span class="hl-string">'admin'</span>]),
+    delete: <span class="hl-func">requireAllRoles</span>([<span class="hl-string">'admin'</span>, <span class="hl-string">'content-manager'</span>]),
+  },
+  fields: [{
+    name: <span class="hl-string">'internalNotes'</span>,
+    type: <span class="hl-string">'textarea'</span>,
+    access: { read: <span class="hl-func">isAdminField</span>() },
+  }],
+}</code></pre>
+
+      <details>
+        <summary>Self-access patterns</summary>
+        <div class="details-body">
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code>access: {
+  read: <span class="hl-func">isAdminOrSelf</span>({ adminRoles: [<span class="hl-string">'admin'</span>] }),
+  update: <span class="hl-func">canUpdateOwnFields</span>({
+    allowedFields: [<span class="hl-string">'name'</span>, <span class="hl-string">'image'</span>, <span class="hl-string">'password'</span>],
+    userSlug: <span class="hl-string">'users'</span>,
+    requireCurrentPassword: <span class="hl-const">true</span>,
+  }),
+  delete: <span class="hl-func">isAdmin</span>({ adminRoles: [<span class="hl-string">'admin'</span>] }),
+}</code></pre>
+        </div>
+      </details>
+
+      <details>
+        <summary>Utility functions</summary>
+        <div class="details-body">
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import</span> { <span class="hl-func">normalizeRoles</span>, <span class="hl-func">hasAnyRole</span>, <span class="hl-func">hasAllRoles</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth'</span>
+
+<span class="hl-keyword">const</span> roles = <span class="hl-func">normalizeRoles</span>(user.role)
+<span class="hl-func">hasAnyRole</span>(user, [<span class="hl-string">'admin'</span>, <span class="hl-string">'editor'</span>])
+<span class="hl-func">hasAllRoles</span>(user, [<span class="hl-string">'admin'</span>, <span class="hl-string">'editor'</span>])</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <!-- ═══════ API KEY SCOPES ═══════ -->
+    <div class="section" id="api-key-scopes">
+      <h2>API Key Scope Enforcement</h2>
+      <p>Enforce API key scopes in your Payload access control.</p>
+
+      <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import</span> { <span class="hl-func">requireScope</span>, <span class="hl-func">requireAllScopes</span>, <span class="hl-func">allowSessionOrScope</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth'</span>
+
+access: {
+  read: <span class="hl-func">requireScope</span>(<span class="hl-string">'posts:read'</span>),
+  create: <span class="hl-func">requireScope</span>(<span class="hl-string">'posts:write'</span>),
+  delete: <span class="hl-func">requireAllScopes</span>([<span class="hl-string">'posts:delete'</span>, <span class="hl-string">'admin:write'</span>]),
+}
+
+<span class="hl-comment">// Allow both session auth and API keys</span>
+read: <span class="hl-func">allowSessionOrScope</span>(<span class="hl-string">'posts:read'</span>)</code></pre>
+
+      <p>Wildcard scopes: <code>'posts:*'</code> matches all post permissions. <code>'*'</code> matches everything.</p>
+
+      <details>
+        <summary>Manual API key validation</summary>
+        <div class="details-body">
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import</span> { <span class="hl-func">validateApiKey</span>, <span class="hl-func">hasScope</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth'</span>
+
+<span class="hl-keyword">const</span> keyInfo = <span class="hl-keyword">await</span> <span class="hl-func">validateApiKey</span>(req)
+<span class="hl-keyword">if</span> (!keyInfo) <span class="hl-keyword">return</span> Response.<span class="hl-func">json</span>({ error: <span class="hl-string">'Invalid'</span> }, { status: <span class="hl-const">401</span> })
+<span class="hl-keyword">if</span> (!<span class="hl-func">hasScope</span>(keyInfo.scopes, <span class="hl-string">'custom:action'</span>)) { <span class="hl-comment">/* 403 */</span> }</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <!-- ═══════ PLUGIN COMPAT ═══════ -->
+    <div class="section" id="plugin-compatibility">
+      <h2>Plugin Compatibility</h2>
+      <p>The adapter uses Better Auth's <code>createAdapterFactory</code> which is <strong>schema-aware</strong> &mdash; it automatically supports all Better Auth plugins.</p>
+
+      <table>
+        <thead><tr><th>Plugin</th><th>Package</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>OAuth</td><td><code>better-auth</code></td><td>Uses accounts collection</td></tr>
+          <tr><td>Magic Link</td><td><code>better-auth</code></td><td>Uses verifications collection</td></tr>
+          <tr><td>Two-Factor</td><td><code>better-auth</code></td><td>Auto-generates twoFactors</td></tr>
+          <tr><td>API Keys</td><td><code>better-auth</code></td><td>Auto-generates apikeys</td></tr>
+          <tr><td>Organizations</td><td><code>better-auth</code></td><td>Auto-generates orgs, members, invitations</td></tr>
+          <tr><td>Passkey</td><td><code>@better-auth/passkey</code></td><td>Auto-generates passkeys</td></tr>
+        </tbody>
+      </table>
+
+      <details>
+        <summary>Adding join fields for relationships</summary>
+        <div class="details-body">
+          <p>Payload uses <code>join</code> fields to establish queryable parent-to-child relationships. When a plugin creates a model with a foreign key, add a join field to the parent collection:</p>
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// API Keys join</span>
+{ name: <span class="hl-string">'apiKeys'</span>, type: <span class="hl-string">'join'</span>, collection: <span class="hl-string">'apikeys'</span>, on: <span class="hl-string">'user'</span> }
+
+<span class="hl-comment">// Two-Factor join</span>
+{ name: <span class="hl-string">'twoFactor'</span>, type: <span class="hl-string">'join'</span>, collection: <span class="hl-string">'twoFactors'</span>, on: <span class="hl-string">'user'</span> }
+
+<span class="hl-comment">// Memberships join</span>
+{ name: <span class="hl-string">'memberships'</span>, type: <span class="hl-string">'join'</span>, collection: <span class="hl-string">'members'</span>, on: <span class="hl-string">'user'</span> }</code></pre>
+        </div>
+      </details>
+
+      <details>
+        <summary>Cascade delete (cleanup orphaned records)</summary>
+        <div class="details-body">
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code>user: {
+  deleteUser: {
+    enabled: <span class="hl-const">true</span>,
+    afterDelete: <span class="hl-keyword">async</span> (user) =&gt; {
+      <span class="hl-keyword">const</span> collections = [<span class="hl-string">'sessions'</span>, <span class="hl-string">'accounts'</span>, <span class="hl-string">'apikeys'</span>, <span class="hl-string">'passkeys'</span>, <span class="hl-string">'twoFactors'</span>]
+      <span class="hl-keyword">for</span> (<span class="hl-keyword">const</span> col <span class="hl-keyword">of</span> collections) {
+        <span class="hl-keyword">try</span> {
+          <span class="hl-keyword">await</span> payload.<span class="hl-func">delete</span>({ collection: col, where: { user: { equals: user.id } } })
+        } <span class="hl-keyword">catch</span> {} <span class="hl-comment">// Collection may not exist</span>
+      }
+    },
+  },
+}</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <!-- ═══════ UI COMPONENTS ═══════ -->
+    <div class="section" id="registration">
+      <h2>UI Components</h2>
+
+      <h3>User Registration</h3>
+      <p>The LoginView <strong>automatically detects</strong> if user registration is available by checking Better Auth's sign-up endpoint. If your Better Auth config has <code>emailAndPassword.enabled: true</code> (and not <code>disableSignUp: true</code>), the "Create account" link appears automatically.</p>
+
+      <div class="callout callout-tip">
+        <p><strong>No configuration needed</strong> for most cases &mdash; it just works.</p>
+      </div>
+    </div>
+
+    <div class="section" id="password-reset">
+      <h3>Password Reset</h3>
+      <p>The "Forgot password?" link appears automatically when the reset endpoint is available.</p>
+
+      <details>
+        <summary>Standalone components</summary>
+        <div class="details-body">
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import</span> { <span class="hl-type">ForgotPasswordView</span>, <span class="hl-type">ResetPasswordView</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/components/auth'</span>
+
+&lt;<span class="hl-type">ForgotPasswordView</span>
+  logo={&lt;MyLogo /&gt;}
+  title=<span class="hl-string">"Forgot Password"</span>
+  loginPath=<span class="hl-string">"/admin/login"</span>
+/&gt;
+
+&lt;<span class="hl-type">ResetPasswordView</span>
+  logo={&lt;MyLogo /&gt;}
+  title=<span class="hl-string">"Reset Password"</span>
+  afterResetPath=<span class="hl-string">"/admin/login"</span>
+  minPasswordLength={<span class="hl-const">8</span>}
+/&gt;</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="section" id="two-factor">
+      <h3>Two-Factor Authentication</h3>
+      <p>The LoginView <strong>handles 2FA inline</strong> automatically. When a user with 2FA enabled signs in, the form transitions to a TOTP code input.</p>
+
+      <details>
+        <summary>Standalone components for custom flows</summary>
+        <div class="details-body">
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import</span> { <span class="hl-type">TwoFactorSetupView</span>, <span class="hl-type">TwoFactorVerifyView</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/components/twoFactor'</span>
+
+&lt;<span class="hl-type">TwoFactorSetupView</span> logo={&lt;MyLogo /&gt;} afterSetupPath=<span class="hl-string">"/admin"</span> /&gt;
+&lt;<span class="hl-type">TwoFactorVerifyView</span> logo={&lt;MyLogo /&gt;} afterVerifyPath=<span class="hl-string">"/admin"</span> /&gt;</code></pre>
+        </div>
+      </details>
+
+      <details>
+        <summary>Handling 2FA in custom login forms</summary>
+        <div class="details-body">
+          <div class="callout callout-warn">
+            <p><strong>Important:</strong> Always check <code>result.data?.twoFactorRedirect</code> after <code>signIn.email()</code>. Without this, users with 2FA enabled appear to log in but won't actually be authenticated.</p>
+          </div>
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">const</span> result = <span class="hl-keyword">await</span> signIn.<span class="hl-func">email</span>({ email, password })
+
+<span class="hl-keyword">if</span> (result.data?.twoFactorRedirect) {
+  <span class="hl-comment">// Show TOTP verification form</span>
+  <span class="hl-func">setTwoFactorRequired</span>(<span class="hl-const">true</span>)
+  <span class="hl-keyword">return</span>
+}
+
+<span class="hl-comment">// Then verify with:</span>
+<span class="hl-keyword">await</span> twoFactor.<span class="hl-func">verifyTotp</span>({ code: totpCode })</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="section" id="passkeys">
+      <h3>Passkeys</h3>
+
+      <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// Enable in LoginView</span>
+admin: { login: { enablePasskey: <span class="hl-const">true</span> } }
+
+<span class="hl-comment">// Or use standalone button</span>
+<span class="hl-keyword">import</span> { <span class="hl-type">PasskeySignInButton</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/components'</span>
+
+&lt;<span class="hl-type">PasskeySignInButton</span>
+  onSuccess={(user) =&gt; router.<span class="hl-func">push</span>(<span class="hl-string">'/dashboard'</span>)}
+  onError={(error) =&gt; <span class="hl-func">setError</span>(error)}
+/&gt;</code></pre>
+
+      <details>
+        <summary>Passkey registration &amp; management</summary>
+        <div class="details-body">
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// Registration button</span>
+<span class="hl-keyword">import</span> { <span class="hl-type">PasskeyRegisterButton</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/components'</span>
+&lt;<span class="hl-type">PasskeyRegisterButton</span> passkeyName=<span class="hl-string">"My MacBook"</span> onSuccess={refetch} /&gt;
+
+<span class="hl-comment">// Full management UI</span>
+<span class="hl-keyword">import</span> { <span class="hl-type">PasskeysManagementClient</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/management'</span>
+&lt;<span class="hl-type">PasskeysManagementClient</span> title=<span class="hl-string">"Manage Passkeys"</span> /&gt;
+
+<span class="hl-comment">// Or use the auth client directly</span>
+<span class="hl-keyword">await</span> authClient.passkey.<span class="hl-func">addPasskey</span>({ name: <span class="hl-string">'My Device'</span> })
+<span class="hl-keyword">await</span> authClient.passkey.<span class="hl-func">listUserPasskeys</span>()
+<span class="hl-keyword">await</span> authClient.passkey.<span class="hl-func">deletePasskey</span>({ id: passkeyId })</code></pre>
+        </div>
+      </details>
+    </div>
+
+    <div class="section" id="security-management">
+      <h3>Security Management UI</h3>
+      <p>Auto-injected management views based on enabled plugins:</p>
+      <table>
+        <thead><tr><th>View</th><th>Path</th><th>Plugin Required</th></tr></thead>
+        <tbody>
+          <tr><td>Two-Factor Auth</td><td><code>/admin/security/two-factor</code></td><td><code>twoFactor()</code></td></tr>
+          <tr><td>API Keys</td><td><code>/admin/security/api-keys</code></td><td><code>apiKey()</code></td></tr>
+          <tr><td>Passkeys</td><td><code>/admin/security/passkeys</code></td><td><code>passkey()</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ═══════ RECIPES ═══════ -->
+    <div class="section" id="recipes">
+      <h2>Recipes</h2>
+
+      <details>
+        <summary>Auto-create organization on user signup</summary>
+        <div class="details-body">
+          <p>Use a lazy auth instance singleton to call <code>auth.api.createOrganization()</code> from database hooks (so <code>organizationHooks</code> fire properly).</p>
+
+          <h4>1. Create an auth instance singleton</h4>
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// src/lib/auth/instance.ts</span>
+<span class="hl-keyword">let</span> authInstance: <span class="hl-type">AuthInstance</span> | <span class="hl-const">null</span> = <span class="hl-const">null</span>
+
+<span class="hl-keyword">export function</span> <span class="hl-func">setAuthInstance</span>(auth: <span class="hl-type">AuthInstance</span>) { authInstance = auth }
+<span class="hl-keyword">export function</span> <span class="hl-func">getAuthInstance</span>() {
+  <span class="hl-keyword">if</span> (!authInstance) <span class="hl-keyword">throw new</span> <span class="hl-type">Error</span>(<span class="hl-string">'Auth not initialized'</span>)
+  <span class="hl-keyword">return</span> authInstance
+}</code></pre>
+
+          <h4>2. Store after creation</h4>
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-func">createBetterAuthPlugin</span>({
+  createAuth: (payload) =&gt; {
+    <span class="hl-keyword">const</span> auth = <span class="hl-func">betterAuth</span>({ ...betterAuthOptions, database: <span class="hl-func">payloadAdapter</span>({ payloadClient: payload }) })
+    <span class="hl-func">setAuthInstance</span>(auth)
+    <span class="hl-keyword">return</span> auth
+  },
+})</code></pre>
+
+          <h4>3. Use in database hooks</h4>
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code>databaseHooks: {
+  user: {
+    update: {
+      after: <span class="hl-keyword">async</span> (user, ctx) =&gt; {
+        <span class="hl-keyword">if</span> (!user.emailVerified) <span class="hl-keyword">return</span>
+        <span class="hl-keyword">const</span> existing = <span class="hl-keyword">await</span> ctx?.context?.adapter?.<span class="hl-func">findOne</span>({
+          model: <span class="hl-string">'member'</span>, where: [{ field: <span class="hl-string">'userId'</span>, value: user.id }],
+        })
+        <span class="hl-keyword">if</span> (existing) <span class="hl-keyword">return</span>
+
+        <span class="hl-keyword">const</span> auth = <span class="hl-func">getAuthInstance</span>()
+        <span class="hl-keyword">await</span> auth.api.<span class="hl-func">createOrganization</span>({
+          body: { name: <span class="hl-string">`${user.name}'s Workspace`</span>, slug: <span class="hl-func">generateSlug</span>(user.name), userId: user.id },
+        })
+      },
+    },
+  },
+}</code></pre>
+
+          <div class="callout callout-warn">
+            <p><strong>Always use <code>auth.api.createOrganization()</code></strong> instead of raw adapter calls. The adapter bypasses <code>organizationHooks</code> entirely.</p>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <!-- ═══════ TYPES ═══════ -->
+    <div class="section" id="types">
+      <h2>Types</h2>
+
+      <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import type</span> {
+  <span class="hl-type">PayloadWithAuth</span>,
+  <span class="hl-type">PayloadRequestWithBetterAuth</span>,
+  <span class="hl-type">BetterAuthReturn</span>,
+  <span class="hl-type">CollectionHookWithBetterAuth</span>,
+  <span class="hl-type">EndpointWithBetterAuth</span>,
+} <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth'</span>
+
+<span class="hl-comment">// Generated schema types</span>
+<span class="hl-keyword">import type</span> {
+  <span class="hl-type">User</span>, <span class="hl-type">BetterAuthSession</span>, <span class="hl-type">Account</span>,
+  <span class="hl-type">Apikey</span>, <span class="hl-type">Passkey</span>, <span class="hl-type">Organization</span>, <span class="hl-type">Member</span>, <span class="hl-type">TwoFactor</span>,
+} <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth'</span></code></pre>
+
+      <p>Regenerate types after adding plugins:</p>
+      <div class="install-block">
+        <code>pnpm generate:types</code>
+        <button class="copy-btn" onclick="copyText('pnpm generate:types', this)">Copy</button>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div style="border-top: 1px solid var(--border-subtle); padding-top: 32px; margin-top: 48px; color: var(--text-muted); font-size: 13px;">
+      <p>MIT License &mdash; <a href="https://github.com/delmaredigital/payload-better-auth" style="color: var(--accent); text-decoration: none;">@delmaredigital/payload-better-auth</a></p>
+    </div>
+
+  </main>
+</div>
+
+<!-- SEARCH RESULTS -->
+<div class="search-results" id="searchResults">
+  <div class="search-results-inner" id="searchResultsInner"></div>
+</div>
+
+<!-- SCROLL TO TOP -->
+<button class="scroll-top" id="scrollTop" onclick="window.scrollTo({top:0})">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</button>
+
+<script>
+// ── Sidebar toggle (mobile) ──
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('active');
+}
+
+// Close sidebar on nav click (mobile)
+document.querySelectorAll('.nav-link').forEach(function(link) {
+  link.addEventListener('click', function() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('active');
+  });
+});
+
+// ── Active nav tracking ──
+var sections = document.querySelectorAll('.section, .step');
+var navLinks = document.querySelectorAll('.nav-link');
+
+var observer = new IntersectionObserver(function(entries) {
+  entries.forEach(function(entry) {
+    if (entry.isIntersecting) {
+      var id = entry.target.id;
+      navLinks.forEach(function(link) {
+        link.classList.toggle('active', link.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, { rootMargin: '-80px 0px -70% 0px', threshold: 0 });
+
+sections.forEach(function(s) { if (s.id) observer.observe(s); });
+
+// ── Copy buttons ──
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(function() {
+    var orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    btn.style.color = 'var(--success)';
+    setTimeout(function() { btn.textContent = orig; btn.style.color = ''; }, 1500);
+  });
+}
+
+function copyBlock(btn) {
+  var pre = btn.closest('pre');
+  var code = pre.querySelector('code');
+  copyText(code.textContent, btn);
+}
+
+// ── HTML escaping for safe DOM insertion ──
+function escapeHtml(str) {
+  var div = document.createElement('div');
+  div.appendChild(document.createTextNode(str));
+  return div.textContent;
+}
+
+// ── Search ──
+var searchInput = document.getElementById('searchInput');
+var searchResults = document.getElementById('searchResults');
+var searchResultsInner = document.getElementById('searchResultsInner');
+
+// Build search index from sections
+var searchIndex = [];
+document.querySelectorAll('.section').forEach(function(section) {
+  var id = section.id;
+  var h2 = section.querySelector('h2');
+  var h3 = section.querySelector('h3');
+  var title = h2 ? h2.textContent : (h3 ? h3.textContent : '');
+  var text = section.textContent.substring(0, 500);
+  searchIndex.push({ id: id, title: title, text: text });
+});
+
+searchInput.addEventListener('input', function() {
+  var query = this.value.trim().toLowerCase();
+  if (query.length < 2) {
+    searchResults.classList.remove('active');
+    return;
+  }
+
+  var results = searchIndex.filter(function(item) {
+    return item.title.toLowerCase().indexOf(query) !== -1 ||
+           item.text.toLowerCase().indexOf(query) !== -1;
+  });
+
+  // Clear previous results
+  searchResultsInner.textContent = '';
+
+  if (results.length === 0) {
+    var noResults = document.createElement('div');
+    noResults.className = 'search-no-results';
+    noResults.textContent = 'No results found';
+    searchResultsInner.appendChild(noResults);
+  } else {
+    results.forEach(function(r) {
+      var link = document.createElement('a');
+      link.className = 'search-result-item';
+      link.href = '#' + r.id;
+      link.addEventListener('click', closeSearch);
+
+      var titleDiv = document.createElement('div');
+      titleDiv.className = 'result-title';
+      titleDiv.textContent = r.title;
+      link.appendChild(titleDiv);
+
+      var idx = r.text.toLowerCase().indexOf(query);
+      if (idx >= 0) {
+        var previewDiv = document.createElement('div');
+        previewDiv.className = 'result-preview';
+        var start = Math.max(0, idx - 40);
+        var end = Math.min(r.text.length, idx + query.length + 60);
+
+        if (start > 0) previewDiv.appendChild(document.createTextNode('...'));
+        previewDiv.appendChild(document.createTextNode(r.text.substring(start, idx)));
+        var mark = document.createElement('mark');
+        mark.textContent = r.text.substring(idx, idx + query.length);
+        previewDiv.appendChild(mark);
+        previewDiv.appendChild(document.createTextNode(r.text.substring(idx + query.length, end)));
+        if (end < r.text.length) previewDiv.appendChild(document.createTextNode('...'));
+
+        link.appendChild(previewDiv);
+      }
+
+      searchResultsInner.appendChild(link);
+    });
+  }
+
+  searchResults.classList.add('active');
+});
+
+function closeSearch() {
+  searchResults.classList.remove('active');
+  searchInput.value = '';
+}
+
+// Keyboard shortcut: / to focus search
+document.addEventListener('keydown', function(e) {
+  if (e.key === '/' && document.activeElement !== searchInput) {
+    e.preventDefault();
+    searchInput.focus();
+  }
+  if (e.key === 'Escape') {
+    closeSearch();
+    searchInput.blur();
+  }
+});
+
+// ── Scroll to top button ──
+var scrollTopBtn = document.getElementById('scrollTop');
+window.addEventListener('scroll', function() {
+  scrollTopBtn.classList.toggle('visible', window.scrollY > 400);
+}, { passive: true });
+</script>
+</body>
+</html>
