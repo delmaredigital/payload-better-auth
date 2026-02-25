@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.4] - 2026-02-25
+
+### Fixed
+
+#### Date fields returned as strings instead of Date objects
+
+The adapter's factory config declared `supportsDates: true`, which tells Better Auth's adapter factory that the database returns native `Date` objects. However, Payload's Local API returns dates as ISO strings. This caused date comparisons like `session.expiresAt > new Date()` to silently fail (string vs Date comparison returns `false` due to `NaN` coercion), breaking any Better Auth plugin that compares dates — most notably the **multi-session plugin**, where `list-device-sessions` always returned an empty array.
+
+Changed `supportsDates` to `false` so the factory correctly converts ISO strings to `Date` objects on output, and `Date` objects to ISO strings on input. This is safe across all database types: MongoDB (which may return native Dates that pass through unchanged) and Postgres/SQLite (which return strings that get converted).
+
 ## [Unreleased]
 
 ### Added

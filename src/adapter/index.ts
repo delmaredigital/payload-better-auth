@@ -245,7 +245,9 @@ export function payloadAdapter({
       disableIdGeneration: true,
       // MongoDB uses ObjectId strings, not numeric IDs
       supportsNumericIds: effectiveDbType !== 'mongodb',
-      supportsDates: true,
+      // Payload returns dates as ISO strings via its Local API, not Date objects.
+      // Setting false tells the factory to convert string dates ↔ Date objects.
+      supportsDates: false,
       supportsBooleans: true,
       supportsJSON: true,
       supportsArrays: false,
