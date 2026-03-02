@@ -272,7 +272,6 @@ export function payloadAdapter({
       adapter: ({
         schema,
         getModelName,
-        getFieldName,
         debugLog,
       }) => {
         // Set fieldName on reference fields so the factory maps userId→user, etc.
