@@ -90,10 +90,16 @@ export function withBetterAuthDefaults<T extends BetterAuthOptions>(
   }
 
   // If baseURL is set, default trustedOrigins to [baseURL]
+  // In Better Auth 1.5, baseURL can be a string or an object with { fallback, allowedHosts, protocol }
   if (options.baseURL) {
-    return {
-      ...options,
-      trustedOrigins: [options.baseURL],
+    const origin = typeof options.baseURL === 'string'
+      ? options.baseURL
+      : (options.baseURL as { fallback?: string }).fallback
+    if (origin) {
+      return {
+        ...options,
+        trustedOrigins: [origin],
+      }
     }
   }
 
