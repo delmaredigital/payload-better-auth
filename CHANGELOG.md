@@ -182,6 +182,21 @@ Fixed the API keys management UI to handle Better Auth 1.5's new list response f
 
 `betterAuth({...options})` returns `Auth<SpecificOptions>` which was not assignable to the plugin's `Auth<BetterAuthOptions>` return type. Widened the `createAuth` callback return type so consumers don't need type assertions.
 
+> **Migration tip:** If you store the auth instance with `ReturnType<typeof betterAuth>`, change it to `Auth<any>` from `better-auth/types` — same invariance issue.
+
+#### `apiKeyClient` removed from default client plugins
+
+The `/client` entry no longer bundles `apiKeyClient` from `@better-auth/api-key/client`. Projects using API keys should add `apiKeyClient()` to their own client plugins:
+
+```ts
+import { createAuthClient, payloadAuthPlugins } from '@delmaredigital/payload-better-auth/client'
+import { apiKeyClient } from '@better-auth/api-key/client'
+
+export const authClient = createAuthClient({
+  plugins: [...payloadAuthPlugins, apiKeyClient()],
+})
+```
+
 ## [0.4.4] - 2026-02-25
 
 ### Fixed

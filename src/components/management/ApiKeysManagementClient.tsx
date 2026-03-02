@@ -1,10 +1,8 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
-import {
-  createPayloadAuthClient,
-  type PayloadAuthClient,
-} from '../../exports/client.js'
+import { createAuthClient } from 'better-auth/react'
+import { apiKeyClient } from '@better-auth/api-key/client'
 import type { AvailableScope } from '../../types/apiKey.js'
 
 type ApiKey = {
@@ -30,8 +28,9 @@ type ScopeGroup = {
 }
 
 export type ApiKeysManagementClientProps = {
-  /** Optional pre-configured auth client */
-  authClient?: PayloadAuthClient
+  /** Optional pre-configured auth client with apiKey plugin */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  authClient?: any
   /** Page title. Default: 'API Keys' */
   title?: string
   /** Available scopes for key creation. Auto-generated if not provided. */
@@ -131,7 +130,9 @@ export function ApiKeysManagementClient({
     return result
   }, [scopeGroups])
 
-  const getClient = () => providedClient ?? createPayloadAuthClient()
+  const getClient = () => providedClient ?? createAuthClient({
+    plugins: [apiKeyClient()],
+  })
 
   // Toggle a scope selection
   function toggleScope(scopeId: string) {

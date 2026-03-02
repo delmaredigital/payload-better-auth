@@ -5,13 +5,11 @@
 
 import { createAuthClient } from 'better-auth/react'
 import { twoFactorClient } from 'better-auth/client/plugins'
-import { apiKeyClient } from '@better-auth/api-key/client'
 import { passkeyClient } from '@better-auth/passkey/client'
 
 // Re-export createAuthClient and common plugins
 export { createAuthClient } from 'better-auth/react'
 export { twoFactorClient } from 'better-auth/client/plugins'
-export { apiKeyClient } from '@better-auth/api-key/client'
 export { passkeyClient } from '@better-auth/passkey/client'
 
 /**
@@ -32,7 +30,6 @@ export { passkeyClient } from '@better-auth/passkey/client'
  */
 export const payloadAuthPlugins = [
   twoFactorClient(),
-  apiKeyClient(),
   passkeyClient(),
 ] as const
 
@@ -42,7 +39,7 @@ export interface PayloadAuthClientOptions {
 }
 
 /**
- * Create a pre-configured auth client with default plugins (twoFactor, apiKey, passkey).
+ * Create a pre-configured auth client with default plugins (twoFactor, passkey).
  *
  * This is a convenience wrapper for simple setups. For custom plugins with full type
  * safety, use `createAuthClient` with `payloadAuthPlugins` instead.
