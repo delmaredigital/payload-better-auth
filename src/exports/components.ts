@@ -23,12 +23,8 @@ export { TwoFactorSetupView } from '../components/twoFactor/TwoFactorSetupView.j
 export type { TwoFactorVerifyViewProps } from '../components/twoFactor/TwoFactorVerifyView.js'
 export { TwoFactorVerifyView } from '../components/twoFactor/TwoFactorVerifyView.js'
 
-// Passkey authentication
-export type { PasskeySignInButtonProps } from '../components/PasskeySignInButton.js'
-export { PasskeySignInButton } from '../components/PasskeySignInButton.js'
-export type { PasskeyRegisterButtonProps } from '../components/PasskeyRegisterButton.js'
-export { PasskeyRegisterButton } from '../components/PasskeyRegisterButton.js'
-
 // Management UI field wrappers (for Payload ui fields)
 export { TwoFactorField } from '../components/management/fields/TwoFactorField.js'
-export { PasskeysField } from '../components/management/fields/PasskeysField.js'
+
+// Passkey components moved to '@delmaredigital/payload-better-auth/components/passkey'
+// API key components moved to '@delmaredigital/payload-better-auth/components/api-key'

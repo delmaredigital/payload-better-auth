@@ -56,6 +56,26 @@
       "import": "./dist/exports/rsc.js",
       "types": "./dist/exports/rsc.d.ts",
       "default": "./dist/exports/rsc.js"
+    },
+    "./rsc/passkey": {
+      "import": "./dist/exports/rsc-passkey.js",
+      "types": "./dist/exports/rsc-passkey.d.ts",
+      "default": "./dist/exports/rsc-passkey.js"
+    },
+    "./rsc/api-key": {
+      "import": "./dist/exports/rsc-api-key.js",
+      "types": "./dist/exports/rsc-api-key.d.ts",
+      "default": "./dist/exports/rsc-api-key.js"
+    },
+    "./components/passkey": {
+      "import": "./dist/components/passkey/index.js",
+      "types": "./dist/components/passkey/index.d.ts",
+      "default": "./dist/components/passkey/index.js"
+    },
+    "./components/api-key": {
+      "import": "./dist/components/api-key/index.js",
+      "types": "./dist/components/api-key/index.d.ts",
+      "default": "./dist/components/api-key/index.js"
     }
   },
   "files": [

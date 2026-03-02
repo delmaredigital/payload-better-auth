@@ -582,7 +582,7 @@ function injectManagementComponents(
 
   if (enabledPlugins.hasApiKey) {
     managementViews.securityApiKeys = {
-      Component: '@delmaredigital/payload-better-auth/rsc#ApiKeysView',
+      Component: '@delmaredigital/payload-better-auth/rsc/api-key#ApiKeysView',
       path: paths.apiKeys,
     }
   }
@@ -630,7 +630,7 @@ function injectManagementComponents(
       label: 'Passkeys',
       admin: {
         components: {
-          Field: '@delmaredigital/payload-better-auth/components#PasskeysField',
+          Field: '@delmaredigital/payload-better-auth/components/passkey#PasskeysField',
         },
       },
     })

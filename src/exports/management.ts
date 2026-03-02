@@ -3,21 +3,20 @@
  *
  * Client components for managing security features in the Payload admin panel.
  * For server component views, use the './rsc' export.
+ *
+ * Passkey management: '@delmaredigital/payload-better-auth/components/passkey'
+ * API key management: '@delmaredigital/payload-better-auth/components/api-key'
  */
 
-// Client components
+// Client components (core only — no optional peer deps)
 export {
   SecurityNavLinks,
   TwoFactorManagementClient,
-  ApiKeysManagementClient,
-  PasskeysManagementClient,
 } from '../components/management/index.js'
 
 export type {
   SecurityNavLinksProps,
   TwoFactorManagementClientProps,
-  ApiKeysManagementClientProps,
-  PasskeysManagementClientProps,
 } from '../components/management/index.js'
 
 // Re-export plugin detection utility
