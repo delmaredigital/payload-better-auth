@@ -31,7 +31,8 @@ export type Auth = ReturnType<typeof betterAuth>
 import type { PayloadWithAuth } from '../types/betterAuth.js'
 export type { PayloadWithAuth } from '../types/betterAuth.js'
 
-export type CreateAuthFunction = (payload: BasePayload) => Auth
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type CreateAuthFunction = (payload: BasePayload) => any
 
 export type BetterAuthPluginAdminOptions = {
   /** Disable auto-injection of logout button */
