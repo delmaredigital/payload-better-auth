@@ -5,86 +5,8 @@
  * including session/user types, API methods, and error codes.
  */
 
-import type { AuthContext } from 'better-auth'
-import { router } from 'better-auth/api'
-import type {
-  BetterAuthOptions,
-  BetterAuthPlugin,
-  InferAPI,
-  InferPluginTypes,
-  InferSession,
-  InferUser,
-} from 'better-auth/types'
+import type { Auth, BetterAuthOptions } from 'better-auth/types'
 import type { BasePayload, Endpoint, PayloadRequest } from 'payload'
-
-/**
- * Base error codes from Better Auth core.
- */
-type BaseErrorCodes = {
-  FAILED_TO_GET_USER_INFO: string
-  USER_ALREADY_EXISTS: string
-  INVALID_PASSWORD: string
-  FAILED_TO_CREATE_USER: string
-  FAILED_TO_CREATE_SESSION: string
-  FAILED_TO_UPDATE_USER: string
-  FAILED_TO_GET_SESSION: string
-  INVALID_EMAIL_OR_PASSWORD: string
-  SOCIAL_ACCOUNT_ALREADY_LINKED: string
-  PROVIDER_NOT_FOUND: string
-  INVALID_TOKEN: string
-  ID_TOKEN_NOT_SUPPORTED: string
-  FAILED_TO_GET_USER_INFO_OPENID: string
-  UNEXPECTED_PROVIDER_RESPONSE: string
-  TOKEN_REFRESH_FAILED: string
-  FAILED_TO_UNLINK: string
-  ACCOUNT_NOT_FOUND: string
-  SESSION_EXPIRED: string
-  INTERNAL_SERVER_ERROR: string
-  VALIDATION_ERROR: string
-}
-
-/**
- * Union to intersection utility type.
- */
-type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) extends (
-  k: infer I
-) => void
-  ? I
-  : never
-
-/**
- * Deeply prettify a type for better IDE display.
- * Flattens intersections and preserves functions/arrays/dates.
- */
-type PrettifyDeep<T> = {
-  [K in keyof T]: T[K] extends (...args: unknown[]) => unknown
-    ? T[K]
-    : T[K] extends object
-      ? T[K] extends Array<unknown>
-        ? T[K]
-        : T[K] extends Date
-          ? T[K]
-          : PrettifyDeep<T[K]>
-      : T[K]
-} & {}
-
-/**
- * Infer error codes from enabled plugins.
- */
-type InferPluginErrorCodes<O extends BetterAuthOptions> =
-  O['plugins'] extends Array<infer P>
-    ? UnionToIntersection<
-        P extends BetterAuthPlugin
-          ? P['$ERROR_CODES'] extends Record<string, unknown>
-            ? P['$ERROR_CODES']
-            : never
-          : never
-      > extends infer R
-      ? [R] extends [never]
-        ? object
-        : R
-      : object
-    : object
 
 /**
  * Role array type with configurable roles.
@@ -103,11 +25,9 @@ type OverrideRole<T, O extends readonly string[]> = T extends object
 /**
  * The return type of a Better Auth instance.
  *
- * This provides full type inference for:
- * - API endpoints and their return types
- * - Session/user types based on enabled plugins
- * - Error codes from all enabled plugins
- * - Auth context for advanced use cases
+ * Uses the official `Auth<O>` type from Better Auth 1.5, which provides
+ * full type inference for API endpoints, session/user types, error codes,
+ * and auth context.
  *
  * @template O - Better Auth options type for inference
  *
@@ -120,27 +40,7 @@ type OverrideRole<T, O extends readonly string[]> = T extends object
  * const result = await payload.betterAuth.api.getSession({ headers })
  * ```
  */
-export type BetterAuthReturn<O extends BetterAuthOptions = BetterAuthOptions> = {
-  /** The request handler for auth endpoints */
-  handler: (request: Request) => Promise<Response>
-  /** Type-safe API methods */
-  api: InferAPI<ReturnType<typeof router<O>>>['endpoints']
-  /** The resolved options */
-  options: O
-  /** All error codes from enabled plugins */
-  $ERROR_CODES: InferPluginErrorCodes<O> & BaseErrorCodes
-  /** Auth context (async) for advanced use cases */
-  $context: Promise<AuthContext>
-  /** Inferred types for Session and User */
-  $Infer: InferPluginTypes<O> extends { Session: unknown }
-    ? InferPluginTypes<O>
-    : {
-        Session: {
-          session: PrettifyDeep<InferSession<O>>
-          user: PrettifyDeep<InferUser<O>>
-        }
-      } & InferPluginTypes<O>
-}
+export type BetterAuthReturn<O extends BetterAuthOptions = BetterAuthOptions> = Auth<O>
 
 /**
  * Payload instance with Better Auth attached.
