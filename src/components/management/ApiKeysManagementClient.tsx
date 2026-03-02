@@ -134,7 +134,7 @@ export function ApiKeysManagementClient({
   const getClient = async () => {
     if (providedClient) return providedClient
     if (clientRef.current) return clientRef.current
-    const { apiKeyClient } = await import('@better-auth/api-key/client')
+    const { apiKeyClient } = await import(/* webpackIgnore: true */ '@better-auth/api-key/client')
     clientRef.current = createAuthClient({ plugins: [apiKeyClient()] })
     return clientRef.current
   }

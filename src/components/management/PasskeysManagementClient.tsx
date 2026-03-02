@@ -45,7 +45,7 @@ export function PasskeysManagementClient({
   const getClient = async () => {
     if (providedClient) return providedClient
     if (clientRef.current) return clientRef.current
-    const { passkeyClient } = await import('@better-auth/passkey/client')
+    const { passkeyClient } = await import(/* webpackIgnore: true */ '@better-auth/passkey/client')
     clientRef.current = createAuthClient({
       plugins: [twoFactorClient(), passkeyClient()],
     })
