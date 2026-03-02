@@ -132,4 +132,4 @@ export { firstUserAdminHooks } from './utils/firstUserAdmin.js'
 export type { FirstUserAdminOptions } from './utils/firstUserAdmin.js'
 
 // Better Auth defaults utility
-export { withBetterAuthDefaults, apiKeyWithDefaults } from './utils/betterAuthDefaults.js'
+export { withBetterAuthDefaults } from './utils/betterAuthDefaults.js'

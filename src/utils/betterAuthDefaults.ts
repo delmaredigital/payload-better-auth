@@ -5,41 +5,6 @@
  */
 
 import type { BetterAuthOptions } from 'better-auth'
-import { apiKey as betterAuthApiKey } from '@better-auth/api-key'
-
-type ApiKeyPluginOptions = Parameters<typeof betterAuthApiKey>[0]
-
-/**
- * API Key plugin with sensible defaults for use with this package.
- *
- * Enables metadata storage by default so that scopes can be displayed
- * in the admin UI after key creation.
- *
- * @example
- * ```ts
- * import { apiKeyWithDefaults } from '@delmaredigital/payload-better-auth'
- *
- * export const betterAuthOptions = {
- *   plugins: [
- *     apiKeyWithDefaults(),  // metadata enabled by default
- *   ],
- * }
- * ```
- *
- * @example With custom options
- * ```ts
- * apiKeyWithDefaults({
- *   rateLimit: { max: 100, window: 60 },
- *   // enableMetadata is already true
- * })
- * ```
- */
-export function apiKeyWithDefaults(options?: ApiKeyPluginOptions): ReturnType<typeof betterAuthApiKey> {
-  return betterAuthApiKey({
-    enableMetadata: true,
-    ...options,
-  })
-}
 
 /**
  * Applies sensible defaults to Better Auth options.
