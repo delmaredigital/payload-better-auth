@@ -178,6 +178,10 @@ The manual `BetterAuthReturn<O>` type construction (including `BaseErrorCodes`, 
 
 Fixed the API keys management UI to handle Better Auth 1.5's new list response format (`{ apiKeys: [...] }` instead of a plain array).
 
+#### `CreateAuthFunction` type too narrow
+
+`betterAuth({...options})` returns `Auth<SpecificOptions>` which was not assignable to the plugin's `Auth<BetterAuthOptions>` return type. Widened the `createAuth` callback return type so consumers don't need type assertions.
+
 ## [0.4.4] - 2026-02-25
 
 ### Fixed
