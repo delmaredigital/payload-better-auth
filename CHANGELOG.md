@@ -63,43 +63,84 @@ createBetterAuthPlugin({
 
 API key **verification** is unaffected — existing keys continue to work regardless of who created them. This only restricts key management (create, update, delete).
 
-## [0.5.0] - 2026-03-01
+## [0.5.3] - 2026-03-01
 
 ### Breaking Changes
 
 #### Requires Better Auth 1.5
 
-The minimum `better-auth` version is now `>=1.5.0`. Upgrade with:
+The minimum `better-auth` version is now `>=1.5.0`.
 
 ```bash
 pnpm add better-auth@latest
 ```
 
+---
+
+#### Client plugins are now opt-in
+
+`payloadAuthPlugins` now only includes `twoFactorClient()` from the core `better-auth` package. Optional plugins (`passkeyClient`, `apiKeyClient`, etc.) must be added explicitly. This prevents build failures for projects that don't have those optional packages installed.
+
+**Before:**
+```ts
+import { createPayloadAuthClient } from '@delmaredigital/payload-better-auth/client'
+export const authClient = createPayloadAuthClient()
+// passkey + apiKey were included automatically
+```
+
+**After:**
+```ts
+import { createAuthClient, payloadAuthPlugins } from '@delmaredigital/payload-better-auth/client'
+import { passkeyClient } from '@better-auth/passkey/client'  // if using passkeys
+
+export const authClient = createAuthClient({
+  plugins: [...payloadAuthPlugins, passkeyClient()],
+})
+```
+
+Add only the plugins you use. `createPayloadAuthClient()` still works for minimal setups (email/password + 2FA only).
+
+> The built-in admin UI components (LoginView, passkey management, API key management) handle their own client creation internally — no changes needed for those.
+
+---
+
 #### API key plugin extracted to `@better-auth/api-key`
 
-Better Auth 1.5 moved the API key plugin from `better-auth/plugins` to its own package. If you use API keys, install it and update your import:
+Better Auth 1.5 moved the API key plugin to its own package.
 
 ```bash
 pnpm add @better-auth/api-key
 ```
 
 ```ts
-// Before
+// Server — before
 import { apiKey } from 'better-auth/plugins'
-
-// After
+// Server — after
 import { apiKey } from '@better-auth/api-key'
+
+// Client — before
+import { apiKeyClient } from 'better-auth/client/plugins'
+// Client — after
+import { apiKeyClient } from '@better-auth/api-key/client'
 ```
 
-Client imports also changed:
+---
+
+#### `apiKeyWithDefaults()` removed
+
+Configure the API key plugin directly:
 
 ```ts
 // Before
-import { apiKeyClient } from 'better-auth/client/plugins'
+import { apiKeyWithDefaults } from '@delmaredigital/payload-better-auth'
+plugins: [apiKeyWithDefaults()]
 
 // After
-import { apiKeyClient } from '@better-auth/api-key/client'
+import { apiKey } from '@better-auth/api-key'
+plugins: [apiKey({ enableMetadata: true })]
 ```
+
+---
 
 #### API key schema: `userId` → `referenceId`
 
@@ -124,23 +165,13 @@ Then run:
 pnpm payload migrate
 ```
 
-#### `apiKeyWithDefaults()` removed
-
-The `apiKeyWithDefaults()` helper has been removed. Configure the API key plugin directly:
-
-```ts
-// Before
-import { apiKeyWithDefaults } from '@delmaredigital/payload-better-auth'
-plugins: [apiKeyWithDefaults()]
-
-// After
-import { apiKey } from '@better-auth/api-key'
-plugins: [apiKey({ enableMetadata: true })]
-```
+---
 
 #### `ApiKeyInfo.userId` → `ApiKeyInfo.referenceId`
 
 If you use our `ApiKeyInfo` type from the scope enforcement utilities, the `userId` field is now `referenceId` and there's a new `referenceType: 'user' | 'organization'` field.
+
+---
 
 #### `Adapter` type renamed to `DBAdapter`
 
@@ -149,14 +180,33 @@ If you import the adapter type directly (unlikely for most users):
 ```ts
 // Before
 import type { Adapter } from '@delmaredigital/payload-better-auth/adapter'
-
 // After
 import type { DBAdapter } from '@delmaredigital/payload-better-auth/adapter'
 ```
 
+---
+
 #### `idFieldsAllowlist` / `idFieldsBlocklist` config removed
 
-The `adapterConfig.idFieldsAllowlist` and `adapterConfig.idFieldsBlocklist` options have been removed. The adapter now uses Better Auth's factory transforms to handle ID fields automatically via schema introspection.
+The adapter now uses Better Auth's factory transforms to handle ID fields automatically via schema introspection. These manual config options are no longer needed.
+
+---
+
+#### Auth instance type invariance
+
+Better Auth 1.5's `Auth<O>` type is invariant on its generic parameter. If you store the auth instance with a typed return, you'll need to widen it:
+
+```ts
+// Before — breaks in 1.5
+import { betterAuth } from 'better-auth'
+let auth: ReturnType<typeof betterAuth>
+
+// After
+import type { Auth } from 'better-auth/types'
+let auth: Auth<any>
+```
+
+The plugin's `CreateAuthFunction` return type has been widened accordingly — no type assertions needed in your `createAuth` callback.
 
 ### Changed
 
@@ -166,7 +216,7 @@ The adapter now delegates field name transforms (`userId` ↔ `user`) and ID typ
 
 #### `BetterAuthReturn` type simplified
 
-The manual `BetterAuthReturn<O>` type construction (including `BaseErrorCodes`, `UnionToIntersection`, `PrettifyDeep`, `InferPluginErrorCodes`) has been replaced with `Auth<O>` from `better-auth/types`. This stays in sync with upstream automatically.
+The manual `BetterAuthReturn<O>` type construction has been replaced with `Auth<O>` from `better-auth/types`.
 
 #### Dynamic `baseURL` support
 
@@ -177,25 +227,6 @@ The manual `BetterAuthReturn<O>` type construction (including `BaseErrorCodes`, 
 #### API key list response shape
 
 Fixed the API keys management UI to handle Better Auth 1.5's new list response format (`{ apiKeys: [...] }` instead of a plain array).
-
-#### `CreateAuthFunction` type too narrow
-
-`betterAuth({...options})` returns `Auth<SpecificOptions>` which was not assignable to the plugin's `Auth<BetterAuthOptions>` return type. Widened the `createAuth` callback return type so consumers don't need type assertions.
-
-> **Migration tip:** If you store the auth instance with `ReturnType<typeof betterAuth>`, change it to `Auth<any>` from `better-auth/types` — same invariance issue.
-
-#### `apiKeyClient` removed from default client plugins
-
-The `/client` entry no longer bundles `apiKeyClient` from `@better-auth/api-key/client`. Projects using API keys should add `apiKeyClient()` to their own client plugins:
-
-```ts
-import { createAuthClient, payloadAuthPlugins } from '@delmaredigital/payload-better-auth/client'
-import { apiKeyClient } from '@better-auth/api-key/client'
-
-export const authClient = createAuthClient({
-  plugins: [...payloadAuthPlugins, apiKeyClient()],
-})
-```
 
 ## [0.4.4] - 2026-02-25
 

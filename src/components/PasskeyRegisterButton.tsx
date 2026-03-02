@@ -1,17 +1,16 @@
 'use client'
 
-import { useState, type ButtonHTMLAttributes } from 'react'
-import {
-  createPayloadAuthClient,
-  type PayloadAuthClient,
-} from '../exports/client.js'
+import { useState, useRef, type ButtonHTMLAttributes } from 'react'
+import { createAuthClient } from 'better-auth/react'
+import { twoFactorClient } from 'better-auth/client/plugins'
 
 export type PasskeyRegisterButtonProps = Omit<
   ButtonHTMLAttributes<HTMLButtonElement>,
   'onClick'
 > & {
   /** Optional pre-configured auth client */
-  authClient?: PayloadAuthClient
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  authClient?: any
   /** Optional name for the passkey */
   passkeyName?: string
   /** Callback when registration succeeds */
@@ -60,12 +59,24 @@ export function PasskeyRegisterButton({
   ...buttonProps
 }: PasskeyRegisterButtonProps) {
   const [loading, setLoading] = useState(false)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const clientRef = useRef<any>(null)
+
+  async function getClient() {
+    if (providedClient) return providedClient
+    if (clientRef.current) return clientRef.current
+    const { passkeyClient } = await import('@better-auth/passkey/client')
+    clientRef.current = createAuthClient({
+      plugins: [twoFactorClient(), passkeyClient()],
+    })
+    return clientRef.current
+  }
 
   async function handleClick() {
     setLoading(true)
 
     try {
-      const client = providedClient ?? createPayloadAuthClient()
+      const client = await getClient()
       const result = await client.passkey.addPasskey({
         name: passkeyName,
       })

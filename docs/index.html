@@ -842,10 +842,14 @@ details .details-body > :first-child { margin-top: 0; }
         <button class="copy-btn" onclick="copyText('pnpm add @delmaredigital/payload-better-auth better-auth', this)">Copy</button>
       </div>
 
-      <p>If using passkeys:</p>
+      <p>Optional plugins (install only what you use):</p>
       <div class="install-block">
         <code>pnpm add @better-auth/passkey</code>
         <button class="copy-btn" onclick="copyText('pnpm add @better-auth/passkey', this)">Copy</button>
+      </div>
+      <div class="install-block">
+        <code>pnpm add @better-auth/api-key</code>
+        <button class="copy-btn" onclick="copyText('pnpm add @better-auth/api-key', this)">Copy</button>
       </div>
 
       <h3>Environment Variables</h3>
@@ -975,24 +979,40 @@ GOOGLE_CLIENT_SECRET=...</code></pre>
 
         <div class="step" id="step-4-client">
           <h3>Client-Side Auth</h3>
+          <p>Create a client with the plugins you need. <code>payloadAuthPlugins</code> includes core plugins (twoFactor). Add optional plugins like passkey, apiKey, or stripe directly:</p>
           <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// src/lib/auth/client.ts</span>
 <span class="hl-string">'use client'</span>
 
-<span class="hl-keyword">import</span> { <span class="hl-func">createPayloadAuthClient</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/client'</span>
+<span class="hl-keyword">import</span> { <span class="hl-func">createAuthClient</span>, payloadAuthPlugins } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/client'</span>
+<span class="hl-keyword">import</span> { <span class="hl-func">passkeyClient</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@better-auth/passkey/client'</span>
 
-<span class="hl-keyword">export const</span> authClient = <span class="hl-func">createPayloadAuthClient</span>()
+<span class="hl-keyword">export const</span> authClient = <span class="hl-func">createAuthClient</span>({
+  plugins: [...payloadAuthPlugins, <span class="hl-func">passkeyClient</span>()],
+})
 
 <span class="hl-keyword">export const</span> { useSession, signIn, signUp, signOut, twoFactor, passkey } = authClient</code></pre>
-          <p><code>createPayloadAuthClient()</code> automatically uses <code>window.location.origin</code>, so it works across all deployment URLs.</p>
+          <p><code>payloadAuthPlugins</code> includes <code>twoFactorClient()</code>. Optional plugins (<code>passkeyClient</code>, <code>apiKeyClient</code>, <code>stripeClient</code>, etc.) are added by you — this way your app only bundles what it uses.</p>
 
           <details>
-            <summary>Adding custom plugins (e.g., Stripe)</summary>
+            <summary>Minimal setup (no passkeys or optional plugins)</summary>
+            <div class="details-body">
+              <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import</span> { <span class="hl-func">createPayloadAuthClient</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/client'</span>
+
+<span class="hl-keyword">export const</span> authClient = <span class="hl-func">createPayloadAuthClient</span>()
+<span class="hl-keyword">export const</span> { useSession, signIn, signUp, signOut, twoFactor } = authClient</code></pre>
+            </div>
+          </details>
+
+          <details>
+            <summary>With multiple optional plugins</summary>
             <div class="details-body">
               <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import</span> { <span class="hl-func">createAuthClient</span>, payloadAuthPlugins } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/client'</span>
+<span class="hl-keyword">import</span> { <span class="hl-func">passkeyClient</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@better-auth/passkey/client'</span>
+<span class="hl-keyword">import</span> { <span class="hl-func">apiKeyClient</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@better-auth/api-key/client'</span>
 <span class="hl-keyword">import</span> { <span class="hl-func">stripeClient</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@better-auth/stripe/client'</span>
 
 <span class="hl-keyword">export const</span> authClient = <span class="hl-func">createAuthClient</span>({
-  plugins: [...payloadAuthPlugins, <span class="hl-func">stripeClient</span>({ subscription: <span class="hl-const">true</span> })],
+  plugins: [...payloadAuthPlugins, <span class="hl-func">passkeyClient</span>(), <span class="hl-func">apiKeyClient</span>(), <span class="hl-func">stripeClient</span>({ subscription: <span class="hl-const">true</span> })],
 })</code></pre>
             </div>
           </details>
@@ -1612,7 +1632,7 @@ admin: { login: { enablePasskey: <span class="hl-const">true</span> } }
 <span class="hl-keyword">import</span> { <span class="hl-type">PasskeysManagementClient</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/management'</span>
 &lt;<span class="hl-type">PasskeysManagementClient</span> title=<span class="hl-string">"Manage Passkeys"</span> /&gt;
 
-<span class="hl-comment">// Or use the auth client directly</span>
+<span class="hl-comment">// Or use the auth client directly (requires passkeyClient() in your client plugins)</span>
 <span class="hl-keyword">await</span> authClient.passkey.<span class="hl-func">addPasskey</span>({ name: <span class="hl-string">'My Device'</span> })
 <span class="hl-keyword">await</span> authClient.passkey.<span class="hl-func">listUserPasskeys</span>()
 <span class="hl-keyword">await</span> authClient.passkey.<span class="hl-func">deletePasskey</span>({ id: passkeyId })</code></pre>

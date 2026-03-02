@@ -1,16 +1,15 @@
 'use client'
 
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation.js'
-import {
-  createPayloadAuthClient,
-  type PayloadAuthClient,
-} from '../exports/client.js'
+import { createAuthClient } from 'better-auth/react'
+import { twoFactorClient } from 'better-auth/client/plugins'
 import { hasAnyRole, hasAllRoles, normalizeRoles } from '../utils/access.js'
 
 export type LoginViewProps = {
   /** Optional pre-configured auth client */
-  authClient?: PayloadAuthClient
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  authClient?: any
   /** Custom logo element */
   logo?: React.ReactNode
   /** Login page title. Default: 'Login' */
@@ -134,13 +133,23 @@ export function LoginView({
   const [totpCode, setTotpCode] = useState('')
   const [totpLoading, setTotpLoading] = useState(false)
 
-  const getClient = () => providedClient ?? createPayloadAuthClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const clientRef = useRef<any>(null)
+  const getClient = async () => {
+    if (providedClient) return providedClient
+    if (clientRef.current) return clientRef.current
+    const { passkeyClient } = await import('@better-auth/passkey/client')
+    clientRef.current = createAuthClient({
+      plugins: [twoFactorClient(), passkeyClient()],
+    })
+    return clientRef.current
+  }
 
   // Check if user is already logged in on mount
   useEffect(() => {
     async function checkSession() {
       try {
-        const client = getClient()
+        const client = await getClient()
         const result = await client.getSession()
 
         if (result.data?.user) {
@@ -234,7 +243,7 @@ export function LoginView({
     setAccessDenied(false)
 
     try {
-      const client = getClient()
+      const client = await getClient()
       const result = await client.signIn.email({
         email,
         password,
@@ -292,7 +301,7 @@ export function LoginView({
     }
 
     try {
-      const client = getClient()
+      const client = await getClient()
       const result = await client.signUp.email({
         email,
         password,
@@ -345,7 +354,7 @@ export function LoginView({
     setSuccessMessage(null)
 
     try {
-      const client = getClient()
+      const client = await getClient()
       const result = await client.requestPasswordReset({
         email,
         redirectTo: resetPasswordUrl ?? `${window.location.origin}/admin/reset-password`,
@@ -372,7 +381,7 @@ export function LoginView({
     setError(null)
 
     try {
-      const client = getClient()
+      const client = await getClient()
       const result = await client.twoFactor.verifyTotp({ code: totpCode })
 
       if (result.error) {
@@ -431,7 +440,7 @@ export function LoginView({
     setAccessDenied(false)
 
     try {
-      const client = getClient()
+      const client = await getClient()
       const result = await client.signIn.passkey()
 
       if (result.error) {
@@ -471,7 +480,7 @@ export function LoginView({
   }
 
   async function handleSignOut() {
-    const client = getClient()
+    const client = await getClient()
     await client.signOut()
     setAccessDenied(false)
     router.refresh()

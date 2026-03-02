@@ -1,13 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button, Banner } from '@payloadcms/ui'
 import { PlusIcon } from '@payloadcms/ui/icons/Plus'
 import { XIcon } from '@payloadcms/ui/icons/X'
-import {
-  createPayloadAuthClient,
-  type PayloadAuthClient,
-} from '../../exports/client.js'
+import { createAuthClient } from 'better-auth/react'
+import { twoFactorClient } from 'better-auth/client/plugins'
 
 type PasskeyItem = {
   id: string
@@ -19,7 +17,8 @@ type PasskeyItem = {
 
 export type PasskeysManagementClientProps = {
   /** Optional pre-configured auth client */
-  authClient?: PayloadAuthClient
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  authClient?: any
   /** Page title. Default: 'Passkeys' */
   title?: string
 }
@@ -41,7 +40,17 @@ export function PasskeysManagementClient({
   const [showRegisterForm, setShowRegisterForm] = useState(false)
   const [passkeyName, setPasskeyName] = useState('')
 
-  const getClient = () => providedClient ?? createPayloadAuthClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const clientRef = useRef<any>(null)
+  const getClient = async () => {
+    if (providedClient) return providedClient
+    if (clientRef.current) return clientRef.current
+    const { passkeyClient } = await import('@better-auth/passkey/client')
+    clientRef.current = createAuthClient({
+      plugins: [twoFactorClient(), passkeyClient()],
+    })
+    return clientRef.current
+  }
 
   useEffect(() => {
     fetchPasskeys()
@@ -53,7 +62,7 @@ export function PasskeysManagementClient({
     setError(null)
 
     try {
-      const client = getClient()
+      const client = await getClient()
       const result = await client.passkey.listUserPasskeys()
 
       if (result.error) {
@@ -74,7 +83,7 @@ export function PasskeysManagementClient({
     setSuccess(null)
 
     try {
-      const client = getClient()
+      const client = await getClient()
       const result = await client.passkey.addPasskey({
         name: passkeyName || undefined,
       })
@@ -110,7 +119,7 @@ export function PasskeysManagementClient({
     setSuccess(null)
 
     try {
-      const client = getClient()
+      const client = await getClient()
       const result = await client.passkey.deletePasskey({ id: passkeyId })
 
       if (result.error) {

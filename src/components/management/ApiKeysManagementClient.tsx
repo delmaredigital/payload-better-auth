@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
 import { createAuthClient } from 'better-auth/react'
-import { apiKeyClient } from '@better-auth/api-key/client'
 import type { AvailableScope } from '../../types/apiKey.js'
 
 type ApiKey = {
@@ -130,9 +129,15 @@ export function ApiKeysManagementClient({
     return result
   }, [scopeGroups])
 
-  const getClient = () => providedClient ?? createAuthClient({
-    plugins: [apiKeyClient()],
-  })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const clientRef = useRef<any>(null)
+  const getClient = async () => {
+    if (providedClient) return providedClient
+    if (clientRef.current) return clientRef.current
+    const { apiKeyClient } = await import('@better-auth/api-key/client')
+    clientRef.current = createAuthClient({ plugins: [apiKeyClient()] })
+    return clientRef.current
+  }
 
   // Toggle a scope selection
   function toggleScope(scopeId: string) {
@@ -239,7 +244,7 @@ export function ApiKeysManagementClient({
     setError(null)
 
     try {
-      const client = getClient()
+      const client = await getClient()
       const result = await client.apiKey.list()
 
       if (result.error) {
@@ -262,7 +267,7 @@ export function ApiKeysManagementClient({
     setNewlyCreatedKey(null)
 
     try {
-      const client = getClient()
+      const client = await getClient()
       // Send scopes to server - server will convert to permissions
       const createOptions: {
         name: string
@@ -307,7 +312,7 @@ export function ApiKeysManagementClient({
     setError(null)
 
     try {
-      const client = getClient()
+      const client = await getClient()
       const result = await client.apiKey.delete({ keyId })
 
       if (result.error) {

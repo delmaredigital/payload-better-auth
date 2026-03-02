@@ -5,12 +5,12 @@ import { Button, Banner } from '@payloadcms/ui'
 import { CopyIcon } from '@payloadcms/ui/icons/Copy'
 import {
   createPayloadAuthClient,
-  type PayloadAuthClient,
 } from '../../exports/client.js'
 
 export type TwoFactorManagementClientProps = {
   /** Optional pre-configured auth client */
-  authClient?: PayloadAuthClient
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  authClient?: any
   /** Page title. Default: 'Two-Factor Authentication' */
   title?: string
   /** Called after 2FA is enabled or disabled. Use to refresh form state. */

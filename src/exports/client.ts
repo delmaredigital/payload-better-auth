@@ -1,36 +1,37 @@
 /**
  * Client-side auth utilities
- * Re-exports createAuthClient from better-auth/react and common plugins
+ * Re-exports createAuthClient from better-auth/react and core plugins
+ *
+ * NOTE: Only plugins from the core `better-auth` package are statically imported here.
+ * Optional peer dep plugins (passkey, apiKey, etc.) must NOT be statically imported
+ * because webpack resolves all static imports at build time, breaking consumers
+ * who don't have those packages installed.
  */
 
 import { createAuthClient } from 'better-auth/react'
 import { twoFactorClient } from 'better-auth/client/plugins'
-import { passkeyClient } from '@better-auth/passkey/client'
 
-// Re-export createAuthClient and common plugins
+// Re-export createAuthClient and core plugins
 export { createAuthClient } from 'better-auth/react'
 export { twoFactorClient } from 'better-auth/client/plugins'
-export { passkeyClient } from '@better-auth/passkey/client'
 
 /**
- * Default plugins included with Payload Better Auth.
- * Use this with createAuthClient when you need custom plugins with full type safety.
+ * Default plugins included with Payload Better Auth (core only).
+ * Add optional plugins (passkeyClient, apiKeyClient) from their own packages.
  *
- * @example With custom plugins (full type safety)
+ * @example
  * ```typescript
  * import { createAuthClient, payloadAuthPlugins } from '@delmaredigital/payload-better-auth/client'
- * import { stripeClient } from '@better-auth/stripe/client'
+ * import { passkeyClient } from '@better-auth/passkey/client'
+ * import { apiKeyClient } from '@better-auth/api-key/client'
  *
  * export const authClient = createAuthClient({
- *   plugins: [...payloadAuthPlugins, stripeClient({ subscription: true })],
+ *   plugins: [...payloadAuthPlugins, passkeyClient(), apiKeyClient()],
  * })
- *
- * // authClient.subscription is fully typed!
  * ```
  */
 export const payloadAuthPlugins = [
   twoFactorClient(),
-  passkeyClient(),
 ] as const
 
 export interface PayloadAuthClientOptions {
@@ -39,28 +40,23 @@ export interface PayloadAuthClientOptions {
 }
 
 /**
- * Create a pre-configured auth client with default plugins (twoFactor, passkey).
+ * Create a pre-configured auth client with default core plugins (twoFactor).
  *
- * This is a convenience wrapper for simple setups. For custom plugins with full type
- * safety, use `createAuthClient` with `payloadAuthPlugins` instead.
+ * For passkeys, API keys, or other optional plugins, use `createAuthClient` directly:
  *
- * @param options - Optional configuration
- * @param options.baseURL - Base URL for auth endpoints (defaults to window.location.origin)
- *
- * @example Basic usage (no custom plugins)
+ * @example Basic usage
  * ```typescript
  * import { createPayloadAuthClient } from '@delmaredigital/payload-better-auth/client'
- *
  * export const authClient = createPayloadAuthClient()
  * ```
  *
- * @example With custom plugins (use createAuthClient for full type safety)
+ * @example With optional plugins
  * ```typescript
  * import { createAuthClient, payloadAuthPlugins } from '@delmaredigital/payload-better-auth/client'
- * import { stripeClient } from '@better-auth/stripe/client'
+ * import { passkeyClient } from '@better-auth/passkey/client'
  *
  * export const authClient = createAuthClient({
- *   plugins: [...payloadAuthPlugins, stripeClient({ subscription: true })],
+ *   plugins: [...payloadAuthPlugins, passkeyClient()],
  * })
  * ```
  */
