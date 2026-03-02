@@ -103,10 +103,24 @@ import { apiKeyClient } from '@better-auth/api-key/client'
 
 #### API key schema: `userId` → `referenceId`
 
-Better Auth 1.5 renamed the `userId` column in the apikeys table to `referenceId` and added a `referenceType` field. After upgrading, generate and run a Payload migration:
+Better Auth 1.5 renamed the `userId` column in the apikeys table to `referenceId` and added a `configId` column. After upgrading, generate a Payload migration:
 
 ```bash
 pnpm payload migrate:create
+```
+
+Payload will prompt you to choose which changes to include. Select:
+
+**UP migration choices:**
+- `+ config_id` — new column, create it
+- `~ user_id → reference_id` — rename (not drop + create)
+
+**DOWN migration choices:**
+- `~ reference_id → user_id` — rename back
+
+Then run:
+
+```bash
 pnpm payload migrate
 ```
 

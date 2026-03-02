@@ -777,7 +777,6 @@ details .details-body > :first-child { margin-top: 0; }
       <a class="nav-link" href="#better-auth-strategy">betterAuthStrategy</a>
       <a class="nav-link" href="#session-helpers">Session Helpers</a>
       <a class="nav-link" href="#with-better-auth-defaults">withBetterAuthDefaults</a>
-      <a class="nav-link" href="#api-key-with-defaults">apiKeyWithDefaults</a>
     </div>
 
     <div class="nav-section">
@@ -1314,10 +1313,19 @@ admin: {
       <p>Applies sensible defaults. Sets <code>trustedOrigins: [baseURL]</code> when not explicitly set.</p>
     </div>
 
-    <!-- apiKeyWithDefaults -->
-    <div class="section" id="api-key-with-defaults">
-      <h3><code>apiKeyWithDefaults(options?)</code></h3>
-      <p>Wraps Better Auth's <code>apiKey()</code> with <code>enableMetadata: true</code> for scope display in admin UI.</p>
+    <!-- API Key Configuration -->
+    <div class="section" id="api-key-config">
+      <h3>API Key Configuration</h3>
+      <p>API keys require the <code>@better-auth/api-key</code> package. Install it and configure directly in your Better Auth options:</p>
+      <pre><span class="lang-tag">bash</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code>pnpm add @better-auth/api-key</code></pre>
+      <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import</span> { <span class="hl-func">apiKey</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@better-auth/api-key'</span>
+
+<span class="hl-keyword">export const</span> betterAuthOptions = {
+  plugins: [
+    <span class="hl-func">apiKey</span>({ enableMetadata: <span class="hl-const">true</span> }),  <span class="hl-comment">// enableMetadata required for scope display in admin UI</span>
+  ],
+}</code></pre>
+      <p>The plugin's API key management UI and scope enforcement utilities work automatically once the <code>apiKey</code> plugin is configured.</p>
     </div>
 
     <!-- ═══════ CUSTOMIZATION ═══════ -->

@@ -273,7 +273,7 @@ async function handleApiKeyCreateWithScopes(
 
       if (isMetadataDisabled && createOptions.body.metadata) {
         // Retry without metadata - key will still work, just won't show scopes in UI
-        console.warn('[better-auth] Metadata disabled, creating API key without scope metadata. Enable metadata with apiKeyWithDefaults() for better UX.')
+        console.warn('[better-auth] Metadata disabled, creating API key without scope metadata. Enable metadata with apiKey({ enableMetadata: true }) for better UX.')
         const optionsWithoutMetadata = {
           body: {
             ...createOptions.body,
