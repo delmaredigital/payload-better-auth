@@ -294,25 +294,6 @@ export function payloadAdapter({
         }
 
         /**
-         * Get the schema for a model, handling plural/singular lookups.
-         * Better Auth queries with plural names when usePlural is true,
-         * but schema keys are singular.
-         */
-        function getModelSchema(model: string) {
-          // First try direct lookup
-          if (schema[model]) return schema[model]
-
-          // Try singular form (strip trailing 's') for plural model names
-          const singular = model.endsWith('s') ? model.slice(0, -1) : model
-          if (schema[singular]) return schema[singular]
-
-          // Try without 'ies' → 'y' conversion (e.g., 'verifications' → 'verification')
-          // This handles edge cases but 'verifications' → 'verification' works with simple 's' strip
-
-          return undefined
-        }
-
-        /**
          * Convert Better Auth where clause to Payload where clause.
          * The factory already handles field name transforms, so we just
          * convert to Payload's unique where format.
