@@ -75,10 +75,10 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@better-auth/api-key": "^1.5.0"
+    "@better-auth/api-key": "^1.5.0",
+    "@better-auth/passkey": "^1.5.0"
   },
   "peerDependencies": {
-    "@better-auth/passkey": ">=1.5.0",
     "@payloadcms/next": ">=3.69.0",
     "@payloadcms/ui": ">=3.69.0",
     "better-auth": ">=1.5.0",
@@ -86,13 +86,7 @@
     "payload": ">=3.69.0",
     "react": ">=19.2.1"
   },
-  "peerDependenciesMeta": {
-    "@better-auth/passkey": {
-      "optional": true
-    }
-  },
   "devDependencies": {
-    "@better-auth/passkey": "^1.5.0",
     "@payloadcms/next": "^3.77.0",
     "@payloadcms/ui": "^3.77.0",
     "@swc/cli": "^0.6.0",

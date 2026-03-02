@@ -11,10 +11,10 @@ importers:
       '@better-auth/api-key':
         specifier: ^1.5.0
         version: 1.5.0(1f170730a233a57a5a0cb588e5d48cf5)
-    devDependencies:
       '@better-auth/passkey':
         specifier: ^1.5.0
         version: 1.5.0(a375a0d6c7e9ff3e5a871c697c88bb52)
+    devDependencies:
       '@payloadcms/next':
         specifier: ^3.77.0
         version: 3.77.0(@types/react@19.2.14)(graphql@16.12.0)(monaco-editor@0.55.1)(next@16.1.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(sass@1.77.4))(payload@3.77.0(graphql@16.12.0)(typescript@5.9.3))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
