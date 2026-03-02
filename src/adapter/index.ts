@@ -12,7 +12,7 @@ import {
   type AdapterFactoryConfig,
   type CustomAdapter,
 } from 'better-auth/adapters'
-import type { Adapter, BetterAuthOptions } from 'better-auth'
+import type { DBAdapter, BetterAuthOptions } from 'better-auth'
 import type {
   BasePayload,
   Where as PayloadWhere,
@@ -80,20 +80,6 @@ export type PayloadAdapterConfig = {
      * - 'text' for UUID
      */
     idType?: 'number' | 'text'
-
-    /**
-     * Additional fields to convert to numeric IDs beyond the *Id heuristic.
-     * Use when you have ID fields that don't follow the naming convention.
-     * @example ['customOrgRef', 'legacyIdentifier']
-     */
-    idFieldsAllowlist?: string[]
-
-    /**
-     * Fields to exclude from numeric ID conversion.
-     * Use when a field ends in 'Id' but isn't actually an ID reference.
-     * @example ['visitorId', 'correlationId']
-     */
-    idFieldsBlocklist?: string[]
   }
 }
 
@@ -134,10 +120,8 @@ export type PayloadAdapterConfig = {
 export function payloadAdapter({
   payloadClient,
   adapterConfig = {},
-}: PayloadAdapterConfig): (options: BetterAuthOptions) => Adapter {
-  const { enableDebugLogs = false, idFieldsAllowlist = [], idFieldsBlocklist = [] } = adapterConfig
-  const idFieldsAllowlistSet = new Set(idFieldsAllowlist)
-  const idFieldsBlocklistSet = new Set(idFieldsBlocklist)
+}: PayloadAdapterConfig): (options: BetterAuthOptions) => DBAdapter {
+  const { enableDebugLogs = false } = adapterConfig
 
   // Resolve payload client (supports lazy initialization)
   async function resolvePayloadClient(): Promise<BasePayload> {
@@ -200,7 +184,7 @@ export function payloadAdapter({
   }
 
   // Return the adapter factory function
-  return (options: BetterAuthOptions): Adapter => {
+  return (options: BetterAuthOptions): DBAdapter => {
     // Determine ID type based on database type
     // If payloadClient is already resolved, detect dbType immediately
     // Otherwise default to 'postgres' (will be updated on first operation)
@@ -281,18 +265,6 @@ export function payloadAdapter({
       return resolvePromise
     }
 
-    // Helper to convert ID based on type
-    const convertId = (id: string | number): string | number => {
-      if (idType === 'number' && typeof id === 'string') {
-        const num = parseInt(id, 10)
-        return isNaN(num) ? id : num
-      }
-      if (idType === 'text' && typeof id === 'number') {
-        return String(id)
-      }
-      return id
-    }
-
     // Create the adapter using createAdapterFactory
     // The factory handles all schema-aware transformations for us
     const adapterFactory = createAdapterFactory({
@@ -303,6 +275,17 @@ export function payloadAdapter({
         getFieldName,
         debugLog,
       }) => {
+        // Set fieldName on reference fields so the factory maps userId→user, etc.
+        // Payload uses relationship fields without the Id suffix.
+        for (const table of Object.values(schema)) {
+          for (const [fieldKey, fieldDef] of Object.entries(table.fields)) {
+            if (fieldDef.references) {
+              const stripped = fieldKey.replace(/(_id|Id)$/, '');
+              if (stripped !== fieldKey) fieldDef.fieldName = stripped;
+            }
+          }
+        }
+
         // Log initialization
         if (enableDebugLogs) {
           debugLog('Adapter initialized', {
@@ -331,131 +314,11 @@ export function payloadAdapter({
         }
 
         /**
-         * Transform a Better Auth field name to a Payload field name.
-         *
-         * For reference fields (those with `references` in schema), Payload collections
-         * use the field name without the `Id`/`_id` suffix (e.g., `userId` → `user`).
-         * This matches how betterAuthCollections() generates relationship fields.
-         */
-        function getPayloadFieldName(model: string, field: string): string {
-          // First apply any custom field name mappings from BetterAuthOptions
-          const mappedField = getFieldName({ model, field })
-
-          // Check if this field is a reference field in the schema
-          const modelSchema = getModelSchema(model)
-
-          if (modelSchema?.fields?.[field]?.references) {
-            // Strip _id or Id suffix for reference fields
-            // This matches betterAuthCollections() which does: fieldName.replace(/(_id|Id)$/, '')
-            return mappedField.replace(/(_id|Id)$/, '')
-          }
-
-          return mappedField
-        }
-
-        /**
-         * Transform input data from Better Auth format to Payload format.
-         * Converts reference field names (e.g., `userId` → `user`) and
-         * converts reference field values to the correct ID type.
-         */
-        function transformDataForPayload(
-          model: string,
-          data: Record<string, unknown>
-        ): Record<string, unknown> {
-          const modelSchema = getModelSchema(model)
-          if (!modelSchema?.fields) return data
-
-          const transformed: Record<string, unknown> = {}
-
-          for (const [key, value] of Object.entries(data)) {
-            const payloadKey = getPayloadFieldName(model, key)
-            let transformedValue = value
-
-            // If this is a reference field, convert the ID to the correct type
-            const fieldDef = modelSchema.fields[key]
-            if (fieldDef?.references && value !== null && value !== undefined) {
-              // Convert reference ID to the correct type (number for SERIAL, string for UUID)
-              if (idType === 'number' && typeof value === 'string') {
-                const numValue = parseInt(value as string, 10)
-                if (!isNaN(numValue)) {
-                  transformedValue = numValue
-                }
-              } else if (idType === 'text' && typeof value === 'number') {
-                transformedValue = String(value)
-              }
-            }
-
-            transformed[payloadKey] = transformedValue
-          }
-
-          if (enableDebugLogs) {
-            console.log('[payload-adapter] transformDataForPayload:', {
-              model,
-              inputKeys: Object.keys(data),
-              outputKeys: Object.keys(transformed),
-              transformedData: transformed,
-            })
-          }
-
-          return transformed
-        }
-
-        /**
-         * Transform output data from Payload format to Better Auth format.
-         * Converts reference field names back (e.g., `user` → `userId`).
-         */
-        function transformDataFromPayload(
-          model: string,
-          data: Record<string, unknown>
-        ): Record<string, unknown> {
-          const modelSchema = getModelSchema(model)
-          if (!modelSchema?.fields || !data) return data
-
-          const transformed: Record<string, unknown> = { ...data }
-
-          // For each field in the schema that has references,
-          // check if Payload returned the stripped name and map it back
-          for (const [fieldKey, fieldDef] of Object.entries(modelSchema.fields)) {
-            if ((fieldDef as { references?: unknown }).references) {
-              const payloadFieldName = fieldKey.replace(/(_id|Id)$/, '')
-              if (payloadFieldName in data && !(fieldKey in transformed)) {
-                transformed[fieldKey] = data[payloadFieldName]
-                // Keep both for compatibility - Better Auth expects userId
-              }
-            }
-          }
-
-          // Convert semantic ID fields to numbers when using serial IDs
-          // Heuristic: fields ending in 'Id' or '_id' containing numeric strings
-          // Modified by allowlist (add) and blocklist (exclude)
-          if (idType === 'number') {
-            for (const [key, value] of Object.entries(transformed)) {
-              // Skip if not a string or already processed as a reference
-              if (typeof value !== 'string') continue
-
-              // Check if field should be converted
-              const matchesHeuristic = /(?:Id|_id)$/.test(key)
-              const inAllowlist = idFieldsAllowlistSet.has(key)
-              const inBlocklist = idFieldsBlocklistSet.has(key)
-
-              if ((matchesHeuristic || inAllowlist) && !inBlocklist) {
-                // Only convert if it's a pure numeric string
-                if (/^\d+$/.test(value)) {
-                  transformed[key] = parseInt(value, 10)
-                }
-              }
-            }
-          }
-
-          return transformed
-        }
-
-        /**
          * Convert Better Auth where clause to Payload where clause.
-         * Handles field name transformations for reference fields.
+         * The factory already handles field name transforms, so we just
+         * convert to Payload's unique where format.
          */
         function convertWhereToPayload(
-          model: string,
           where: Array<{
             field: string
             value: unknown
@@ -468,7 +331,7 @@ export function payloadAdapter({
           if (where.length === 1) {
             const w = where[0]
             return {
-              [getPayloadFieldName(model, w.field)]: convertOperator(w.operator, w.value, resolvedDbType ?? 'postgres'),
+              [w.field]: convertOperator(w.operator, w.value, resolvedDbType ?? 'postgres'),
             }
           }
 
@@ -479,13 +342,13 @@ export function payloadAdapter({
 
           if (andConditions.length > 0) {
             result.and = andConditions.map((w) => ({
-              [getPayloadFieldName(model, w.field)]: convertOperator(w.operator, w.value, resolvedDbType ?? 'postgres'),
+              [w.field]: convertOperator(w.operator, w.value, resolvedDbType ?? 'postgres'),
             }))
           }
 
           if (orConditions.length > 0) {
             result.or = orConditions.map((w) => ({
-              [getPayloadFieldName(model, w.field)]: convertOperator(w.operator, w.value, resolvedDbType ?? 'postgres'),
+              [w.field]: convertOperator(w.operator, w.value, resolvedDbType ?? 'postgres'),
             }))
           }
 
@@ -507,26 +370,24 @@ export function payloadAdapter({
           create: async ({ model, data }) => {
             const payload = await getPayload()
             const collection = getCollection(model)
-            const payloadData = transformDataForPayload(model, data as Record<string, unknown>)
 
             if (enableDebugLogs) {
-              debugLog('create', { collection, model, data, payloadData })
+              debugLog('create', { collection, model, data })
             }
 
             try {
               const result = await payload.create({
                 collection,
-                data: payloadData,
+                data: data as Record<string, unknown>,
                 depth: 0,
                 // Bypass access control - Better Auth handles its own auth
                 overrideAccess: true,
               })
-              // Transform back and merge with input data for Better Auth
+              // Merge with input data for Better Auth
               // Database result takes precedence (handles hooks that modify data like firstUserAdmin)
-              const transformed = transformDataFromPayload(model, result as Record<string, unknown>)
-              const merged = { ...data, ...transformed }
+              const merged = { ...data, ...result }
               if (enableDebugLogs) {
-                debugLog('create result', { collection, resultId: (result as Record<string, unknown>).id, transformedKeys: Object.keys(transformed), mergedKeys: Object.keys(merged as Record<string, unknown>) })
+                debugLog('create result', { collection, resultId: (result as Record<string, unknown>).id, mergedKeys: Object.keys(merged as Record<string, unknown>) })
               }
               return merged as typeof data
             } catch (error) {
@@ -554,15 +415,14 @@ export function payloadAdapter({
                 try {
                   const result = await payload.findByID({
                     collection,
-                    id: convertId(id),
+                    id,
                     depth: join ? 1 : 0,
                     overrideAccess: true,
                   })
-                  const transformed = transformDataFromPayload(model, result as Record<string, unknown>)
                   if (enableDebugLogs) {
-                    debugLog('findOne result (byID)', { collection, id: convertId(id), found: true, transformedKeys: Object.keys(transformed) })
+                    debugLog('findOne result (byID)', { collection, id, found: true })
                   }
-                  return transformed
+                  return result
                 } catch (error) {
                   if (
                     error instanceof Error &&
@@ -570,7 +430,7 @@ export function payloadAdapter({
                     (error as Error & { status: number }).status === 404
                   ) {
                     if (enableDebugLogs) {
-                      debugLog('findOne result (byID)', { collection, id: convertId(id), found: false })
+                      debugLog('findOne result (byID)', { collection, id, found: false })
                     }
                     return null
                   }
@@ -578,7 +438,7 @@ export function payloadAdapter({
                 }
               }
 
-              const payloadWhere = convertWhereToPayload(model, where)
+              const payloadWhere = convertWhereToPayload(where)
 
               if (enableDebugLogs) {
                 debugLog('findOne query', { collection, payloadWhere: JSON.stringify(payloadWhere), resolvedDbType, idType })
@@ -597,11 +457,7 @@ export function payloadAdapter({
               }
 
               if (!result.docs[0]) return null
-              const transformed = transformDataFromPayload(model, result.docs[0] as Record<string, unknown>)
-              if (enableDebugLogs) {
-                debugLog('findOne transformed', { collection, transformedKeys: Object.keys(transformed) })
-              }
-              return transformed
+              return result.docs[0]
             } catch (error) {
               console.error('[payload-adapter] findOne failed:', {
                 model,
@@ -627,7 +483,7 @@ export function payloadAdapter({
               })
             }
 
-            const payloadWhere = where ? convertWhereToPayload(model, where) : {}
+            const payloadWhere = where ? convertWhereToPayload(where) : {}
 
             const result = await payload.find({
               collection,
@@ -635,24 +491,21 @@ export function payloadAdapter({
               limit: limit ?? 100,
               page: offset ? Math.floor(offset / (limit ?? 100)) + 1 : 1,
               sort: sortBy
-                ? `${sortBy.direction === 'desc' ? '-' : ''}${getPayloadFieldName(model, sortBy.field)}`
+                ? `${sortBy.direction === 'desc' ? '-' : ''}${sortBy.field}`
                 : undefined,
               depth: join ? 1 : 0,
               overrideAccess: true,
             })
 
-            return result.docs.map((doc) =>
-              transformDataFromPayload(model, doc as Record<string, unknown>)
-            )
+            return result.docs
           },
 
           update: async ({ model, where, update: data }) => {
             const payload = await getPayload()
             const collection = getCollection(model)
-            const payloadData = transformDataForPayload(model, data as Record<string, unknown>)
 
             if (enableDebugLogs) {
-              debugLog('update', { collection, model, where, data, payloadData })
+              debugLog('update', { collection, model, where, data })
             }
 
             // Optimize for single ID queries
@@ -660,44 +513,41 @@ export function payloadAdapter({
             if (id !== null) {
               const result = await payload.update({
                 collection,
-                id: convertId(id),
-                data: payloadData,
+                id,
+                data: data as Record<string, unknown>,
                 depth: 0,
                 overrideAccess: true,
               })
-              const transformed = transformDataFromPayload(model, result as Record<string, unknown>)
-              return { ...data, ...transformed } as typeof data
+              return { ...data, ...result } as typeof data
             }
 
-            const payloadWhere = convertWhereToPayload(model, where)
+            const payloadWhere = convertWhereToPayload(where)
             const result = await payload.update({
               collection,
               where: payloadWhere,
-              data: payloadData,
+              data: data as Record<string, unknown>,
               depth: 0,
               overrideAccess: true,
             })
 
             if (!result.docs[0]) return null
-            const transformed = transformDataFromPayload(model, result.docs[0] as Record<string, unknown>)
-            return { ...data, ...transformed } as typeof data
+            return { ...data, ...result.docs[0] } as typeof data
           },
 
           updateMany: async ({ model, where, update: data }) => {
             const payload = await getPayload()
             const collection = getCollection(model)
-            const payloadData = transformDataForPayload(model, data as Record<string, unknown>)
 
             if (enableDebugLogs) {
-              debugLog('updateMany', { collection, model, where, data, payloadData })
+              debugLog('updateMany', { collection, model, where, data })
             }
 
-            const payloadWhere = convertWhereToPayload(model, where)
+            const payloadWhere = convertWhereToPayload(where)
 
             const result = await payload.update({
               collection,
               where: payloadWhere,
-              data: payloadData,
+              data: data as Record<string, unknown>,
               depth: 0,
               overrideAccess: true,
             })
@@ -718,13 +568,13 @@ export function payloadAdapter({
             if (id !== null) {
               await payload.delete({
                 collection,
-                id: convertId(id),
+                id,
                 overrideAccess: true,
               })
               return
             }
 
-            const payloadWhere = convertWhereToPayload(model, where)
+            const payloadWhere = convertWhereToPayload(where)
             await payload.delete({ collection, where: payloadWhere, overrideAccess: true })
           },
 
@@ -736,7 +586,7 @@ export function payloadAdapter({
               debugLog('deleteMany', { collection, model, where })
             }
 
-            const payloadWhere = convertWhereToPayload(model, where)
+            const payloadWhere = convertWhereToPayload(where)
 
             const result = await payload.delete({
               collection,
@@ -755,7 +605,7 @@ export function payloadAdapter({
               debugLog('count', { collection, model, where })
             }
 
-            const payloadWhere = where ? convertWhereToPayload(model, where) : {}
+            const payloadWhere = where ? convertWhereToPayload(where) : {}
 
             const result = await payload.count({
               collection,
@@ -773,4 +623,4 @@ export function payloadAdapter({
   }
 }
 
-export type { Adapter, BetterAuthOptions }
+export type { DBAdapter, BetterAuthOptions }
