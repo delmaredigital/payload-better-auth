@@ -90,11 +90,12 @@ export type BaseVerificationFields = {
 export type Verification = BaseVerificationFields
 
 export type ApikeyFields = {
+  configId: string
   name?: string
   start?: string
+  referenceId: string
   prefix?: string
   key: string
-  userId: string
   refillInterval?: number
   refillAmount?: number
   lastRefillAt?: Date
@@ -239,7 +240,7 @@ export type TwoFactor = TwoFactorFields
 /**
  * Union of all supported plugin identifiers.
  */
-export type PluginId = "username" | "admin" | "api-key" | "passkey" | "bearer" | "email-otp" | "magic-link" | "phone-number" | "one-tap" | "anonymous" | "multi-session" | "one-time-token" | "oidc" | "generic-oauth" | "open-api" | "organization" | "jwt" | "two-factor"
+export type PluginId = "username" | "admin" | "api-key" | "passkey" | "bearer" | "email-otp" | "magic-link" | "phone-number" | "one-tap" | "anonymous" | "multi-session" | "one-time-token" | "oidc-provider" | "generic-oauth" | "open-api" | "organization" | "jwt" | "two-factor"
 
 /**
  * Complete schema mapping of all models to their types.
