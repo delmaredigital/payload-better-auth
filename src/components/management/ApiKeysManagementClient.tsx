@@ -244,7 +244,8 @@ export function ApiKeysManagementClient({
       if (result.error) {
         setError(result.error.message ?? 'Failed to load API keys')
       } else {
-        setApiKeys((result.data as ApiKey[]) ?? [])
+        const data = result.data as unknown as { apiKeys: ApiKey[] } | ApiKey[]
+        setApiKeys(Array.isArray(data) ? data : data.apiKeys ?? [])
       }
     } catch {
       setError('Failed to load API keys')
