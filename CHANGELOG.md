@@ -5,65 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.4] - 2026-03-02
 
-### Added
-
-#### MongoDB Support
-
-The adapter now auto-detects MongoDB and configures itself accordingly. No special adapter configuration is needed — just use Payload's `@payloadcms/db-mongodb` adapter and everything works.
-
-- **Auto-detection**: Reads `payload.db.name` to determine database type (`postgres`, `mongodb`, or `sqlite`)
-- **ID type**: Automatically uses `'text'` (ObjectId strings) for MongoDB, `'number'` (SERIAL) for Postgres/SQLite
-- **Database-aware operators**: `starts_with` and `ends_with` use `contains` on MongoDB (SQL `LIKE` patterns aren't supported)
-- **`not_in` operator**: Added support for the `not_in` where clause operator
-- **New `dbType` config option**: Explicit override if auto-detection doesn't work for your adapter
-
-New exported utilities: `detectDbType()`, `resolveIdType()`, and the `DbType` type.
-
-See the [MongoDB Setup](README.md#mongodb-setup) section in the README for configuration details and migration guide.
-
-### Fixed
-
-#### 2FA and Passkey fields now scoped to the viewed user
-
-The Two-Factor Authentication and Passkeys management UI fields on user documents were displaying the logged-in admin's own data when viewing another user's document. This is because Better Auth's passkey and 2FA APIs are session-based (always operate on the logged-in user).
-
-Both fields now compare the document ID with the logged-in user's ID and show an informational message ("can only be managed by the account owner") when viewing someone else's profile.
-
-### Changed
-
-#### 2FA and Passkeys moved to user document
-
-Two-Factor Authentication and Passkeys management UI are now embedded directly in the user document edit view as `ui` fields, rather than living as separate admin views in the sidebar. These are per-user security settings (like password) and belong on the user document.
-
-API Keys management remains in the sidebar under the "Security" nav group, as it is an admin-level feature.
-
-### Security
-
-#### API key endpoints now require admin role
-
-Better Auth's API key plugin does not restrict who can create, update, or delete API keys — any authenticated user could call these endpoints directly (e.g., via Postman) to create keys, even without admin panel access. This was a privilege escalation risk.
-
-API key mutation endpoints (`/api-key/create`, `/api-key/update`, `/api-key/delete`) now require the user to have an admin role before the request is forwarded to Better Auth. The required role defaults to `admin.login.requiredRole` (or `'admin'` if unset), and can be overridden per-project:
-
-```ts
-createBetterAuthPlugin({
-  admin: {
-    login: {
-      requiredRole: ['admin', 'editor'], // both can access admin panel
-    },
-    apiKey: {
-      requiredRole: 'admin', // only admins can manage API keys
-      // requiredRole: null, // disable guard (not recommended)
-    },
-  },
-})
-```
-
-API key **verification** is unaffected — existing keys continue to work regardless of who created them. This only restricts key management (create, update, delete).
-
-## [0.5.3] - 2026-03-01
+Upgrades to Better Auth 1.5. If upgrading from 0.4.x, review the breaking changes and migration steps below.
 
 ### Breaking Changes
 
@@ -72,24 +16,6 @@ API key **verification** is unaffected — existing keys continue to work regard
 ```bash
 pnpm add better-auth@latest
 ```
-
----
-
-#### Passkey and API key components moved to separate entry points
-
-Components that depend on optional peer dependencies (`@better-auth/passkey`, `@better-auth/api-key`) now live in their own entry points instead of the main barrels. This prevents webpack build failures for consumers who don't have those packages installed.
-
-```ts
-// Passkey components (requires @better-auth/passkey)
-import { PasskeySignInButton, PasskeyRegisterButton, PasskeysField, PasskeysManagementClient }
-  from '@delmaredigital/payload-better-auth/components/passkey'
-
-// API key components (requires @better-auth/api-key)
-import { ApiKeysManagementClient }
-  from '@delmaredigital/payload-better-auth/components/api-key'
-```
-
-The built-in admin UI (management views, sidebar nav, user document fields) auto-injects these internally — **no consumer changes needed** for the admin panel.
 
 ---
 
@@ -115,6 +41,24 @@ export const authClient = createAuthClient({
 ```
 
 Add only what you use. `createPayloadAuthClient()` still works for minimal setups (email/password + 2FA only). The built-in admin UI components handle their own client creation internally.
+
+---
+
+#### Passkey and API key components moved to separate entry points
+
+Components that depend on optional peer dependencies (`@better-auth/passkey`, `@better-auth/api-key`) now live in their own entry points instead of the main barrels. This prevents webpack build failures for consumers who don't have those packages installed.
+
+```ts
+// Passkey components (requires @better-auth/passkey)
+import { PasskeySignInButton, PasskeyRegisterButton, PasskeysField, PasskeysManagementClient }
+  from '@delmaredigital/payload-better-auth/components/passkey'
+
+// API key components (requires @better-auth/api-key)
+import { ApiKeysManagementClient }
+  from '@delmaredigital/payload-better-auth/components/api-key'
+```
+
+The built-in admin UI (management views, sidebar nav, user document fields) auto-injects these internally — **no consumer changes needed** for the admin panel.
 
 ---
 
@@ -152,7 +96,7 @@ plugins: [apiKey({ enableMetadata: true })]
 
 #### API key schema: `userId` → `referenceId`
 
-Better Auth 1.5 renamed the `userId` column to `referenceId` and added `configId`. Generate a Payload migration:
+Better Auth 1.5 renamed the `userId` column to `referenceId` and added `configId`. If you use API keys, generate a Payload migration:
 
 ```bash
 pnpm payload migrate:create
@@ -169,11 +113,7 @@ pnpm payload migrate:create
 pnpm payload migrate
 ```
 
----
-
-#### `ApiKeyInfo.userId` → `ApiKeyInfo.referenceId`
-
-The `userId` field is now `referenceId` with a new `referenceType: 'user' | 'organization'` field.
+Any code referencing `apiKey.userId` must change to `apiKey.referenceId`. A new `referenceType: 'user' | 'organization'` field is also available.
 
 ---
 
@@ -238,6 +178,55 @@ Fixed the API keys management UI to handle Better Auth 1.5's new response format
 The adapter's factory config declared `supportsDates: true`, which tells Better Auth's adapter factory that the database returns native `Date` objects. However, Payload's Local API returns dates as ISO strings. This caused date comparisons like `session.expiresAt > new Date()` to silently fail (string vs Date comparison returns `false` due to `NaN` coercion), breaking any Better Auth plugin that compares dates — most notably the **multi-session plugin**, where `list-device-sessions` always returned an empty array.
 
 Changed `supportsDates` to `false` so the factory correctly converts ISO strings to `Date` objects on output, and `Date` objects to ISO strings on input. This is safe across all database types: MongoDB (which may return native Dates that pass through unchanged) and Postgres/SQLite (which return strings that get converted).
+
+## [0.4.3] - 2026-02-23
+
+### Added
+
+#### MongoDB Support
+
+The adapter now auto-detects MongoDB and configures itself accordingly. No special adapter configuration needed — just use Payload's `@payloadcms/db-mongodb` adapter and everything works.
+
+- **Auto-detection**: Reads `payload.db.name` to determine database type (`postgres`, `mongodb`, or `sqlite`)
+- **ID type**: Automatically uses `'text'` (ObjectId strings) for MongoDB, `'number'` (SERIAL) for Postgres/SQLite
+- **Database-aware operators**: `starts_with` and `ends_with` use `contains` on MongoDB (SQL `LIKE` patterns aren't supported)
+- **`not_in` operator**: Added support for the `not_in` where clause operator
+- **New `dbType` config option**: Explicit override if auto-detection doesn't work for your adapter
+
+New exported utilities: `detectDbType()`, `resolveIdType()`, and the `DbType` type.
+
+### Changed
+
+#### 2FA and Passkeys moved to user document
+
+Two-Factor Authentication and Passkeys management UI are now embedded directly in the user document edit view as `ui` fields, rather than living as separate admin views in the sidebar. These are per-user security settings (like password) and belong on the user document.
+
+API Keys management remains in the sidebar under the "Security" nav group, as it is an admin-level feature.
+
+### Fixed
+
+#### 2FA and Passkey fields now scoped to the viewed user
+
+The Two-Factor Authentication and Passkeys management UI fields on user documents were displaying the logged-in admin's own data when viewing another user's document. Both fields now compare the document ID with the logged-in user's ID and show an informational message when viewing someone else's profile.
+
+### Security
+
+#### API key endpoints now require admin role
+
+API key mutation endpoints (`/api-key/create`, `/api-key/update`, `/api-key/delete`) now require the user to have an admin role before the request is forwarded to Better Auth. The required role defaults to `admin.login.requiredRole` (or `'admin'` if unset), and can be overridden:
+
+```ts
+createBetterAuthPlugin({
+  admin: {
+    apiKey: {
+      requiredRole: 'admin', // only admins can manage API keys
+      // requiredRole: null, // disable guard (not recommended)
+    },
+  },
+})
+```
+
+API key **verification** is unaffected — existing keys continue to work. This only restricts key management (create, update, delete).
 
 ## [0.4.0] - 2026-02-17
 

@@ -1614,7 +1614,7 @@ read: <span class="hl-func">allowSessionOrScope</span>(<span class="hl-string">'
 admin: { login: { enablePasskey: <span class="hl-const">true</span> } }
 
 <span class="hl-comment">// Or use standalone button</span>
-<span class="hl-keyword">import</span> { <span class="hl-type">PasskeySignInButton</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/components'</span>
+<span class="hl-keyword">import</span> { <span class="hl-type">PasskeySignInButton</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/components/passkey'</span>
 
 &lt;<span class="hl-type">PasskeySignInButton</span>
   onSuccess={(user) =&gt; router.<span class="hl-func">push</span>(<span class="hl-string">'/dashboard'</span>)}
@@ -1625,11 +1625,11 @@ admin: { login: { enablePasskey: <span class="hl-const">true</span> } }
         <summary>Passkey registration &amp; management</summary>
         <div class="details-body">
           <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// Registration button</span>
-<span class="hl-keyword">import</span> { <span class="hl-type">PasskeyRegisterButton</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/components'</span>
+<span class="hl-keyword">import</span> { <span class="hl-type">PasskeyRegisterButton</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/components/passkey'</span>
 &lt;<span class="hl-type">PasskeyRegisterButton</span> passkeyName=<span class="hl-string">"My MacBook"</span> onSuccess={refetch} /&gt;
 
 <span class="hl-comment">// Full management UI</span>
-<span class="hl-keyword">import</span> { <span class="hl-type">PasskeysManagementClient</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/management'</span>
+<span class="hl-keyword">import</span> { <span class="hl-type">PasskeysManagementClient</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/components/passkey'</span>
 &lt;<span class="hl-type">PasskeysManagementClient</span> title=<span class="hl-string">"Manage Passkeys"</span> /&gt;
 
 <span class="hl-comment">// Or use the auth client directly (requires passkeyClient() in your client plugins)</span>
