@@ -1,6 +1,6 @@
 {
   "name": "@delmaredigital/payload-better-auth",
-  "version": "0.4.4",
+  "version": "0.4.5-dev.1",
   "description": "Better Auth adapter and plugins for Payload CMS",
   "type": "module",
   "license": "MIT",
@@ -74,8 +74,10 @@
     "test:coverage": "vitest run --coverage",
     "prepublishOnly": "pnpm build"
   },
+  "dependencies": {
+    "@better-auth/api-key": "^1.5.0"
+  },
   "peerDependencies": {
-    "@better-auth/api-key": ">=1.5.0",
     "@better-auth/passkey": ">=1.5.0",
     "@payloadcms/next": ">=3.69.0",
     "@payloadcms/ui": ">=3.69.0",
@@ -85,15 +87,11 @@
     "react": ">=19.2.1"
   },
   "peerDependenciesMeta": {
-    "@better-auth/api-key": {
-      "optional": true
-    },
     "@better-auth/passkey": {
       "optional": true
     }
   },
   "devDependencies": {
-    "@better-auth/api-key": "^1.5.0",
     "@better-auth/passkey": "^1.5.0",
     "@payloadcms/next": "^3.77.0",
     "@payloadcms/ui": "^3.77.0",
