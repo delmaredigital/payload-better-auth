@@ -4,12 +4,14 @@
  */
 
 import { createAuthClient } from 'better-auth/react'
-import { twoFactorClient, apiKeyClient } from 'better-auth/client/plugins'
+import { twoFactorClient } from 'better-auth/client/plugins'
+import { apiKeyClient } from '@better-auth/api-key/client'
 import { passkeyClient } from '@better-auth/passkey/client'
 
 // Re-export createAuthClient and common plugins
 export { createAuthClient } from 'better-auth/react'
-export { twoFactorClient, apiKeyClient } from 'better-auth/client/plugins'
+export { twoFactorClient } from 'better-auth/client/plugins'
+export { apiKeyClient } from '@better-auth/api-key/client'
 export { passkeyClient } from '@better-auth/passkey/client'
 
 /**

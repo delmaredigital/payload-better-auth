@@ -31,8 +31,10 @@ import type { Access, PayloadRequest } from 'payload'
 export type ApiKeyInfo = {
   /** The API key ID */
   id: string
-  /** User ID who owns this key */
-  userId: string
+  /** Reference ID (user or organization) who owns this key */
+  referenceId: string
+  /** Reference type - whether key is owned by a user or organization */
+  referenceType: 'user' | 'organization'
   /** Array of granted scope strings */
   scopes: string[]
   /** The raw key (only first/last chars visible) */
@@ -152,6 +154,8 @@ export async function getApiKeyInfo(
 
     const doc = results.docs[0] as {
       id: string | number
+      referenceId?: string
+      referenceType?: string
       user?: string | number | { id: string | number }
       userId?: string | number
       permissions?: string
@@ -182,12 +186,20 @@ export async function getApiKeyInfo(
       scopes = doc.scopes
     }
 
-    // Get user ID (handle both direct field and relationship)
-    let userId: string
-    if (doc.userId) {
-      userId = String(doc.userId)
+    // Get reference ID and type (BA 1.5 uses referenceId/referenceType instead of userId)
+    let referenceId: string
+    let referenceType: 'user' | 'organization' = 'user'
+    if (doc.referenceId) {
+      referenceId = String(doc.referenceId)
+      if (doc.referenceType === 'organization') {
+        referenceType = 'organization'
+      }
+    } else if (doc.userId) {
+      // Fallback for pre-1.5 schema
+      referenceId = String(doc.userId)
     } else if (doc.user) {
-      userId = typeof doc.user === 'object' ? String(doc.user.id) : String(doc.user)
+      // Fallback for relationship field
+      referenceId = typeof doc.user === 'object' ? String(doc.user.id) : String(doc.user)
     } else {
       return null
     }
@@ -216,7 +228,8 @@ export async function getApiKeyInfo(
 
     return {
       id: String(doc.id),
-      userId,
+      referenceId,
+      referenceType,
       scopes,
       keyPrefix: doc.start,
       metadata,
@@ -470,7 +483,7 @@ export function allowSessionOrAnyScope(
  * ```ts
  * const keyInfo = await validateApiKey(req)
  * if (keyInfo) {
- *   console.log('Valid API key for user:', keyInfo.userId)
+ *   console.log('Valid API key for:', keyInfo.referenceId, keyInfo.referenceType)
  *   console.log('Scopes:', keyInfo.scopes)
  * }
  * ```

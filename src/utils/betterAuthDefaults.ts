@@ -5,7 +5,7 @@
  */
 
 import type { BetterAuthOptions } from 'better-auth'
-import { apiKey as betterAuthApiKey } from 'better-auth/plugins'
+import { apiKey as betterAuthApiKey } from '@better-auth/api-key'
 
 type ApiKeyPluginOptions = Parameters<typeof betterAuthApiKey>[0]
 
@@ -34,7 +34,7 @@ type ApiKeyPluginOptions = Parameters<typeof betterAuthApiKey>[0]
  * })
  * ```
  */
-export function apiKeyWithDefaults(options?: ApiKeyPluginOptions) {
+export function apiKeyWithDefaults(options?: ApiKeyPluginOptions): ReturnType<typeof betterAuthApiKey> {
   return betterAuthApiKey({
     enableMetadata: true,
     ...options,

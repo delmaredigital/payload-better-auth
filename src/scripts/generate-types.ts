@@ -7,13 +7,13 @@
  * Run with: pnpm generate:types
  */
 
+import { apiKey } from '@better-auth/api-key'
 import { passkey } from '@better-auth/passkey'
 import type { DBFieldAttribute } from 'better-auth/db'
 import { getSchema } from 'better-auth/db'
 import {
   admin,
   anonymous,
-  apiKey,
   bearer,
   emailOTP,
   genericOAuth,
