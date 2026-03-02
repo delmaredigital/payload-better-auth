@@ -28,7 +28,7 @@ For AI-assisted exploration: [DeepWiki](https://deepwiki.com/delmaredigital/payl
 pnpm add @delmaredigital/payload-better-auth better-auth
 ```
 
-**Requirements:** `payload` >= 3.69.0 · `better-auth` >= 1.4.0 · `next` >= 15.4.8 · `react` >= 19.2.1
+**Requirements:** `payload` >= 3.69.0 · `better-auth` >= 1.5.0 · `next` >= 15.4.8 · `react` >= 19.2.1
 
 ## Quick Start
 

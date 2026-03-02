@@ -5,16 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.4.4] - 2026-02-25
-
-### Fixed
-
-#### Date fields returned as strings instead of Date objects
-
-The adapter's factory config declared `supportsDates: true`, which tells Better Auth's adapter factory that the database returns native `Date` objects. However, Payload's Local API returns dates as ISO strings. This caused date comparisons like `session.expiresAt > new Date()` to silently fail (string vs Date comparison returns `false` due to `NaN` coercion), breaking any Better Auth plugin that compares dates — most notably the **multi-session plugin**, where `list-device-sessions` always returned an empty array.
-
-Changed `supportsDates` to `false` so the factory correctly converts ISO strings to `Date` objects on output, and `Date` objects to ISO strings on input. This is safe across all database types: MongoDB (which may return native Dates that pass through unchanged) and Postgres/SQLite (which return strings that get converted).
-
 ## [Unreleased]
 
 ### Added
@@ -72,6 +62,117 @@ createBetterAuthPlugin({
 ```
 
 API key **verification** is unaffected — existing keys continue to work regardless of who created them. This only restricts key management (create, update, delete).
+
+## [0.5.0] - 2026-03-01
+
+### Breaking Changes
+
+#### Requires Better Auth 1.5
+
+The minimum `better-auth` version is now `>=1.5.0`. Upgrade with:
+
+```bash
+pnpm add better-auth@latest
+```
+
+#### API key plugin extracted to `@better-auth/api-key`
+
+Better Auth 1.5 moved the API key plugin from `better-auth/plugins` to its own package. If you use API keys, install it and update your import:
+
+```bash
+pnpm add @better-auth/api-key
+```
+
+```ts
+// Before
+import { apiKey } from 'better-auth/plugins'
+
+// After
+import { apiKey } from '@better-auth/api-key'
+```
+
+Client imports also changed:
+
+```ts
+// Before
+import { apiKeyClient } from 'better-auth/client/plugins'
+
+// After
+import { apiKeyClient } from '@better-auth/api-key/client'
+```
+
+#### API key schema: `userId` → `referenceId`
+
+Better Auth 1.5 renamed the `userId` column in the apikeys table to `referenceId` and added a `referenceType` field. After upgrading, generate and run a Payload migration:
+
+```bash
+pnpm payload migrate:create
+pnpm payload migrate
+```
+
+#### `apiKeyWithDefaults()` removed
+
+The `apiKeyWithDefaults()` helper has been removed. Configure the API key plugin directly:
+
+```ts
+// Before
+import { apiKeyWithDefaults } from '@delmaredigital/payload-better-auth'
+plugins: [apiKeyWithDefaults()]
+
+// After
+import { apiKey } from '@better-auth/api-key'
+plugins: [apiKey({ enableMetadata: true })]
+```
+
+#### `ApiKeyInfo.userId` → `ApiKeyInfo.referenceId`
+
+If you use our `ApiKeyInfo` type from the scope enforcement utilities, the `userId` field is now `referenceId` and there's a new `referenceType: 'user' | 'organization'` field.
+
+#### `Adapter` type renamed to `DBAdapter`
+
+If you import the adapter type directly (unlikely for most users):
+
+```ts
+// Before
+import type { Adapter } from '@delmaredigital/payload-better-auth/adapter'
+
+// After
+import type { DBAdapter } from '@delmaredigital/payload-better-auth/adapter'
+```
+
+#### `idFieldsAllowlist` / `idFieldsBlocklist` config removed
+
+The `adapterConfig.idFieldsAllowlist` and `adapterConfig.idFieldsBlocklist` options have been removed. The adapter now uses Better Auth's factory transforms to handle ID fields automatically via schema introspection.
+
+### Changed
+
+#### Adapter refactored to use factory transforms
+
+The adapter now delegates field name transforms (`userId` ↔ `user`) and ID type coercion to Better Auth's `createAdapterFactory` via schema `fieldName` mutation. This removes ~150 lines of manual transform code and automatically supports all current and future Better Auth plugins without hardcoded field mappings.
+
+#### `BetterAuthReturn` type simplified
+
+The manual `BetterAuthReturn<O>` type construction (including `BaseErrorCodes`, `UnionToIntersection`, `PrettifyDeep`, `InferPluginErrorCodes`) has been replaced with `Auth<O>` from `better-auth/types`. This stays in sync with upstream automatically.
+
+#### Dynamic `baseURL` support
+
+`withBetterAuthDefaults()` now handles Better Auth 1.5's object-form `baseURL` (with `fallback`, `allowedHosts`, `protocol` properties) in addition to string URLs.
+
+### Fixed
+
+#### API key list response shape
+
+Fixed the API keys management UI to handle Better Auth 1.5's new list response format (`{ apiKeys: [...] }` instead of a plain array).
+
+## [0.4.4] - 2026-02-25
+
+### Fixed
+
+#### Date fields returned as strings instead of Date objects
+
+The adapter's factory config declared `supportsDates: true`, which tells Better Auth's adapter factory that the database returns native `Date` objects. However, Payload's Local API returns dates as ISO strings. This caused date comparisons like `session.expiresAt > new Date()` to silently fail (string vs Date comparison returns `false` due to `NaN` coercion), breaking any Better Auth plugin that compares dates — most notably the **multi-session plugin**, where `list-device-sessions` always returned an empty array.
+
+Changed `supportsDates` to `false` so the factory correctly converts ISO strings to `Date` objects on output, and `Date` objects to ISO strings on input. This is safe across all database types: MongoDB (which may return native Dates that pass through unchanged) and Postgres/SQLite (which return strings that get converted).
 
 ## [0.4.0] - 2026-02-17
 
