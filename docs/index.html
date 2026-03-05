@@ -734,7 +734,7 @@ details .details-body > :first-child { margin-top: 0; }
   <div class="header-brand">
     <span>payload</span>-better-auth
   </div>
-  <span class="header-badge">v0.5.5</span>
+  <span class="header-badge">v0.5.6</span>
 
   <div class="search-wrap">
     <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -1133,24 +1133,8 @@ strategies: [<span class="hl-func">betterAuthStrategy</span>({ idType: <span cla
           <tr><td><code>adapterConfig.enableDebugLogs</code></td><td><code>boolean</code></td><td>Enable debug logging (default: <code>false</code>)</td></tr>
           <tr><td><code>adapterConfig.dbType</code></td><td><code>'postgres' | 'mongodb' | 'sqlite'</code></td><td>Database type (auto-detected)</td></tr>
           <tr><td><code>adapterConfig.idType</code></td><td><code>'number' | 'text'</code></td><td>ID type (auto-detected)</td></tr>
-          <tr><td><code>adapterConfig.idFieldsAllowlist</code></td><td><code>string[]</code></td><td>Additional fields to convert to numeric IDs</td></tr>
-          <tr><td><code>adapterConfig.idFieldsBlocklist</code></td><td><code>string[]</code></td><td>Fields to exclude from numeric ID conversion</td></tr>
         </tbody>
       </table>
-
-      <details>
-        <summary>ID field conversion details</summary>
-        <div class="details-body">
-          <p>When using serial IDs (<code>idType: 'number'</code>), the adapter automatically converts string ID fields to numbers. This applies to fields matching <code>*Id</code> or <code>*_id</code> patterns.</p>
-          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-func">payloadAdapter</span>({
-  payloadClient: payload,
-  adapterConfig: {
-    idFieldsAllowlist: [<span class="hl-string">'customOrgRef'</span>],
-    idFieldsBlocklist: [<span class="hl-string">'visitorId'</span>, <span class="hl-string">'correlationId'</span>],
-  },
-})</code></pre>
-        </div>
-      </details>
 
       <details>
         <summary>Custom collection names</summary>

@@ -193,14 +193,15 @@ export function payloadAdapter({
     const idType = resolveIdType(effectiveDbType, options, adapterConfig.idType)
     const generateId = options.advanced?.database?.generateId
 
-    // Warn if using number IDs but Better Auth is explicitly configured to generate its own IDs
-    // This would cause Better Auth to generate UUIDs which won't work with SERIAL columns
-    // Don't warn if generateId is undefined - that's the expected default case
-    if (idType === 'number' && generateId !== undefined && generateId !== 'serial') {
+    // Warn if using number IDs but generateId is not set to 'serial'.
+    // Without this, Better Auth's factory won't coerce relationship field values to numbers,
+    // causing Payload ValidationErrors on create/update (e.g. user: '1' instead of user: 1).
+    if (idType === 'number' && generateId !== 'serial') {
       console.warn(
-        '[payload-adapter] Warning: Using SERIAL (number) IDs but `generateId` is set to a non-serial value. ' +
-          'Either set `advanced: { database: { generateId: "serial" } }` to let Payload generate IDs, ' +
-          'or set `adapterConfig: { idType: "text" }` if using UUIDs.'
+        `[payload-adapter] Warning: Using SERIAL (number) IDs but \`generateId\` is ${generateId === undefined ? 'not set' : `set to "${generateId}"`}. ` +
+          'You must set `advanced: { database: { generateId: "serial" } }` in your Better Auth config ' +
+          'so that relationship field values are correctly coerced to numbers. ' +
+          'Without this, create/update operations will fail with ValidationErrors.'
       )
     }
 

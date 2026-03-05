@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.6] - 2026-03-05
+
+### Fixed
+
+- **Turbopack compatibility**: Removed `/* webpackIgnore: true */` from dynamic imports in `LoginView`, `PasskeySignInButton`, `PasskeyRegisterButton`, `PasskeysManagementClient`, and `ApiKeysManagementClient`. The directive caused bare specifier imports to fail in the browser under Turbopack (Next.js 15 default dev server), silently breaking login and passkey flows. ([#14](https://github.com/delmaredigital/payload-better-auth/issues/14))
+
+- **Improved `generateId: 'serial'` warning**: The adapter now warns when `idType` resolves to `'number'` (Postgres default) but `generateId: 'serial'` is not set. Previously only warned for explicit non-serial values, missing the most common misconfiguration where `generateId` is simply omitted. ([#14](https://github.com/delmaredigital/payload-better-auth/issues/14))
+
+### Removed
+
+- **Stale docs**: Removed references to `idFieldsAllowlist` and `idFieldsBlocklist` adapter options from documentation. These were removed in the 0.5.x factory refactor but lingered in the docs.
+
 ## [0.5.4] - 2026-03-02
 
 Upgrades to Better Auth 1.5. If upgrading from 0.4.x, review the breaking changes and migration steps below.
