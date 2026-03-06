@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
 import { createAuthClient } from 'better-auth/react'
-import type { AvailableScope } from '../../types/apiKey.js'
+import type { PermissionDefinition } from '../../types/apiKey.js'
 
 type ApiKey = {
   id: string
@@ -12,18 +12,8 @@ type ApiKey = {
   createdAt: Date
   expiresAt?: Date | null
   lastUsedAt?: Date | null
-  /** Stored scope IDs for display */
-  metadata?: { scopes?: string[] }
-}
-
-/** A group of scopes for a single collection */
-type ScopeGroup = {
-  collection: string
-  label: string
-  scopes: {
-    type: 'read' | 'write' | 'delete' | 'other'
-    scope: AvailableScope
-  }[]
+  /** BA-native permissions: { resource: ['read', 'write'] } */
+  permissions?: Record<string, string[]> | null
 }
 
 export type ApiKeysManagementClientProps = {
@@ -32,69 +22,18 @@ export type ApiKeysManagementClientProps = {
   authClient?: any
   /** Page title. Default: 'API Keys' */
   title?: string
-  /** Available scopes for key creation. Auto-generated if not provided. */
-  availableScopes?: AvailableScope[]
-  /** Default scopes to pre-select when creating a key */
-  defaultScopes?: string[]
-}
-
-/**
- * Group scopes by collection for the UI.
- * Scopes like "posts:read", "posts:write" get grouped under "Posts"
- */
-function groupScopesByCollection(scopes: AvailableScope[]): ScopeGroup[] {
-  const groups = new Map<string, ScopeGroup>()
-
-  for (const scope of scopes) {
-    // Parse scope ID like "posts:read" -> collection="posts", type="read"
-    const colonIndex = scope.id.indexOf(':')
-    let collection: string
-    let type: 'read' | 'write' | 'delete' | 'other'
-
-    if (colonIndex > 0) {
-      collection = scope.id.substring(0, colonIndex)
-      const typeStr = scope.id.substring(colonIndex + 1)
-      type = ['read', 'write', 'delete'].includes(typeStr)
-        ? (typeStr as 'read' | 'write' | 'delete')
-        : 'other'
-    } else {
-      // No colon - treat as standalone scope
-      collection = scope.id
-      type = 'other'
-    }
-
-    if (!groups.has(collection)) {
-      // Create label from collection slug (posts -> Posts)
-      const label = collection.charAt(0).toUpperCase() + collection.slice(1).replace(/-/g, ' ')
-      groups.set(collection, {
-        collection,
-        label,
-        scopes: [],
-      })
-    }
-
-    groups.get(collection)!.scopes.push({ type, scope })
-  }
-
-  // Sort groups alphabetically, sort scopes within group by type order
-  const typeOrder = { read: 0, write: 1, delete: 2, other: 3 }
-  return Array.from(groups.values())
-    .sort((a, b) => a.label.localeCompare(b.label))
-    .map((group) => ({
-      ...group,
-      scopes: group.scopes.sort((a, b) => typeOrder[a.type] - typeOrder[b.type]),
-    }))
+  /** Available permission definitions (collections + actions). Auto-generated if not provided. */
+  permissions?: PermissionDefinition[]
 }
 
 /**
  * Client component for API keys management.
- * Lists, creates, and deletes API keys with scope selection.
+ * Lists, creates, and deletes API keys with permission selection (read/write per collection).
  */
 export function ApiKeysManagementClient({
   authClient: providedClient,
   title = 'API Keys',
-  availableScopes = [],
-  defaultScopes = [],
+  permissions = [],
 }: ApiKeysManagementClientProps = {}) {
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
   const [loading, setLoading] = useState(true)
@@ -104,30 +43,11 @@ export function ApiKeysManagementClient({
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newKeyName, setNewKeyName] = useState('')
   const [newKeyExpiry, setNewKeyExpiry] = useState('')
-  const [selectedScopes, setSelectedScopes] = useState<string[]>(defaultScopes)
+  // Selected permissions: { posts: ['read', 'write'], pages: ['read'] }
+  const [selectedPermissions, setSelectedPermissions] = useState<Record<string, string[]>>({})
   const [newlyCreatedKey, setNewlyCreatedKey] = useState<string | null>(null)
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
 
-  const hasScopes = availableScopes.length > 0
-
-  // Group scopes by collection
-  const scopeGroups = useMemo(
-    () => groupScopesByCollection(availableScopes),
-    [availableScopes]
-  )
-
-  // Get all scope IDs by type for bulk actions
-  const scopesByType = useMemo(() => {
-    const result = { read: [] as string[], write: [] as string[], delete: [] as string[] }
-    for (const group of scopeGroups) {
-      for (const { type, scope } of group.scopes) {
-        if (type === 'read' || type === 'write' || type === 'delete') {
-          result[type].push(scope.id)
-        }
-      }
-    }
-    return result
-  }, [scopeGroups])
+  const hasPermissions = permissions.length > 0
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const clientRef = useRef<any>(null)
@@ -139,99 +59,110 @@ export function ApiKeysManagementClient({
     return clientRef.current
   }
 
-  // Toggle a scope selection
-  function toggleScope(scopeId: string) {
-    setSelectedScopes((prev) =>
-      prev.includes(scopeId)
-        ? prev.filter((s) => s !== scopeId)
-        : [...prev, scopeId]
-    )
-  }
-
-  // Toggle all scopes in a group
-  function toggleGroup(group: ScopeGroup) {
-    const groupScopeIds = group.scopes.map((s) => s.scope.id)
-    const allSelected = groupScopeIds.every((id) => selectedScopes.includes(id))
-
-    if (allSelected) {
-      // Deselect all in group
-      setSelectedScopes((prev) => prev.filter((id) => !groupScopeIds.includes(id)))
-    } else {
-      // Select all in group
-      setSelectedScopes((prev) => [...new Set([...prev, ...groupScopeIds])])
-    }
-  }
-
-  // Toggle expand/collapse for a group
-  function toggleExpanded(collection: string) {
-    setExpandedGroups((prev) => {
-      const next = new Set(prev)
-      if (next.has(collection)) {
-        next.delete(collection)
+  // Toggle a specific action for a collection
+  function toggleAction(slug: string, action: string) {
+    setSelectedPermissions((prev) => {
+      const current = prev[slug] ?? []
+      if (current.includes(action)) {
+        // Remove action — if removing 'read' also remove 'write'
+        if (action === 'read') {
+          const filtered = current.filter((a) => a !== 'read' && a !== 'write')
+          if (filtered.length === 0) {
+            const { [slug]: _, ...rest } = prev
+            return rest
+          }
+          return { ...prev, [slug]: filtered }
+        }
+        const filtered = current.filter((a) => a !== action)
+        if (filtered.length === 0) {
+          const { [slug]: _, ...rest } = prev
+          return rest
+        }
+        return { ...prev, [slug]: filtered }
       } else {
-        next.add(collection)
+        // Add action — if adding 'write' also add 'read'
+        if (action === 'write') {
+          return { ...prev, [slug]: [...new Set([...current, 'read', 'write'])] }
+        }
+        return { ...prev, [slug]: [...current, action] }
       }
-      return next
     })
   }
 
-  // Bulk toggle all scopes of a type
-  function toggleAllOfType(type: 'read' | 'write' | 'delete') {
-    const typeScopes = scopesByType[type]
-    const allSelected = typeScopes.every((id) => selectedScopes.includes(id))
-
-    if (allSelected) {
-      setSelectedScopes((prev) => prev.filter((id) => !typeScopes.includes(id)))
+  // Bulk toggle all of an action type
+  function toggleAllOfType(action: string) {
+    const allHave = permissions.every((p) => (selectedPermissions[p.slug] ?? []).includes(action))
+    if (allHave) {
+      // Remove this action from all — if removing 'read' also remove 'write'
+      setSelectedPermissions((prev) => {
+        const next: Record<string, string[]> = {}
+        for (const [slug, actions] of Object.entries(prev)) {
+          const filtered = action === 'read'
+            ? actions.filter((a) => a !== 'read' && a !== 'write')
+            : actions.filter((a) => a !== action)
+          if (filtered.length > 0) next[slug] = filtered
+        }
+        return next
+      })
     } else {
-      setSelectedScopes((prev) => [...new Set([...prev, ...typeScopes])])
+      // Add this action to all — if 'write' also add 'read'
+      setSelectedPermissions((prev) => {
+        const next = { ...prev }
+        for (const p of permissions) {
+          const current = next[p.slug] ?? []
+          if (action === 'write') {
+            next[p.slug] = [...new Set([...current, 'read', 'write'])]
+          } else {
+            next[p.slug] = [...new Set([...current, action])]
+          }
+        }
+        return next
+      })
     }
   }
 
-  // Check if all scopes of a type are selected
-  function isAllOfTypeSelected(type: 'read' | 'write' | 'delete'): boolean {
-    return scopesByType[type].length > 0 && scopesByType[type].every((id) => selectedScopes.includes(id))
+  function isAllOfTypeSelected(action: string): boolean {
+    return permissions.length > 0 && permissions.every((p) => (selectedPermissions[p.slug] ?? []).includes(action))
   }
 
-  // Check if some (but not all) scopes of a type are selected
-  function isSomeOfTypeSelected(type: 'read' | 'write' | 'delete'): boolean {
-    const typeScopes = scopesByType[type]
-    const selectedCount = typeScopes.filter((id) => selectedScopes.includes(id)).length
-    return selectedCount > 0 && selectedCount < typeScopes.length
+  function isSomeOfTypeSelected(action: string): boolean {
+    const count = permissions.filter((p) => (selectedPermissions[p.slug] ?? []).includes(action)).length
+    return count > 0 && count < permissions.length
   }
 
-  // Clear all selections
   function clearAll() {
-    setSelectedScopes([])
+    setSelectedPermissions({})
   }
 
-  // Select all scopes
   function selectAll() {
-    setSelectedScopes(availableScopes.map((s) => s.id))
-  }
-
-  // Get group selection state
-  function getGroupState(group: ScopeGroup): 'all' | 'some' | 'none' {
-    const groupScopeIds = group.scopes.map((s) => s.scope.id)
-    const selectedCount = groupScopeIds.filter((id) => selectedScopes.includes(id)).length
-    if (selectedCount === 0) return 'none'
-    if (selectedCount === groupScopeIds.length) return 'all'
-    return 'some'
-  }
-
-  // Get scope label by ID
-  function getScopeLabel(scopeId: string): string {
-    const scope = availableScopes.find((s) => s.id === scopeId)
-    return scope?.label ?? scopeId
-  }
-
-  // Get short label for scope type
-  function getTypeLabel(type: 'read' | 'write' | 'delete' | 'other'): string {
-    switch (type) {
-      case 'read': return 'Read'
-      case 'write': return 'Write'
-      case 'delete': return 'Delete'
-      default: return 'Access'
+    const next: Record<string, string[]> = {}
+    for (const p of permissions) {
+      next[p.slug] = ['read', 'write']
     }
+    setSelectedPermissions(next)
+  }
+
+  // Count total selected actions
+  const selectedCount = useMemo(() => {
+    let count = 0
+    for (const actions of Object.values(selectedPermissions)) {
+      count += actions.length
+    }
+    return count
+  }, [selectedPermissions])
+
+  // Format permissions for display
+  function formatPermissions(perms: Record<string, string[]> | null | undefined): string[] {
+    if (!perms) return []
+    const labels: string[] = []
+    for (const [slug, actions] of Object.entries(perms)) {
+      const def = permissions.find((p) => p.slug === slug)
+      const label = def?.label ?? slug
+      for (const action of actions) {
+        labels.push(`${label}: ${action}`)
+      }
+    }
+    return labels
   }
 
   useEffect(() => {
@@ -268,20 +199,19 @@ export function ApiKeysManagementClient({
 
     try {
       const client = await getClient()
-      // Send scopes to server - server will convert to permissions
       const createOptions: {
         name: string
         expiresIn?: number
-        scopes?: string[]
+        permissions?: Record<string, string[]>
       } = { name: newKeyName }
 
       if (newKeyExpiry) {
-        createOptions.expiresIn = parseInt(newKeyExpiry) * 24 * 60 * 60 // Convert days to seconds
+        createOptions.expiresIn = parseInt(newKeyExpiry) * 24 * 60 * 60
       }
 
-      // Add scopes if any are selected - server handles conversion to permissions
-      if (hasScopes && selectedScopes.length > 0) {
-        createOptions.scopes = selectedScopes
+      // Send permissions directly in BA's native format
+      if (hasPermissions && selectedCount > 0) {
+        createOptions.permissions = selectedPermissions
       }
 
       const result = await client.apiKey.create(createOptions)
@@ -293,7 +223,7 @@ export function ApiKeysManagementClient({
         setShowCreateForm(false)
         setNewKeyName('')
         setNewKeyExpiry('')
-        setSelectedScopes(defaultScopes) // Reset to defaults
+        setSelectedPermissions({})
         fetchApiKeys()
       }
     } catch {
@@ -539,8 +469,8 @@ export function ApiKeysManagementClient({
                 />
               </div>
 
-              {/* Scope selection - grouped by collection */}
-              {hasScopes && (
+              {/* Permission selection — read/write per collection */}
+              {hasPermissions && (
                 <div style={{ marginBottom: 'var(--base)' }}>
                   <label
                     style={{
@@ -573,12 +503,6 @@ export function ApiKeysManagementClient({
                       active={isAllOfTypeSelected('write')}
                       indeterminate={isSomeOfTypeSelected('write')}
                       onClick={() => toggleAllOfType('write')}
-                    />
-                    <BulkButton
-                      label="All Delete"
-                      active={isAllOfTypeSelected('delete')}
-                      indeterminate={isSomeOfTypeSelected('delete')}
-                      onClick={() => toggleAllOfType('delete')}
                     />
                     <div style={{ flex: 1 }} />
                     <button
@@ -615,7 +539,7 @@ export function ApiKeysManagementClient({
                     </button>
                   </div>
 
-                  {/* Collection groups */}
+                  {/* Permission grid — collection rows with read/write checkboxes */}
                   <div
                     style={{
                       background: 'var(--theme-input-bg)',
@@ -625,123 +549,69 @@ export function ApiKeysManagementClient({
                       overflowY: 'auto',
                     }}
                   >
-                    {scopeGroups.map((group) => {
-                      const groupState = getGroupState(group)
-                      const isExpanded = expandedGroups.has(group.collection)
+                    {/* Header row */}
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 60px 60px',
+                        gap: 'calc(var(--base) * 0.5)',
+                        padding: 'calc(var(--base) * 0.5) calc(var(--base) * 0.75)',
+                        borderBottom: '1px solid var(--theme-elevation-150)',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: 'var(--theme-elevation-600)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                      }}
+                    >
+                      <span>Collection</span>
+                      <span style={{ textAlign: 'center' }}>Read</span>
+                      <span style={{ textAlign: 'center' }}>Write</span>
+                    </div>
+
+                    {permissions.map((perm) => {
+                      const actions = selectedPermissions[perm.slug] ?? []
+                      const hasRead = actions.includes('read')
+                      const hasWrite = actions.includes('write')
 
                       return (
                         <div
-                          key={group.collection}
+                          key={perm.slug}
                           style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr 60px 60px',
+                            gap: 'calc(var(--base) * 0.5)',
+                            padding: 'calc(var(--base) * 0.5) calc(var(--base) * 0.75)',
                             borderBottom: '1px solid var(--theme-elevation-100)',
+                            alignItems: 'center',
+                            background: (hasRead || hasWrite) ? 'var(--theme-elevation-50)' : 'transparent',
                           }}
                         >
-                          {/* Group header */}
-                          <div
+                          <span
                             style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 'calc(var(--base) * 0.5)',
-                              padding: 'calc(var(--base) * 0.5) calc(var(--base) * 0.75)',
-                              cursor: 'pointer',
-                              background: groupState !== 'none' ? 'var(--theme-elevation-50)' : 'transparent',
+                              color: 'var(--theme-text)',
+                              fontSize: 'var(--font-size-small)',
+                              fontWeight: 500,
                             }}
-                            onClick={() => toggleExpanded(group.collection)}
                           >
-                            {/* Expand/collapse arrow */}
-                            <span
-                              style={{
-                                color: 'var(--theme-elevation-500)',
-                                fontSize: '10px',
-                                width: '12px',
-                                transition: 'transform 0.15s',
-                                transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                              }}
-                            >
-                              ▶
-                            </span>
-
-                            {/* Group checkbox */}
-                            <IndeterminateCheckbox
-                              checked={groupState === 'all'}
-                              indeterminate={groupState === 'some'}
-                              onChange={(e) => {
-                                e.stopPropagation()
-                                toggleGroup(group)
-                              }}
+                            {perm.label}
+                          </span>
+                          <label style={{ display: 'flex', justifyContent: 'center', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={hasRead}
+                              onChange={() => toggleAction(perm.slug, 'read')}
+                              style={{ cursor: 'pointer' }}
                             />
-
-                            {/* Group label */}
-                            <span
-                              style={{
-                                color: 'var(--theme-text)',
-                                fontSize: 'var(--font-size-small)',
-                                fontWeight: 500,
-                                flex: 1,
-                              }}
-                            >
-                              {group.label}
-                            </span>
-
-                            {/* Selected count badge */}
-                            {groupState !== 'none' && (
-                              <span
-                                style={{
-                                  padding: '2px 6px',
-                                  background: 'var(--theme-elevation-200)',
-                                  borderRadius: '10px',
-                                  fontSize: '10px',
-                                  color: 'var(--theme-elevation-700)',
-                                }}
-                              >
-                                {group.scopes.filter((s) => selectedScopes.includes(s.scope.id)).length}/{group.scopes.length}
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Expanded scopes */}
-                          {isExpanded && (
-                            <div
-                              style={{
-                                padding: '0 calc(var(--base) * 0.75) calc(var(--base) * 0.5)',
-                                paddingLeft: 'calc(var(--base) * 2.5)',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: 'calc(var(--base) * 0.25)',
-                              }}
-                            >
-                              {group.scopes.map(({ type, scope }) => (
-                                <label
-                                  key={scope.id}
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 'calc(var(--base) * 0.5)',
-                                    cursor: 'pointer',
-                                    padding: 'calc(var(--base) * 0.25)',
-                                    borderRadius: 'var(--style-radius-s)',
-                                    background: selectedScopes.includes(scope.id)
-                                      ? 'var(--theme-elevation-100)'
-                                      : 'transparent',
-                                  }}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedScopes.includes(scope.id)}
-                                    onChange={() => toggleScope(scope.id)}
-                                  />
-                                  <span
-                                    style={{
-                                      color: 'var(--theme-text)',
-                                      fontSize: 'var(--font-size-small)',
-                                    }}
-                                  >
-                                    {getTypeLabel(type)}
-                                  </span>
-                                </label>
-                              ))}
-                            </div>
-                          )}
+                          </label>
+                          <label style={{ display: 'flex', justifyContent: 'center', cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={hasWrite}
+                              onChange={() => toggleAction(perm.slug, 'write')}
+                              style={{ cursor: 'pointer' }}
+                            />
+                          </label>
                         </div>
                       )
                     })}
@@ -752,12 +622,12 @@ export function ApiKeysManagementClient({
                     style={{
                       marginTop: 'calc(var(--base) * 0.5)',
                       fontSize: '11px',
-                      color: selectedScopes.length === 0 ? 'var(--theme-warning-500)' : 'var(--theme-elevation-600)',
+                      color: selectedCount === 0 ? 'var(--theme-warning-500)' : 'var(--theme-elevation-600)',
                     }}
                   >
-                    {selectedScopes.length === 0
+                    {selectedCount === 0
                       ? 'No permissions selected. Key will have no access.'
-                      : `${selectedScopes.length} permission${selectedScopes.length === 1 ? '' : 's'} selected`}
+                      : `${selectedCount} permission${selectedCount === 1 ? '' : 's'} selected`}
                   </div>
                 </div>
               )}
@@ -869,8 +739,8 @@ export function ApiKeysManagementClient({
                       <span> • Last used: {formatDate(key.lastUsedAt)}</span>
                     )}
                   </div>
-                  {/* Display scopes if available */}
-                  {key.metadata?.scopes && key.metadata.scopes.length > 0 && (
+                  {/* Display permissions */}
+                  {key.permissions && Object.keys(key.permissions).length > 0 && (
                     <div
                       style={{
                         display: 'flex',
@@ -879,9 +749,9 @@ export function ApiKeysManagementClient({
                         marginTop: 'calc(var(--base) * 0.5)',
                       }}
                     >
-                      {key.metadata.scopes.map((scopeId) => (
+                      {formatPermissions(key.permissions).map((label) => (
                         <span
-                          key={scopeId}
+                          key={label}
                           style={{
                             padding: '2px 6px',
                             background: 'var(--theme-elevation-100)',
@@ -890,7 +760,7 @@ export function ApiKeysManagementClient({
                             color: 'var(--theme-elevation-700)',
                           }}
                         >
-                          {getScopeLabel(scopeId)}
+                          {label}
                         </span>
                       ))}
                     </div>
@@ -957,38 +827,6 @@ function BulkButton({
     >
       {label}
     </button>
-  )
-}
-
-/**
- * Checkbox that supports indeterminate state
- */
-function IndeterminateCheckbox({
-  checked,
-  indeterminate,
-  onChange,
-}: {
-  checked: boolean
-  indeterminate: boolean
-  onChange: (e: React.MouseEvent) => void
-}) {
-  const ref = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (ref.current) {
-      ref.current.indeterminate = indeterminate
-    }
-  }, [indeterminate])
-
-  return (
-    <input
-      ref={ref}
-      type="checkbox"
-      checked={checked}
-      onChange={() => {}}
-      onClick={onChange}
-      style={{ cursor: 'pointer' }}
-    />
   )
 }
 

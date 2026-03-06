@@ -20,7 +20,7 @@ export {
   createBetterAuthPlugin,
   betterAuthStrategy,
   resetAuthInstance,
-  getApiKeyScopesConfig,
+  getApiKeyPermissionsConfig,
 } from './plugin/index.js'
 export type {
   Auth,
@@ -64,19 +64,16 @@ export type {
   PluginId,
 } from './generated-types.js'
 
-// API key scope types
+// API key permission types
 export type {
-  ScopeDefinition,
-  ApiKeyScopesConfig,
-  AvailableScope,
+  PermissionDefinition,
+  ApiKeyPermissionsConfig,
 } from './types/apiKey.js'
 
-// Scope utilities
+// Permission utilities
 export {
-  generateScopesFromCollections,
-  buildAvailableScopes,
-  scopesToPermissions,
-} from './utils/generateScopes.js'
+  generateCollectionPermissions,
+} from './utils/generatePermissions.js'
 
 // Access control utilities
 export {
@@ -100,23 +97,19 @@ export type {
   FieldUpdateConfig,
 } from './utils/access.js'
 
-// API key scope enforcement utilities
+// API key permission enforcement utilities
 export {
   extractApiKeyFromRequest,
-  getApiKeyInfo,
-  hasScope,
-  hasAnyScope as hasAnyScopeKey,
-  hasAllScopes as hasAllScopesKey,
-  requireScope,
-  requireAnyScope,
-  requireAllScopes as requireAllScopesKey,
-  allowSessionOrScope,
-  allowSessionOrAnyScope,
-  validateApiKey,
+  requirePermission,
+  requireAnyPermission,
+  requireAllPermissions,
+  allowSessionOrPermission,
+  allowSessionOrAnyPermission,
+  requireApiKey,
 } from './utils/apiKeyAccess.js'
 export type {
-  ApiKeyInfo,
-  ApiKeyAccessConfig,
+  ApiKeyPermissionConfig,
+  PermissionCheck,
 } from './utils/apiKeyAccess.js'
 
 // Auth config detection utility

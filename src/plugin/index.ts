@@ -19,11 +19,7 @@ import {
   detectEnabledPlugins,
   type EnabledPluginsResult,
 } from '../utils/detectEnabledPlugins.js'
-import type { ApiKeyScopesConfig } from '../types/apiKey.js'
-import {
-  buildAvailableScopes,
-  scopesToPermissions,
-} from '../utils/generateScopes.js'
+import type { ApiKeyPermissionsConfig } from '../types/apiKey.js'
 import { hasAnyRole, normalizeRoles } from '../utils/access.js'
 
 export type Auth = ReturnType<typeof betterAuth>
@@ -123,11 +119,11 @@ export type BetterAuthPluginAdminOptions = {
     passkeys?: string
   }
   /**
-   * API key scopes configuration.
-   * Controls which permission scopes are available when creating API keys.
-   * When not provided, scopes are auto-generated from Payload collections.
+   * API key permissions configuration.
+   * Controls which permissions are available when creating API keys.
+   * When not provided, permissions are auto-generated from Payload collections.
    */
-  apiKey?: ApiKeyScopesConfig
+  apiKey?: ApiKeyPermissionsConfig
 }
 
 export type BetterAuthPluginOptions = {
@@ -167,15 +163,15 @@ export type BetterAuthPluginOptions = {
 // Track auth instance for HMR
 let authInstance: Auth | null = null
 
-// Store API key scopes config for access by management views
-let apiKeyScopesConfig: ApiKeyScopesConfig | undefined = undefined
+// Store API key permissions config for access by management views
+let apiKeyPermissionsConfig: ApiKeyPermissionsConfig | undefined = undefined
 
 /**
- * Get the configured API key scopes config.
- * Used by the ApiKeysView to build available scopes.
+ * Get the stored API key permissions config.
+ * Used by the ApiKeysView server component to generate permission definitions.
  */
-export function getApiKeyScopesConfig(): ApiKeyScopesConfig | undefined {
-  return apiKeyScopesConfig
+export function getApiKeyPermissionsConfig(): ApiKeyPermissionsConfig | undefined {
+  return apiKeyPermissionsConfig
 }
 
 // Type for auth api methods we need
@@ -205,12 +201,11 @@ type AuthApi = {
 }
 
 /**
- * Handle API key creation with scopes server-side.
- * Converts scopes to permissions and calls Better Auth's server API.
+ * Handle API key creation server-side.
+ * Passes permissions directly from the client to Better Auth's server API.
  */
-async function handleApiKeyCreateWithScopes(
+async function handleApiKeyCreate(
   authApi: AuthApi,
-  payload: Payload,
   headers: Headers,
   body: Record<string, unknown>
 ): Promise<Response> {
@@ -224,21 +219,9 @@ async function handleApiKeyCreateWithScopes(
       )
     }
 
-    // Extract scopes from the request body
-    const scopes = (body.scopes as string[] | undefined) ?? []
+    // Permissions come directly from the client in BA's native format
+    const permissions = body.permissions as Record<string, string[]> | undefined
 
-    // Build permissions from scopes if any are provided
-    let permissions: Record<string, string[]> | undefined
-    if (scopes.length > 0) {
-      const scopesConfig = getApiKeyScopesConfig()
-      const availableScopes = buildAvailableScopes(
-        payload.config.collections,
-        scopesConfig
-      )
-      permissions = scopesToPermissions(scopes, availableScopes)
-    }
-
-    // Build the API key creation options
     const createOptions = {
       body: {
         name: body.name as string | undefined,
@@ -246,9 +229,7 @@ async function handleApiKeyCreateWithScopes(
         expiresIn: body.expiresIn as number | undefined,
         prefix: body.prefix as string | undefined,
         permissions: permissions && Object.keys(permissions).length > 0 ? permissions : undefined,
-        metadata: scopes.length > 0
-          ? { ...(body.metadata as Record<string, unknown> | undefined), scopes }
-          : (body.metadata as Record<string, unknown> | undefined),
+        metadata: body.metadata as Record<string, unknown> | undefined,
       },
     }
 
@@ -260,37 +241,11 @@ async function handleApiKeyCreateWithScopes(
       )
     }
 
-    try {
-      const result = await authApi.createApiKey(createOptions)
-      return new Response(JSON.stringify(result), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      })
-    } catch (createError) {
-      // Check if error is due to metadata being disabled
-      const errorMessage = createError instanceof Error ? createError.message : String(createError)
-      const isMetadataDisabled = errorMessage.toLowerCase().includes('metadata') &&
-        errorMessage.toLowerCase().includes('disabled')
-
-      if (isMetadataDisabled && createOptions.body.metadata) {
-        // Retry without metadata - key will still work, just won't show scopes in UI
-        console.warn('[better-auth] Metadata disabled, creating API key without scope metadata. Enable metadata with apiKey({ enableMetadata: true }) for better UX.')
-        const optionsWithoutMetadata = {
-          body: {
-            ...createOptions.body,
-            metadata: undefined,
-          },
-        }
-        const result = await authApi.createApiKey(optionsWithoutMetadata)
-        return new Response(JSON.stringify(result), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        })
-      }
-
-      // Re-throw other errors
-      throw createError
-    }
+    const result = await authApi.createApiKey(createOptions)
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
   } catch (error) {
     console.error('[better-auth] API key creation error:', error)
     const message = error instanceof Error ? error.message : 'Failed to create API key'
@@ -360,14 +315,17 @@ function createAuthEndpointHandler(adminOptions?: BetterAuthPluginAdminOptions):
         }
       }
 
-      // Guard API key mutation endpoints — require admin role
+      // Guard API key mutation and list endpoints — require admin role
       const isApiKeyMutation =
         req.method === 'POST' &&
         (pathname.endsWith('/api-key/create') ||
           pathname.endsWith('/api-key/update') ||
           pathname.endsWith('/api-key/delete'))
 
-      if (isApiKeyMutation) {
+      const isApiKeyList =
+        req.method === 'GET' && pathname.endsWith('/api-key/list')
+
+      if (isApiKeyMutation || isApiKeyList) {
         const session = await (auth.api as unknown as AuthApi).getSession({
           headers: req.headers,
         })
@@ -380,7 +338,7 @@ function createAuthEndpointHandler(adminOptions?: BetterAuthPluginAdminOptions):
 
         // Resolve required role: apiKey config > login config > default 'admin'
         const requiredRole =
-          apiKeyScopesConfig?.requiredRole ??
+          apiKeyPermissionsConfig?.requiredRole ??
           adminOptions?.login?.requiredRole ??
           'admin'
 
@@ -409,18 +367,14 @@ function createAuthEndpointHandler(adminOptions?: BetterAuthPluginAdminOptions):
         }
       }
 
-      // Intercept API key creation requests with scopes
-      // Better Auth's API key create endpoint is POST /api-key/create
+      // Intercept API key creation requests to inject userId from session
       const isApiKeyCreate =
         req.method === 'POST' &&
-        pathname.endsWith('/api-key/create') &&
-        parsedBody?.scopes &&
-        Array.isArray(parsedBody.scopes)
+        pathname.endsWith('/api-key/create')
 
       if (isApiKeyCreate && parsedBody) {
-        return handleApiKeyCreateWithScopes(
+        return handleApiKeyCreate(
           auth.api as unknown as AuthApi,
-          req.payload,
           req.headers,
           parsedBody
         )
@@ -706,8 +660,8 @@ export function createBetterAuthPlugin(
     autoInjectAdminComponents = true,
   } = options
 
-  // Store API key scopes config for access by management views
-  apiKeyScopesConfig = options.admin?.apiKey
+  // Store API key permissions config for access by management views
+  apiKeyPermissionsConfig = options.admin?.apiKey
 
   return (incomingConfig) => {
     // Inject admin components if enabled

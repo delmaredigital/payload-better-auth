@@ -783,7 +783,7 @@ details .details-body > :first-child { margin-top: 0; }
       <div class="nav-section-title">Guides</div>
       <a class="nav-link" href="#customization">Customization</a>
       <a class="nav-link" href="#access-control">Access Control</a>
-      <a class="nav-link" href="#api-key-scopes">API Key Scopes</a>
+      <a class="nav-link" href="#api-key-permissions">API Key Permissions</a>
       <a class="nav-link" href="#plugin-compatibility">Plugin Compatibility</a>
     </div>
 
@@ -1246,29 +1246,20 @@ strategies: [<span class="hl-func">betterAuthStrategy</span>({ idType: <span cla
       </details>
 
       <details>
-        <summary>API Key Scopes configuration</summary>
+        <summary>API Key Permissions configuration</summary>
         <div class="details-body">
           <table>
             <thead><tr><th>Option</th><th>Default</th><th>Description</th></tr></thead>
             <tbody>
-              <tr><td><code>scopes</code></td><td>&mdash;</td><td>Custom scope definitions</td></tr>
-              <tr><td><code>includeCollectionScopes</code></td><td>auto</td><td>Include auto-generated collection scopes</td></tr>
-              <tr><td><code>excludeCollections</code></td><td>auth collections</td><td>Collections to exclude from scopes</td></tr>
-              <tr><td><code>defaultScopes</code></td><td><code>[]</code></td><td>Default pre-selected scopes</td></tr>
+              <tr><td><code>excludeCollections</code></td><td>auth collections</td><td>Collections to exclude from permissions UI</td></tr>
               <tr><td><code>requiredRole</code></td><td><code>'admin'</code></td><td>Role required to manage API keys</td></tr>
             </tbody>
           </table>
-          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// Custom scopes</span>
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// Permissions are auto-generated from collections</span>
 admin: {
   apiKey: {
-    scopes: {
-      <span class="hl-string">'content:read'</span>: {
-        label: <span class="hl-string">'Read Content'</span>,
-        description: <span class="hl-string">'View posts and pages'</span>,
-        permissions: { posts: [<span class="hl-string">'read'</span>], pages: [<span class="hl-string">'read'</span>] }
-      },
-    },
-    defaultScopes: [<span class="hl-string">'content:read'</span>]
+    excludeCollections: [<span class="hl-string">'internal-logs'</span>],
+    requiredRole: <span class="hl-string">'admin'</span>
   }
 }</code></pre>
         </div>
@@ -1326,10 +1317,10 @@ admin: {
 
 <span class="hl-keyword">export const</span> betterAuthOptions = {
   plugins: [
-    <span class="hl-func">apiKey</span>({ enableMetadata: <span class="hl-const">true</span> }),  <span class="hl-comment">// enableMetadata required for scope display in admin UI</span>
+    <span class="hl-func">apiKey</span>(),
   ],
 }</code></pre>
-      <p>The plugin's API key management UI and scope enforcement utilities work automatically once the <code>apiKey</code> plugin is configured.</p>
+      <p>The plugin's API key management UI and permission enforcement utilities work automatically once the <code>apiKey</code> plugin is configured.</p>
     </div>
 
     <!-- ═══════ CUSTOMIZATION ═══════ -->
@@ -1438,32 +1429,44 @@ admin: {
       </details>
     </div>
 
-    <!-- ═══════ API KEY SCOPES ═══════ -->
-    <div class="section" id="api-key-scopes">
-      <h2>API Key Scope Enforcement</h2>
-      <p>Enforce API key scopes in your Payload access control.</p>
+    <!-- ═══════ API KEY PERMISSIONS ═══════ -->
+    <div class="section" id="api-key-permissions">
+      <h2>API Key Permission Enforcement</h2>
+      <p>Enforce API key permissions in your Payload access control using Better Auth's native permission system.</p>
 
-      <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import</span> { <span class="hl-func">requireScope</span>, <span class="hl-func">requireAllScopes</span>, <span class="hl-func">allowSessionOrScope</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth'</span>
+      <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import</span> { <span class="hl-func">requirePermission</span>, <span class="hl-func">requireAllPermissions</span>, <span class="hl-func">allowSessionOrPermission</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth'</span>
 
 access: {
-  read: <span class="hl-func">requireScope</span>(<span class="hl-string">'posts:read'</span>),
-  create: <span class="hl-func">requireScope</span>(<span class="hl-string">'posts:write'</span>),
-  delete: <span class="hl-func">requireAllScopes</span>([<span class="hl-string">'posts:delete'</span>, <span class="hl-string">'admin:write'</span>]),
+  read: <span class="hl-func">requirePermission</span>(<span class="hl-string">'posts'</span>, <span class="hl-string">'read'</span>),
+  create: <span class="hl-func">requirePermission</span>(<span class="hl-string">'posts'</span>, <span class="hl-string">'write'</span>),
+  update: <span class="hl-func">requirePermission</span>(<span class="hl-string">'posts'</span>, <span class="hl-string">'write'</span>),
+  delete: <span class="hl-func">requirePermission</span>(<span class="hl-string">'posts'</span>, <span class="hl-string">'write'</span>),
 }
 
 <span class="hl-comment">// Allow both session auth and API keys</span>
-read: <span class="hl-func">allowSessionOrScope</span>(<span class="hl-string">'posts:read'</span>)</code></pre>
+read: <span class="hl-func">allowSessionOrPermission</span>(<span class="hl-string">'posts'</span>, <span class="hl-string">'read'</span>)</code></pre>
 
-      <p>Wildcard scopes: <code>'posts:*'</code> matches all post permissions. <code>'*'</code> matches everything.</p>
+      <p>Two permission levels per collection: <code>read</code> (view only) and <code>write</code> (create, update, delete). Write implies read.</p>
 
       <details>
-        <summary>Manual API key validation</summary>
+        <summary>Advanced: Custom permission checks</summary>
         <div class="details-body">
-          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import</span> { <span class="hl-func">validateApiKey</span>, <span class="hl-func">hasScope</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth'</span>
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import</span> { <span class="hl-func">requireAnyPermission</span>, <span class="hl-func">requireAllPermissions</span>, <span class="hl-func">requireApiKey</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth'</span>
 
-<span class="hl-keyword">const</span> keyInfo = <span class="hl-keyword">await</span> <span class="hl-func">validateApiKey</span>(req)
-<span class="hl-keyword">if</span> (!keyInfo) <span class="hl-keyword">return</span> Response.<span class="hl-func">json</span>({ error: <span class="hl-string">'Invalid'</span> }, { status: <span class="hl-const">401</span> })
-<span class="hl-keyword">if</span> (!<span class="hl-func">hasScope</span>(keyInfo.scopes, <span class="hl-string">'custom:action'</span>)) { <span class="hl-comment">/* 403 */</span> }</code></pre>
+<span class="hl-comment">// Require ANY of these permissions</span>
+read: <span class="hl-func">requireAnyPermission</span>([
+  { resource: <span class="hl-string">'posts'</span>, action: <span class="hl-string">'read'</span> },
+  { resource: <span class="hl-string">'pages'</span>, action: <span class="hl-string">'read'</span> },
+])
+
+<span class="hl-comment">// Require ALL permissions</span>
+delete: <span class="hl-func">requireAllPermissions</span>([
+  { resource: <span class="hl-string">'posts'</span>, action: <span class="hl-string">'write'</span> },
+  { resource: <span class="hl-string">'admin'</span>, action: <span class="hl-string">'write'</span> },
+])
+
+<span class="hl-comment">// Just verify key is valid (no specific permissions)</span>
+read: <span class="hl-func">requireApiKey</span>()</code></pre>
         </div>
       </details>
     </div>
