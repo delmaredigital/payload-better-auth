@@ -1,57 +1,36 @@
 /**
- * API Key Scope Types
+ * API Key Permission Types
  *
- * Provides typed configuration for API key permission scopes.
+ * Uses Better Auth's native permission format: Record<string, string[]>
+ * where keys are resource names (collection slugs) and values are action arrays.
+ *
+ * Convention: two actions per collection — 'read' and 'write'.
+ * - read: view records
+ * - write: full access (create, update, delete) — implies read
  */
 
 /**
- * A single permission scope definition.
- * Scopes are human-readable permission groups (like GitHub OAuth scopes).
+ * A permission definition for the admin UI.
+ * Describes a collection's available permission levels.
  */
-export type ScopeDefinition = {
-  /** Human-readable label for the scope (e.g., "Read Content") */
+export type PermissionDefinition = {
+  /** Collection slug (e.g., 'posts') */
+  slug: string
+  /** Human-readable label (e.g., 'Posts') */
   label: string
-  /** Description of what this scope allows (e.g., "View posts, pages, and comments") */
-  description: string
-  /**
-   * Permission mapping: { resourceType: ['action1', 'action2'] }
-   * Maps to Better Auth's permission format.
-   * Use '*' for resource to match all resources.
-   * Use '*' in actions array to grant all actions on a resource.
-   */
-  permissions: Record<string, string[]>
-  /** If true, only admin users can create keys with this scope */
-  adminOnly?: boolean
+  /** Available actions — always ['read', 'write'] for auto-generated */
+  actions: string[]
 }
 
 /**
- * Configuration options for API key scopes.
- * Can be used in plugin options to customize available scopes.
+ * Configuration options for API key permissions.
  */
-export type ApiKeyScopesConfig = {
+export type ApiKeyPermissionsConfig = {
   /**
-   * Custom scope definitions.
-   * Key is the scope ID (e.g., 'content:read'), value is the scope definition.
-   */
-  scopes?: Record<string, ScopeDefinition>
-  /**
-   * Include auto-generated collection scopes.
-   * When true (default), generates {collection}:read, {collection}:write, {collection}:delete
-   * for each Payload collection.
-   * @default true when no custom scopes provided, false when custom scopes provided
-   */
-  includeCollectionScopes?: boolean
-  /**
-   * Collections to exclude from auto-generated scopes.
-   * Useful for hiding sensitive collections like 'sessions' or 'verifications'.
-   * @default ['sessions', 'verifications', 'accounts', 'twoFactors']
+   * Collections to exclude from the permissions UI.
+   * @default ['sessions', 'verifications', 'accounts', 'twoFactors', 'apiKeys']
    */
   excludeCollections?: string[]
-  /**
-   * Default scopes assigned to new API keys when user doesn't select any.
-   * If not provided, keys without scopes will have no permissions.
-   */
-  defaultScopes?: string[]
   /**
    * Role(s) required to create, update, and delete API keys.
    * - string: Single role required (e.g., 'admin')
@@ -60,12 +39,4 @@ export type ApiKeyScopesConfig = {
    * @default Inherits from admin.login.requiredRole, or 'admin' if unset
    */
   requiredRole?: string | string[] | null
-}
-
-/**
- * Scope data passed to the API keys management client component.
- */
-export type AvailableScope = ScopeDefinition & {
-  /** The scope ID (e.g., 'content:read') */
-  id: string
 }
