@@ -5,6 +5,99 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-03-06
+
+### Breaking Changes
+
+#### API key permissions redesigned — scopes replaced with BA-native permissions
+
+The custom scope system (`requireScope`, `hasScope`, `scopesToPermissions`, etc.) has been replaced with thin wrappers around Better Auth's native `verifyApiKey()` permission system. This is simpler, more robust, and eliminates the round-trip bug where compound scope names were lost during storage.
+
+**Permission model:** Two actions per collection — `read` and `write` (previously read/write/delete).
+
+**Before (0.5.x):**
+```ts
+import { requireScope, requireAllScopes, allowSessionOrScope } from '@delmaredigital/payload-better-auth'
+
+access: {
+  read: requireScope('posts:read'),
+  create: requireScope('posts:write'),
+  delete: requireAllScopes(['posts:delete', 'admin:write']),
+}
+
+read: allowSessionOrScope('posts:read')
+```
+
+**After (0.6.0):**
+```ts
+import { requirePermission, requireAllPermissions, allowSessionOrPermission } from '@delmaredigital/payload-better-auth'
+
+access: {
+  read: requirePermission('posts', 'read'),
+  create: requirePermission('posts', 'write'),
+  update: requirePermission('posts', 'write'),
+  delete: requirePermission('posts', 'write'),
+}
+
+read: allowSessionOrPermission('posts', 'read')
+```
+
+| Removed | Replacement |
+|---------|-------------|
+| `requireScope(scope)` | `requirePermission(resource, action)` |
+| `requireAnyScope(scopes)` | `requireAnyPermission(permissions)` |
+| `requireAllScopes(scopes)` | `requireAllPermissions(permissions)` |
+| `allowSessionOrScope(scope)` | `allowSessionOrPermission(resource, action)` |
+| `allowSessionOrAnyScope(scopes)` | `allowSessionOrAnyPermission(permissions)` |
+| `hasScope()`, `hasAnyScope()`, `hasAllScopes()` | Use `requirePermission` (BA verifies natively) |
+| `validateApiKey(req)` | `requirePermission` or BA's `verifyApiKey` directly |
+| `getApiKeyInfo()` | Removed — BA handles key lookup |
+| `scopesToPermissions()` | Removed — pass permissions directly |
+| `generateScopesFromCollections()` | `generateCollectionPermissions()` |
+| `getApiKeyScopesConfig()` | `getApiKeyPermissionsConfig()` |
+| `ScopeDefinition` type | `PermissionDefinition` type |
+| `ApiKeyScopesConfig` type | `ApiKeyPermissionsConfig` type |
+| `AvailableScope` type | Removed |
+
+#### Config property renamed
+
+```ts
+// Before
+admin: { apiKey: { scopes: {...}, defaultScopes: [...] } }
+
+// After
+admin: { apiKey: { excludeCollections: [...], requiredRole: 'admin' } }
+```
+
+Permissions are now auto-generated from collections. Custom scope definitions are no longer needed — use BA's native permission format directly.
+
+### Added
+
+- `requirePermission(resource, action)` — thin wrapper around BA's `verifyApiKey()`
+- `requireAnyPermission(permissions)` — any of the permission pairs must match
+- `requireAllPermissions(permissions)` — all permission pairs must match
+- `allowSessionOrPermission(resource, action)` — session OR API key access
+- `allowSessionOrAnyPermission(permissions)` — session OR any matching API key
+- `requireApiKey()` — verify API key without checking specific permissions
+- `generateCollectionPermissions()` — generates permission definitions for admin UI
+- `getApiKeyPermissionsConfig()` — access stored permissions config
+
+### Fixed
+
+- **API key scope round-trip bug**: Compound scope names (e.g., `posts:write`) were decomposed into CRUD actions for storage, then lost during readback. Now uses BA's native permission format — what gets stored is what gets checked.
+- **API key list endpoint unguarded**: GET `/api-key/list` now requires admin role (previously only POST mutations were guarded).
+
+### Removed
+
+- All scope-related functions and types (see migration table above)
+- `generateScopes.ts` — replaced by `generatePermissions.ts`
+- `metadata.scopes` workaround — no longer needed
+- "Delete" as a separate permission level — write implies full CRUD
+
+### Backward Compatibility
+
+Existing API keys with old CRUD permissions (`create`, `update`, `delete`) will still work. When `requirePermission('posts', 'write')` is checked, the system falls back to checking for old CRUD actions. Re-creating keys is recommended.
+
 ## [0.5.6] - 2026-03-05
 
 ### Fixed

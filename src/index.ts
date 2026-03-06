@@ -20,6 +20,7 @@ export {
   createBetterAuthPlugin,
   betterAuthStrategy,
   resetAuthInstance,
+  getApiKeyPermissionsConfig,
 } from './plugin/index.js'
 export type {
   Auth,

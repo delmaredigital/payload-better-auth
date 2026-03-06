@@ -2,8 +2,8 @@ import type { AdminViewProps, Locale } from 'payload'
 import { DefaultTemplate } from '@payloadcms/next/templates'
 import { getVisibleEntities } from '@payloadcms/ui/shared'
 import { ApiKeysManagementClient } from '../ApiKeysManagementClient.js'
-import { getApiKeyScopesConfig } from '../../../plugin/index.js'
-import { buildAvailableScopes } from '../../../utils/generateScopes.js'
+import { getApiKeyPermissionsConfig } from '../../../plugin/index.js'
+import { generateCollectionPermissions } from '../../../utils/generatePermissions.js'
 
 type ApiKeysViewProps = AdminViewProps
 
@@ -25,15 +25,12 @@ export async function ApiKeysView({
 
   const visibleEntities = getVisibleEntities({ req })
 
-  // Build available scopes from plugin config and collections
-  const scopesConfig = getApiKeyScopesConfig()
-  const availableScopes = buildAvailableScopes(
+  // Build permission definitions from collections
+  const permissionsConfig = getApiKeyPermissionsConfig()
+  const permissions = generateCollectionPermissions(
     payload.config.collections,
-    scopesConfig
+    permissionsConfig?.excludeCollections
   )
-
-  // Get default scopes from config
-  const defaultScopes = scopesConfig?.defaultScopes ?? []
 
   return (
     <DefaultTemplate
@@ -46,10 +43,7 @@ export async function ApiKeysView({
       user={req.user ?? undefined}
       visibleEntities={visibleEntities}
     >
-      <ApiKeysManagementClient
-        availableScopes={availableScopes}
-        defaultScopes={defaultScopes}
-      />
+      <ApiKeysManagementClient permissions={permissions} />
     </DefaultTemplate>
   )
 }
