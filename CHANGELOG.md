@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-03-15
+
+### Added
+
+#### Organization-scoped API keys
+
+API keys can now be bound to a specific organization at creation time. When `enableSessionForAPIKeys` is enabled in Better Auth, the `betterAuthStrategy` will automatically resolve the organization context from the key's metadata, enabling org-scoped access control to work with API key authentication.
+
+**How it works:**
+- When creating an API key, pass `organizationId` in the request body
+- The plugin validates the user is a member of that org, then stores `organizationId` in the key's metadata
+- On authentication, if the mock session doesn't have `activeOrganizationId`, the strategy reads it from the key's metadata and verifies membership
+- `req.user.activeOrganizationId` and `req.user.organizationRole` are set identically to a normal session
+
+**Usage:**
+```ts
+// Create an org-scoped API key
+const key = await auth.api.createApiKey({
+  body: {
+    name: 'My API Key',
+    organizationId: 'org_123',  // NEW — binds key to this org
+    permissions: { clients: ['read'], invoices: ['read', 'write'] },
+  },
+})
+
+// Authenticate via API key — org context is automatic
+curl -H "x-api-key: sk_..." https://app.example.com/api/clients
+// req.user.activeOrganizationId === 'org_123'
+// req.user.organizationRole === 'owner' (or whatever their role is)
+```
+
+**Management UI:** When the organization plugin is detected, the API key creation form shows an organization selector dropdown. Existing keys display their org binding as a badge.
+
+**Backwards compatible:** Keys without `organizationId` metadata continue to work as before.
+
 ## [0.6.0] - 2026-03-06
 
 ### Breaking Changes
