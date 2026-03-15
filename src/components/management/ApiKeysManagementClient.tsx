@@ -14,6 +14,14 @@ type ApiKey = {
   lastUsedAt?: Date | null
   /** BA-native permissions: { resource: ['read', 'write'] } */
   permissions?: Record<string, string[]> | null
+  /** Metadata (may include organizationId) */
+  metadata?: Record<string, unknown> | null
+}
+
+/** Organization option for the org selector */
+export type OrganizationOption = {
+  id: string | number
+  name: string
 }
 
 export type ApiKeysManagementClientProps = {
@@ -24,6 +32,12 @@ export type ApiKeysManagementClientProps = {
   title?: string
   /** Available permission definitions (collections + actions). Auto-generated if not provided. */
   permissions?: PermissionDefinition[]
+  /**
+   * Available organizations for scoping API keys.
+   * When provided, shows an organization selector in the creation form.
+   * Each key can be optionally bound to one organization.
+   */
+  organizations?: OrganizationOption[]
 }
 
 /**
@@ -34,6 +48,7 @@ export function ApiKeysManagementClient({
   authClient: providedClient,
   title = 'API Keys',
   permissions = [],
+  organizations = [],
 }: ApiKeysManagementClientProps = {}) {
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
   const [loading, setLoading] = useState(true)
@@ -46,8 +61,10 @@ export function ApiKeysManagementClient({
   // Selected permissions: { posts: ['read', 'write'], pages: ['read'] }
   const [selectedPermissions, setSelectedPermissions] = useState<Record<string, string[]>>({})
   const [newlyCreatedKey, setNewlyCreatedKey] = useState<string | null>(null)
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState<string>('')
 
   const hasPermissions = permissions.length > 0
+  const hasOrganizations = organizations.length > 0
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const clientRef = useRef<any>(null)
@@ -203,6 +220,7 @@ export function ApiKeysManagementClient({
         name: string
         expiresIn?: number
         permissions?: Record<string, string[]>
+        organizationId?: string | number
       } = { name: newKeyName }
 
       if (newKeyExpiry) {
@@ -212,6 +230,11 @@ export function ApiKeysManagementClient({
       // Send permissions directly in BA's native format
       if (hasPermissions && selectedCount > 0) {
         createOptions.permissions = selectedPermissions
+      }
+
+      // Bind to organization if selected
+      if (selectedOrganizationId) {
+        createOptions.organizationId = selectedOrganizationId
       }
 
       const result = await client.apiKey.create(createOptions)
@@ -224,6 +247,7 @@ export function ApiKeysManagementClient({
         setNewKeyName('')
         setNewKeyExpiry('')
         setSelectedPermissions({})
+        setSelectedOrganizationId('')
         fetchApiKeys()
       }
     } catch {
@@ -468,6 +492,53 @@ export function ApiKeysManagementClient({
                   }}
                 />
               </div>
+
+              {/* Organization selector — bind key to a specific org */}
+              {hasOrganizations && (
+                <div style={{ marginBottom: 'var(--base)' }}>
+                  <label
+                    style={{
+                      display: 'block',
+                      color: 'var(--theme-text)',
+                      fontSize: 'var(--font-size-small)',
+                      marginBottom: 'calc(var(--base) * 0.25)',
+                    }}
+                  >
+                    Organization (optional)
+                  </label>
+                  <select
+                    value={selectedOrganizationId}
+                    onChange={(e) => setSelectedOrganizationId(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: 'calc(var(--base) * 0.5)',
+                      background: 'var(--theme-input-bg)',
+                      border: '1px solid var(--theme-elevation-150)',
+                      borderRadius: 'var(--style-radius-s)',
+                      color: 'var(--theme-text)',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    <option value="">No organization (global key)</option>
+                    {organizations.map((org) => (
+                      <option key={String(org.id)} value={String(org.id)}>
+                        {org.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div
+                    style={{
+                      marginTop: 'calc(var(--base) * 0.25)',
+                      fontSize: '11px',
+                      color: 'var(--theme-elevation-600)',
+                    }}
+                  >
+                    {selectedOrganizationId
+                      ? 'API key will only have access to this organization\'s data.'
+                      : 'Without an organization, the key will not have org-scoped access.'}
+                  </div>
+                </div>
+              )}
 
               {/* Permission selection — read/write per collection */}
               {hasPermissions && (
@@ -739,6 +810,31 @@ export function ApiKeysManagementClient({
                       <span> • Last used: {formatDate(key.lastUsedAt)}</span>
                     )}
                   </div>
+                  {/* Display organization binding */}
+                  {Boolean(key.metadata?.organizationId) && (
+                    <div
+                      style={{
+                        marginTop: 'calc(var(--base) * 0.5)',
+                      }}
+                    >
+                      <span
+                        style={{
+                          padding: '2px 6px',
+                          background: 'var(--theme-elevation-150)',
+                          borderRadius: 'var(--style-radius-s)',
+                          fontSize: '11px',
+                          color: 'var(--theme-elevation-700)',
+                          fontWeight: 500,
+                        }}
+                      >
+                        Org: {(() => {
+                          const orgId = String(key.metadata?.organizationId ?? '')
+                          const org = organizations.find((o) => String(o.id) === orgId)
+                          return org?.name ?? orgId
+                        })()}
+                      </span>
+                    </div>
+                  )}
                   {/* Display permissions */}
                   {key.permissions && Object.keys(key.permissions).length > 0 && (
                     <div

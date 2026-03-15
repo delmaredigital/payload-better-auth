@@ -198,16 +198,37 @@ type AuthApi = {
     createdAt: Date
     metadata: Record<string, unknown> | null
   }>
+  verifyApiKey?: (options: {
+    body: {
+      key: string
+      permissions?: Record<string, string[]>
+    }
+  }) => Promise<{
+    valid: boolean
+    key?: {
+      id: string
+      userId: string
+      metadata?: Record<string, unknown> | string | null
+      permissions?: Record<string, string[]> | null
+    } | null
+    error?: string
+  }>
 }
 
 /**
  * Handle API key creation server-side.
  * Passes permissions directly from the client to Better Auth's server API.
+ *
+ * When `organizationId` is provided in the body, it is validated against the
+ * user's memberships and stored in the API key's metadata. This allows the
+ * `betterAuthStrategy` to resolve organization context for API key requests.
  */
 async function handleApiKeyCreate(
   authApi: AuthApi,
   headers: Headers,
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
+  payload?: BasePayload,
+  membersCollection = 'members'
 ): Promise<Response> {
   try {
     // Get the current session to find the user
@@ -219,8 +240,40 @@ async function handleApiKeyCreate(
       )
     }
 
+    // If organizationId is provided, validate that the user is a member
+    const organizationId = body.organizationId as string | number | undefined
+    if (organizationId && payload) {
+      try {
+        const memberships = await payload.find({
+          collection: membersCollection,
+          where: {
+            and: [
+              { user: { equals: session.user.id } },
+              { organization: { equals: organizationId } },
+            ],
+          },
+          limit: 1,
+          depth: 0,
+        })
+        if (memberships.docs.length === 0) {
+          return new Response(
+            JSON.stringify({ error: 'You are not a member of this organization' }),
+            { status: 403, headers: { 'Content-Type': 'application/json' } }
+          )
+        }
+      } catch {
+        // Members collection might not exist — allow creation without org binding
+      }
+    }
+
     // Permissions come directly from the client in BA's native format
     const permissions = body.permissions as Record<string, string[]> | undefined
+
+    // Merge organizationId into metadata if provided
+    const existingMetadata = body.metadata as Record<string, unknown> | undefined
+    const metadata = organizationId
+      ? { ...(existingMetadata || {}), organizationId }
+      : existingMetadata
 
     const createOptions = {
       body: {
@@ -229,7 +282,7 @@ async function handleApiKeyCreate(
         expiresIn: body.expiresIn as number | undefined,
         prefix: body.prefix as string | undefined,
         permissions: permissions && Object.keys(permissions).length > 0 ? permissions : undefined,
-        metadata: body.metadata as Record<string, unknown> | undefined,
+        metadata: metadata && Object.keys(metadata).length > 0 ? metadata : undefined,
       },
     }
 
@@ -376,7 +429,8 @@ function createAuthEndpointHandler(adminOptions?: BetterAuthPluginAdminOptions):
         return handleApiKeyCreate(
           auth.api as unknown as AuthApi,
           req.headers,
-          parsedBody
+          parsedBody,
+          req.payload
         )
       }
 
@@ -863,6 +917,57 @@ export function betterAuthStrategy(
             }
           } catch {
             // Members collection might not exist (org plugin not used), silently ignore
+          }
+        }
+
+        // If activeOrganizationId is not set (common with API key mock sessions),
+        // check if the API key has an organizationId in its metadata
+        if (!sessionFields.activeOrganizationId) {
+          const apiKeyHeader = headers.get('x-api-key') || headers.get('authorization')?.replace('Bearer ', '')
+          if (apiKeyHeader) {
+            const auth = payloadWithAuth.betterAuth
+            const verifyApiKey = (auth.api as unknown as AuthApi).verifyApiKey
+            if (typeof verifyApiKey === 'function') {
+              try {
+                const verifyResult = await verifyApiKey({
+                  body: { key: apiKeyHeader },
+                })
+                if (verifyResult.valid && verifyResult.key?.metadata) {
+                  const metadata = typeof verifyResult.key.metadata === 'string'
+                    ? JSON.parse(verifyResult.key.metadata)
+                    : verifyResult.key.metadata
+                  if (metadata.organizationId) {
+                    // Coerce to number if using serial IDs
+                    let orgId: string | number = metadata.organizationId
+                    if (idType === 'number' && typeof orgId === 'string' && /^\d+$/.test(orgId)) {
+                      orgId = parseInt(orgId, 10)
+                    }
+                    // Verify the user is actually a member of this org
+                    try {
+                      const memberships = await payload.find({
+                        collection: membersCollection,
+                        where: {
+                          and: [
+                            { user: { equals: sessionData.user.id } },
+                            { organization: { equals: orgId } },
+                          ],
+                        },
+                        limit: 1,
+                        depth: 0,
+                      })
+                      if (memberships.docs.length > 0) {
+                        sessionFields.activeOrganizationId = orgId
+                        organizationRole = (memberships.docs[0] as { role?: string }).role
+                      }
+                    } catch {
+                      // Members collection might not exist, continue without org context
+                    }
+                  }
+                }
+              } catch {
+                // API key verification failed, continue without org context
+              }
+            }
           }
         }
 
