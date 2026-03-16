@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-03-16
+
+### Fixed
+
+- **nextCookies() incompatibility warning** — Added runtime detection of Better Auth's `nextCookies()` plugin, which causes infinite form-state submissions and input resets in the Payload admin panel. The plugin hooks into every `getSession()` call and writes cookies via `next/headers`, conflicting with Payload's rendering cycle. A clear console warning now alerts users to remove it. The `nextCookies()` plugin is unnecessary with this adapter since the endpoint handler already proxies `Set-Cookie` headers naturally. ([#15](https://github.com/delmaredigital/payload-better-auth/issues/15))
+
 ## [0.6.1] - 2026-03-15
 
 ### Added

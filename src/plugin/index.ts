@@ -759,6 +759,23 @@ export function createBetterAuthPlugin(
             console.error('[better-auth] Failed to create auth:', error)
             throw error
           }
+
+          // Warn if nextCookies() plugin is detected — it's incompatible with Payload CMS.
+          // Check via betterAuthOptions (if provided) or the auth instance's options.
+          const pluginsToCheck =
+            options.admin?.betterAuthOptions?.plugins ??
+            (authInstance as unknown as { options?: { plugins?: Array<{ id?: string }> } }).options?.plugins
+          if (pluginsToCheck?.some((p: { id?: string }) => p.id === 'next-cookies')) {
+            console.warn(
+              '\n⚠️  [payload-better-auth] The nextCookies() plugin was detected in your Better Auth config.\n' +
+              '   This plugin is INCOMPATIBLE with Payload CMS and will cause infinite form-state\n' +
+              '   submissions and input resets in the admin panel.\n\n' +
+              '   The nextCookies() plugin is designed for Server Actions, but payload-better-auth\n' +
+              '   handles cookie passthrough automatically via its endpoint proxy.\n\n' +
+              '   → Remove nextCookies() from your Better Auth plugins to fix this issue.\n' +
+              '   → See: https://github.com/delmaredigital/payload-better-auth/issues/15\n'
+            )
+          }
         }
 
         // Attach to payload for global access

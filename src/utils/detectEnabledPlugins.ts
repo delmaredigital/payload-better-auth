@@ -12,6 +12,7 @@ export type EnabledPluginsResult = {
   hasMagicLink: boolean
   hasMultiSession: boolean
   hasOrganization: boolean
+  hasNextCookies: boolean
 }
 
 /**
@@ -34,6 +35,7 @@ export function detectEnabledPlugins(
     hasMagicLink: false,
     hasMultiSession: false,
     hasOrganization: false,
+    hasNextCookies: false,
   }
 
   for (const plugin of plugins) {
@@ -61,6 +63,9 @@ export function detectEnabledPlugins(
         break
       case 'organization':
         result.hasOrganization = true
+        break
+      case 'next-cookies':
+        result.hasNextCookies = true
         break
     }
   }
