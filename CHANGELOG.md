@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.3] - 2026-03-19
+
+### Added
+
+- **OAuth JWT access token verification** — The `betterAuthStrategy` now verifies OAuth 2.1 JWT access tokens via JWKS when session cookie auth returns no result. When a `Bearer` token is not a session cookie or API key, the strategy attempts JWT verification using Better Auth's `verifyAccessToken` utility, fetching the signing keys from the `/api/auth/jwks` endpoint. On success, it extracts the user ID (`sub`), scopes, and organization context from JWT claims, enabling OAuth integrations (Zapier, third-party apps) to authenticate Payload REST API requests with access tokens. The `oauthScopes` array is available on `req.user` for scope-based access control.
+
 ## [0.6.2] - 2026-03-16
 
 ### Fixed
