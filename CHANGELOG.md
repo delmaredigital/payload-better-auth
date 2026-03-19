@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.4] - 2026-03-19
+
+### Fixed
+
+- **Double-s pluralization for models ending in 's'** — Better Auth's `getModelName` factory appends `s` unconditionally, causing model names like `jwks` to become `jwkss`. The adapter's `getCollection()` now normalizes double-s suffixes. This fixes collection lookup failures when using the `jwt()` or any plugin with model names ending in `s`. Upstream issues: [#3069](https://github.com/better-auth/better-auth/issues/3069), [#2659](https://github.com/better-auth/better-auth/issues/2659). This fix is safe and becomes a no-op when upstream is fixed.
+
 ## [0.6.3] - 2026-03-19
 
 ### Added
