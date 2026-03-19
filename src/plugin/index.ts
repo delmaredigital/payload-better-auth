@@ -876,6 +876,80 @@ export function betterAuthStrategy(
         const sessionData = await auth.api.getSession({ headers })
 
         if (!sessionData?.user?.id) {
+          // No session found — check for OAuth JWT Bearer token
+          const authHeader = headers.get('authorization')
+          if (authHeader?.startsWith('Bearer ')) {
+            const token = authHeader.slice(7)
+            // Try OAuth JWT verification via the oauth-provider's verifyAccessToken
+            try {
+              const { verifyAccessToken } = await import('better-auth/oauth2')
+              const baseURL = (auth as unknown as { options: { baseURL?: string } }).options?.baseURL
+              if (!baseURL) throw new Error('baseURL not configured')
+              const jwtPayload = await verifyAccessToken(token, {
+                jwksUrl: `${baseURL}/api/auth/jwks`,
+                verifyOptions: {
+                  issuer: baseURL,
+                  audience: baseURL,
+                },
+              })
+
+              if (jwtPayload?.sub) {
+                const users = await payload.find({
+                  collection: usersCollection,
+                  where: { id: { equals: jwtPayload.sub } },
+                  limit: 1,
+                  depth: 0,
+                })
+
+                if (users.docs.length > 0) {
+                  // Extract org context and scopes from JWT claims
+                  const oauthOrgId = (jwtPayload as Record<string, unknown>).organizationId
+                  const oauthScopes = typeof jwtPayload.scope === 'string'
+                    ? jwtPayload.scope.split(' ')
+                    : Array.isArray(jwtPayload.scope) ? jwtPayload.scope : []
+
+                  // Look up org role if orgId is present
+                  let orgRole: string | undefined
+                  if (oauthOrgId) {
+                    try {
+                      const memberships = await payload.find({
+                        collection: membersCollection,
+                        where: {
+                          and: [
+                            { user: { equals: jwtPayload.sub } },
+                            { organization: { equals: oauthOrgId } },
+                          ],
+                        },
+                        limit: 1,
+                        depth: 0,
+                      })
+                      if (memberships.docs.length > 0) {
+                        orgRole = (memberships.docs[0] as { role?: string }).role
+                      }
+                    } catch {
+                      // Members collection might not exist
+                    }
+                  }
+
+                  const userDoc = users.docs[0] as Record<string, unknown> & { id: string | number }
+                  const oauthUser = {
+                    ...userDoc,
+                    id: userDoc.id,
+                    oauthScopes,
+                    collection: usersCollection,
+                    _strategy: 'better-auth' as const,
+                    ...(oauthOrgId ? { activeOrganizationId: oauthOrgId } : {}),
+                    ...(orgRole ? { organizationRole: orgRole } : {}),
+                  }
+
+                  return { user: oauthUser }
+                }
+              }
+            } catch {
+              // JWT verification failed — not a valid OAuth token, continue to return null
+            }
+          }
+
           return { user: null }
         }
 
