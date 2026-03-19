@@ -338,8 +338,15 @@ export function payloadAdapter({
 
         // Get Payload collection slug from model name
         // Uses factory's getModelName which respects BetterAuthOptions.modelName config
+        // Fix: Better Auth's getModelName blindly appends 's' even when name already ends in 's'
+        // (e.g., 'jwks' becomes 'jwkss'). We normalize to prevent double-s slugs.
         const getCollection = (model: string): CollectionSlug => {
-          return getModelName(model) as CollectionSlug
+          const name = getModelName(model)
+          // Fix double-s from naive pluralization (e.g., jwkss → jwks)
+          if (name.endsWith('ss') && !model.endsWith('ss')) {
+            return name.slice(0, -1) as CollectionSlug
+          }
+          return name as CollectionSlug
         }
 
         // The CustomAdapter interface uses generics (T) for return types.
