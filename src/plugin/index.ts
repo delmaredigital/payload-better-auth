@@ -883,12 +883,17 @@ export function betterAuthStrategy(
             // Try OAuth JWT verification via the oauth-provider's verifyAccessToken
             try {
               const { verifyAccessToken } = await import('better-auth/oauth2')
-              const baseURL = (auth as unknown as { options: { baseURL?: string } }).options?.baseURL
+              const baseURL = (auth as unknown as { options: { baseURL?: string; basePath?: string } }).options?.baseURL
+              const basePath = (auth as unknown as { options: { basePath?: string } }).options?.basePath || '/api/auth'
               if (!baseURL) throw new Error('baseURL not configured')
+              // issuer = baseURL + basePath (e.g., https://example.com/api/auth)
+              // audience = baseURL (e.g., https://example.com) — the resource server
+              // jwks = issuer + /jwks
+              const issuer = `${baseURL}${basePath}`
               const jwtPayload = await verifyAccessToken(token, {
-                jwksUrl: `${baseURL}/api/auth/jwks`,
+                jwksUrl: `${issuer}/jwks`,
                 verifyOptions: {
-                  issuer: baseURL,
+                  issuer,
                   audience: baseURL,
                 },
               })
