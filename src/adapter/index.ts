@@ -277,9 +277,12 @@ export function payloadAdapter({
       }) => {
         // Set fieldName on reference fields so the factory maps userId→user, etc.
         // Payload uses relationship fields without the Id suffix.
+        // Only do this for references to 'id' (primary key). Non-PK references
+        // (e.g., oauthRefreshToken.clientId → oauthClient.clientId) stay as plain
+        // text fields and should keep their original name.
         for (const table of Object.values(schema)) {
           for (const [fieldKey, fieldDef] of Object.entries(table.fields)) {
-            if (fieldDef.references) {
+            if (fieldDef.references && (!fieldDef.references.field || fieldDef.references.field === 'id')) {
               const stripped = fieldKey.replace(/(_id|Id)$/, '');
               if (stripped !== fieldKey) fieldDef.fieldName = stripped;
             }

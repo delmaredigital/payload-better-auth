@@ -281,7 +281,12 @@ function generateCollection(
     }
 
     const fieldName = fieldDef.fieldName ?? fieldKey
-    const hasReferences = fieldDef.references !== undefined
+    // Only treat as a relationship if it references the target's 'id' field.
+    // When referencing a non-PK field (e.g., oauthClient.clientId), use a plain
+    // text field instead — Payload relationships always FK to 'id', which would
+    // cause FK constraint violations for non-PK references.
+    const hasReferences = fieldDef.references !== undefined &&
+      (!fieldDef.references.field || fieldDef.references.field === 'id')
     const fieldType = mapFieldType(fieldDef.type as string, fieldKey, hasReferences)
 
     if (fieldType === 'relationship') {

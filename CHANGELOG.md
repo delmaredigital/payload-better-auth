@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.7] - 2026-03-20
+
+### Fixed
+
+- **Non-PK reference fields no longer create Payload relationships** — Better Auth's `oauthRefreshToken.clientId` and `oauthAccessToken.clientId` reference `oauthClient.clientId` (a non-PK field), not `oauthClient.id`. Payload relationships always FK to `id`, causing constraint violations. These fields are now created as plain text columns when the reference target is not `id`. The adapter factory's `fieldName` stripping (removing `Id` suffix) is also skipped for non-PK references, preserving the original column name. This eliminates the need for the `id = clientId` workaround when registering OAuth clients.
+
 ## [0.6.6] - 2026-03-20
 
 ### Fixed
