@@ -951,86 +951,9 @@ export function betterAuthStrategy(
                 }
               }
             } catch {
-              // JWT verification failed — try opaque token lookup
-              // Refreshed OAuth tokens are opaque (not JWTs) and stored in the DB
-              try {
-                const adapter = (auth as unknown as { options?: { adapter?: unknown } }).options?.adapter as
-                  | { findOne: (opts: { model: string; where: Array<{ field: string; value: unknown }> }) => Promise<Record<string, unknown> | null> }
-                  | undefined
-                if (adapter?.findOne) {
-                  // Hash the token the same way Better Auth stores it (SHA-256 base64url)
-                  const { createHash } = await import('crypto')
-                  const hashedToken = createHash('sha256').update(token).digest('base64url')
-
-                  const accessTokenRecord = await adapter.findOne({
-                    model: 'oauthAccessToken',
-                    where: [{ field: 'token', value: hashedToken }],
-                  })
-
-                  if (accessTokenRecord && accessTokenRecord.userId) {
-                    // Check expiry
-                    const expiresAt = accessTokenRecord.expiresAt instanceof Date
-                      ? accessTokenRecord.expiresAt
-                      : new Date(accessTokenRecord.expiresAt as string)
-                    if (expiresAt < new Date()) {
-                      // Token expired
-                    } else {
-                      const userId = accessTokenRecord.userId as string
-                      const users = await payload.find({
-                        collection: usersCollection,
-                        where: { id: { equals: userId } },
-                        limit: 1,
-                        depth: 0,
-                      })
-
-                      if (users.docs.length > 0) {
-                        const scopes = Array.isArray(accessTokenRecord.scopes)
-                          ? accessTokenRecord.scopes as string[]
-                          : []
-                        const referenceId = accessTokenRecord.referenceId as string | undefined
-
-                        // Look up org role if referenceId (org ID) is present
-                        let orgRole: string | undefined
-                        if (referenceId) {
-                          try {
-                            const memberships = await payload.find({
-                              collection: membersCollection,
-                              where: {
-                                and: [
-                                  { user: { equals: userId } },
-                                  { organization: { equals: referenceId } },
-                                ],
-                              },
-                              limit: 1,
-                              depth: 0,
-                            })
-                            if (memberships.docs.length > 0) {
-                              orgRole = (memberships.docs[0] as { role?: string }).role
-                            }
-                          } catch {
-                            // Members collection might not exist
-                          }
-                        }
-
-                        const userDoc = users.docs[0] as Record<string, unknown> & { id: string | number }
-                        return {
-                          user: {
-                            ...userDoc,
-                            id: userDoc.id,
-                            oauthScopes: scopes,
-                            collection: usersCollection,
-                            _strategy: 'better-auth' as const,
-                            ...(referenceId ? { activeOrganizationId: referenceId } : {}),
-                            ...(orgRole ? { organizationRole: orgRole } : {}),
-                          },
-                        }
-                      }
-                    }
-                  }
-                }
-              } catch {
-                // Opaque token lookup also failed — continue to return null
-              }
+              // JWT verification failed — token is not a valid OAuth JWT
+              // Per Better Auth docs: "only accept JWT-formatted access tokens for your API"
+              // Opaque tokens should be handled via the /oauth2/introspect endpoint if needed
             }
           }
 
