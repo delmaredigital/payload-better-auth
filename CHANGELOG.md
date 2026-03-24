@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.8] - 2026-03-24
+
+### Added
+
+- **Opaque OAuth access token verification** — The auth strategy now handles both JWT and opaque access tokens. Refreshed OAuth tokens are opaque (stored in the `oauthAccessToken` DB table). When JWT verification fails, the strategy hashes the Bearer token (SHA-256 base64url) and looks it up in the database. Extracts user ID, scopes, and org context (`referenceId`) from the DB record, enabling OAuth connections to survive token refreshes without requiring users to reconnect.
+
 ## [0.6.7] - 2026-03-20
 
 ### Fixed
