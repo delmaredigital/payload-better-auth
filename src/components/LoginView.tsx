@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation.js'
 import { createAuthClient } from 'better-auth/react'
 import { twoFactorClient } from 'better-auth/client/plugins'
 import { hasAnyRole, hasAllRoles, normalizeRoles } from '../utils/access.js'
+import { useConfig } from '@payloadcms/ui'
 
 export type LoginViewProps = {
   /** Optional pre-configured auth client */
@@ -107,6 +108,8 @@ export function LoginView({
 }: LoginViewProps) {
   const router = useRouter()
 
+  // Payload Config
+  const {config: {routes: {admin:adminRoute, api:apiRoute}}} = useConfig()
   // View state
   const [viewMode, setViewMode] = useState<ViewMode>('login')
 
@@ -176,7 +179,7 @@ export function LoginView({
     if (enablePasskey === 'auto') {
       // Check if passkey endpoint exists (GET request)
       // Better Auth passkey routes are at /passkey/* (singular)
-      fetch('/api/auth/passkey/generate-authenticate-options', {
+      fetch(`${apiRoute}/auth/passkey/generate-authenticate-options`, {
         method: 'GET',
         credentials: 'include',
       })
@@ -197,7 +200,7 @@ export function LoginView({
   useEffect(() => {
     if (enableSignUp === 'auto') {
       // Check if sign-up endpoint exists
-      fetch('/api/auth/sign-up/email', {
+      fetch(`${apiRoute}/auth/sign-up/email`, {
         method: 'OPTIONS',
         credentials: 'include',
       })
@@ -218,7 +221,7 @@ export function LoginView({
   useEffect(() => {
     if (enableForgotPassword === 'auto') {
       // Check if request-password-reset endpoint exists
-      fetch('/api/auth/request-password-reset', {
+      fetch(`${apiRoute}/auth/request-password-reset`, {
         method: 'OPTIONS',
         credentials: 'include',
       })
@@ -357,7 +360,7 @@ export function LoginView({
       const client = await getClient()
       const result = await client.requestPasswordReset({
         email,
-        redirectTo: resetPasswordUrl ?? `${window.location.origin}/admin/reset-password`,
+        redirectTo: resetPasswordUrl ?? `${window.location.origin}${adminRoute}/reset-password`,
       })
 
       if (result.error) {

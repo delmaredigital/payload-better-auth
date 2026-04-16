@@ -1,5 +1,6 @@
 'use client'
 
+import { useConfig } from '@payloadcms/ui'
 import { useState, type FormEvent } from 'react'
 
 export type ForgotPasswordViewProps = {
@@ -23,6 +24,9 @@ export function ForgotPasswordView({
   loginPath = '/admin/login',
   successMessage = 'If an account exists with this email, you will receive a password reset link.',
 }: ForgotPasswordViewProps) {
+
+  // Payload Config
+  const {config: {routes: {admin:adminRoute, api:apiRoute}}} = useConfig()
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -34,13 +38,13 @@ export function ForgotPasswordView({
     setError(null)
 
     try {
-      const response = await fetch('/api/auth/forget-password', {
+      const response = await fetch(`${apiRoute}/auth/forget-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           email,
-          redirectTo: `${window.location.origin}/admin/reset-password`,
+          redirectTo: `${window.location.origin}${adminRoute}/reset-password`,
         }),
       })
 
