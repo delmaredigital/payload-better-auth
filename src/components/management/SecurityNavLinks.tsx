@@ -1,6 +1,6 @@
 'use client'
 
-import { NavGroup } from '@payloadcms/ui'
+import { NavGroup, useConfig } from '@payloadcms/ui'
 
 export type SecurityNavLinksProps = {
   /** Base path for security views. Default: '/admin/security' */
@@ -18,17 +18,21 @@ export type SecurityNavLinksProps = {
  * are now embedded as ui fields on the user document.
  */
 export function SecurityNavLinks({
-  basePath = '/admin/security',
+  basePath,
   showApiKeys = true,
 }: SecurityNavLinksProps = {}) {
   if (!showApiKeys) {
     return null
   }
 
+  // Payload Config
+  const {config: {routes: {admin:adminRoute, api:apiRoute}}} = useConfig()
+  const _basePath = basePath?basePath:`${adminRoute}/security`
+
   return (
     <NavGroup label="Security">
       <a
-        href={`${basePath}/api-keys`}
+        href={`${_basePath}/api-keys`}
         className="nav__link"
       >
         <span className="nav__link-label">API Keys</span>
