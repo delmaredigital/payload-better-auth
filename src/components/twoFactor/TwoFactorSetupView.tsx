@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect, type FormEvent } from 'react'
+import { useConfig } from '@payloadcms/ui'
 
 export type TwoFactorSetupViewProps = {
   /** Custom logo element */
   logo?: React.ReactNode
   /** Page title. Default: 'Set Up Two-Factor Authentication' */
   title?: string
-  /** Path to redirect after successful setup. Default: '/admin' */
+  /** Path to redirect after successful setup. Defaults to `routes.admin`. */
   afterSetupPath?: string
   /** Callback after successful setup */
   onSetupComplete?: () => void
@@ -21,9 +22,15 @@ export type TwoFactorSetupViewProps = {
 export function TwoFactorSetupView({
   logo,
   title = 'Set Up Two-Factor Authentication',
-  afterSetupPath = '/admin',
+  afterSetupPath,
   onSetupComplete,
 }: TwoFactorSetupViewProps) {
+  const {
+    config: {
+      routes: { admin: adminRoute, api: apiRoute },
+    },
+  } = useConfig()
+  const resolvedAfterSetupPath = afterSetupPath ?? adminRoute
   const [step, setStep] = useState<'loading' | 'qr' | 'verify' | 'backup' | 'complete'>('loading')
   const [totpUri, setTotpUri] = useState<string | null>(null)
   const [secret, setSecret] = useState<string | null>(null)
@@ -35,7 +42,7 @@ export function TwoFactorSetupView({
   useEffect(() => {
     async function enableTwoFactor() {
       try {
-        const response = await fetch('/api/auth/two-factor/enable', {
+        const response = await fetch(`${apiRoute}/auth/two-factor/enable`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -59,7 +66,7 @@ export function TwoFactorSetupView({
       }
     }
     enableTwoFactor()
-  }, [])
+  }, [apiRoute])
 
   async function handleVerify(e: FormEvent) {
     e.preventDefault()
@@ -67,7 +74,7 @@ export function TwoFactorSetupView({
     setError(null)
 
     try {
-      const response = await fetch('/api/auth/two-factor/verify-totp', {
+      const response = await fetch(`${apiRoute}/auth/two-factor/verify-totp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -169,7 +176,7 @@ export function TwoFactorSetupView({
           </p>
 
           <a
-            href={afterSetupPath}
+            href={resolvedAfterSetupPath}
             style={{
               display: 'inline-block',
               padding: 'calc(var(--base) * 0.75) calc(var(--base) * 1.5)',

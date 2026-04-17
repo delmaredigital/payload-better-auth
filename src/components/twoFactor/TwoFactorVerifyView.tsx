@@ -2,13 +2,14 @@
 
 import { useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation.js'
+import { useConfig } from '@payloadcms/ui'
 
 export type TwoFactorVerifyViewProps = {
   /** Custom logo element */
   logo?: React.ReactNode
   /** Page title. Default: 'Two-Factor Authentication' */
   title?: string
-  /** Path to redirect after successful verification. Default: '/admin' */
+  /** Path to redirect after successful verification. Defaults to `routes.admin`. */
   afterVerifyPath?: string
   /** Callback after successful verification */
   onVerifyComplete?: () => void
@@ -22,10 +23,16 @@ export type TwoFactorVerifyViewProps = {
 export function TwoFactorVerifyView({
   logo,
   title = 'Two-Factor Authentication',
-  afterVerifyPath = '/admin',
+  afterVerifyPath,
   onVerifyComplete,
 }: TwoFactorVerifyViewProps) {
   const router = useRouter()
+  const {
+    config: {
+      routes: { admin: adminRoute, api: apiRoute },
+    },
+  } = useConfig()
+  const resolvedAfterVerifyPath = afterVerifyPath ?? adminRoute
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -38,8 +45,8 @@ export function TwoFactorVerifyView({
 
     try {
       const endpoint = useBackupCode
-        ? '/api/auth/two-factor/verify-backup-code'
-        : '/api/auth/two-factor/verify-totp'
+        ? `${apiRoute}/auth/two-factor/verify-backup-code`
+        : `${apiRoute}/auth/two-factor/verify-totp`
 
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -50,7 +57,7 @@ export function TwoFactorVerifyView({
 
       if (response.ok) {
         onVerifyComplete?.()
-        router.push(afterVerifyPath)
+        router.push(resolvedAfterVerifyPath)
         router.refresh()
       } else {
         const data = await response.json().catch(() => ({}))

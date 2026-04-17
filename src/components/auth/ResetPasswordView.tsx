@@ -2,13 +2,14 @@
 
 import { useState, useEffect, type FormEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation.js'
+import { useConfig } from '@payloadcms/ui'
 
 export type ResetPasswordViewProps = {
   /** Custom logo element */
   logo?: React.ReactNode
   /** Page title. Default: 'Reset Password' */
   title?: string
-  /** Path to redirect after successful reset. Default: '/admin/login' */
+  /** Path to redirect after successful reset. Defaults to `${routes.admin}/login`. */
   afterResetPath?: string
   /** Minimum password length. Default: 8 */
   minPasswordLength?: number
@@ -22,11 +23,17 @@ export type ResetPasswordViewProps = {
 export function ResetPasswordView({
   logo,
   title = 'Reset Password',
-  afterResetPath = '/admin/login',
+  afterResetPath,
   minPasswordLength = 8,
 }: ResetPasswordViewProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const {
+    config: {
+      routes: { admin: adminRoute, api: apiRoute },
+    },
+  } = useConfig()
+  const resolvedAfterResetPath = afterResetPath ?? `${adminRoute}/login`
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -65,7 +72,7 @@ export function ResetPasswordView({
     setLoading(true)
 
     try {
-      const response = await fetch('/api/auth/reset-password', {
+      const response = await fetch(`${apiRoute}/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -140,7 +147,7 @@ export function ResetPasswordView({
           </p>
 
           <button
-            onClick={() => router.push(afterResetPath)}
+            onClick={() => router.push(resolvedAfterResetPath)}
             style={{
               padding: 'calc(var(--base) * 0.75) calc(var(--base) * 1.5)',
               background: 'var(--theme-elevation-800)',

@@ -2,9 +2,10 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation.js'
+import { useConfig } from '@payloadcms/ui'
 
 export type BeforeLoginProps = {
-  /** URL to redirect to for login. Default: '/admin/login' */
+  /** URL to redirect to for login. Defaults to `${routes.admin}/login`. */
   loginUrl?: string
 }
 
@@ -12,12 +13,18 @@ export type BeforeLoginProps = {
  * BeforeLogin component that redirects to the custom login page.
  * Injected into Payload's beforeLogin slot to intercept default login.
  */
-export function BeforeLogin({ loginUrl = '/admin/login' }: BeforeLoginProps) {
+export function BeforeLogin({ loginUrl }: BeforeLoginProps = {}) {
   const router = useRouter()
+  const {
+    config: {
+      routes: { admin: adminRoute },
+    },
+  } = useConfig()
+  const target = loginUrl ?? `${adminRoute}/login`
 
   useEffect(() => {
-    router.replace(loginUrl)
-  }, [router, loginUrl])
+    router.replace(target)
+  }, [router, target])
 
   // Show loading state while redirecting
   return (

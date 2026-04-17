@@ -21,18 +21,22 @@ export function SecurityNavLinks({
   basePath,
   showApiKeys = true,
 }: SecurityNavLinksProps = {}) {
+  const {
+    config: {
+      routes: { admin: adminRoute },
+    },
+  } = useConfig()
+
   if (!showApiKeys) {
     return null
   }
 
-  // Payload Config
-  const {config: {routes: {admin:adminRoute, api:apiRoute}}} = useConfig()
-  const _basePath = basePath?basePath:`${adminRoute}/security`
+  const resolvedBasePath = basePath ?? `${adminRoute}/security`
 
   return (
     <NavGroup label="Security">
       <a
-        href={`${_basePath}/api-keys`}
+        href={`${resolvedBasePath}/api-keys`}
         className="nav__link"
       >
         <span className="nav__link-label">API Keys</span>

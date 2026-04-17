@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.10] - 2026-04-16
+
+### Fixed
+
+- **Respect Payload's custom `routes.admin` and `routes.api` config** — Admin UI components previously hardcoded `/admin/*` and `/api/*` paths, breaking projects that customize Payload's route config. All admin components (`LoginView`, `LogoutButton`, `ForgotPasswordView`, `ResetPasswordView`, `BeforeLogin`, `TwoFactorVerifyView`, `TwoFactorSetupView`, `SecurityNavLinks`) now read route prefixes from `useConfig()` and apply them to fetch calls and navigation. Defaults fall through to Payload's standard `/admin` / `/api` so existing consumers are unaffected. Thanks to @luochuanyuewu for [#17](https://github.com/delmaredigital/payload-better-auth/pull/17) which seeded this fix.
+
 ## [0.6.9] - 2026-03-24
 
 ### Removed
