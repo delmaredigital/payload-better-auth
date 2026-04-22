@@ -8,6 +8,7 @@
  */
 
 import { apiKey } from '@better-auth/api-key'
+import { oauthProvider } from '@better-auth/oauth-provider'
 import { passkey } from '@better-auth/passkey'
 import type { DBFieldAttribute } from 'better-auth/db'
 import { getSchema } from 'better-auth/db'
@@ -20,7 +21,6 @@ import {
   jwt,
   magicLink,
   multiSession,
-  oidcProvider,
   oneTap,
   oneTimeToken,
   openAPI,
@@ -50,7 +50,7 @@ const plugins = [
   anonymous(),
   multiSession(),
   oneTimeToken(),
-  oidcProvider({ loginPage: '' }),
+  oauthProvider({ loginPage: '', consentPage: '' }),
   genericOAuth({
     config: [
       {

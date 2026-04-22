@@ -10,6 +10,7 @@
 
 import { createAuthClient } from 'better-auth/react'
 import { twoFactorClient } from 'better-auth/client/plugins'
+import type { BetterAuthClientPlugin } from 'better-auth/client'
 
 // Re-export createAuthClient and core plugins
 export { createAuthClient } from 'better-auth/react'
@@ -18,6 +19,10 @@ export { twoFactorClient } from 'better-auth/client/plugins'
 /**
  * Default plugins included with Payload Better Auth (core only).
  * Add optional plugins (passkeyClient, apiKeyClient) from their own packages.
+ *
+ * Typed as `BetterAuthClientPlugin[]` so consumers' `.d.ts` files don't need
+ * to name Better Auth's zod-backed inferred plugin types (not portable across
+ * installs).
  *
  * @example
  * ```typescript
@@ -30,14 +35,16 @@ export { twoFactorClient } from 'better-auth/client/plugins'
  * })
  * ```
  */
-export const payloadAuthPlugins = [
+export const payloadAuthPlugins: BetterAuthClientPlugin[] = [
   twoFactorClient(),
-] as const
+]
 
 export interface PayloadAuthClientOptions {
   /** Base URL for auth endpoints (defaults to window.location.origin) */
   baseURL?: string
 }
+
+export type PayloadAuthClient = ReturnType<typeof createAuthClient>
 
 /**
  * Create a pre-configured auth client with default core plugins (twoFactor).
@@ -60,7 +67,7 @@ export interface PayloadAuthClientOptions {
  * })
  * ```
  */
-export function createPayloadAuthClient(options?: PayloadAuthClientOptions) {
+export function createPayloadAuthClient(options?: PayloadAuthClientOptions): PayloadAuthClient {
   return createAuthClient({
     baseURL:
       options?.baseURL ??
@@ -68,5 +75,3 @@ export function createPayloadAuthClient(options?: PayloadAuthClientOptions) {
     plugins: [...payloadAuthPlugins],
   })
 }
-
-export type PayloadAuthClient = ReturnType<typeof createPayloadAuthClient>

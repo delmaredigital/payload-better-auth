@@ -12,7 +12,13 @@ Better Auth adapter and plugins for Payload CMS. Enables seamless integration be
   <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fdelmaredigital%2Fdd-starter&project-name=my-payload-site&build-command=pnpm%20run%20ci&env=PAYLOAD_SECRET,BETTER_AUTH_SECRET&stores=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22productSlug%22%3A%22neon%22%2C%22integrationSlug%22%3A%22neon%22%7D%2C%7B%22type%22%3A%22blob%22%7D%5D"><img src="https://vercel.com/button" alt="Deploy with Vercel" height="32"></a>
 </p>
 
-> **Upgrading to 0.5?** This release requires Better Auth 1.5 and includes breaking changes to client plugins, API key imports, and auth instance types. See the [CHANGELOG](./CHANGELOG.md#054---2026-03-02) for migration instructions.
+> ⚠️ **Upgrading to 0.7?** This release requires **Better Auth 1.6** and includes several breaking changes:
+>
+> - **Schema migration required** for projects using the `twoFactor` plugin — Better Auth 1.6.2 added a `verified` column to the `twoFactor` table.
+> - **`oidcProvider` → `@better-auth/oauth-provider`** — generated OAuth types now reflect the `oauth-provider` schema. Consumers using `oidcProvider()` at runtime will keep working, but `OauthApplication` / `PluginId` / `ModelKey` type exports have changed shape. Migrating to `@better-auth/oauth-provider` is recommended.
+> - **Client helper type widening** — `createPayloadAuthClient()` and `payloadAuthPlugins` are typed more conservatively to keep `.d.ts` portable. For typed plugin methods (e.g. `client.twoFactor.verifyTotp`), list plugins explicitly in `createAuthClient({ plugins: [...] })` (see [Client-Side Auth](#4-client-side-auth) below).
+>
+> See the [CHANGELOG](./CHANGELOG.md#070---2026-04-21) for full migration instructions.
 
 ---
 
@@ -30,7 +36,7 @@ For AI-assisted exploration: [DeepWiki](https://deepwiki.com/delmaredigital/payl
 pnpm add @delmaredigital/payload-better-auth better-auth
 ```
 
-**Requirements:** `payload` >= 3.69.0 · `better-auth` >= 1.5.0 · `next` >= 15.4.8 · `react` >= 19.2.1
+**Requirements:** `payload` >= 3.69.0 · `better-auth` >= 1.6.0 · `next` >= 15.4.8 · `react` >= 19.2.1
 
 ## Quick Start
 
@@ -138,12 +144,17 @@ export default buildConfig({
 // src/lib/auth/client.ts
 'use client'
 
-import { createPayloadAuthClient } from '@delmaredigital/payload-better-auth/client'
+import { createAuthClient, twoFactorClient } from '@delmaredigital/payload-better-auth/client'
+import { passkeyClient } from '@better-auth/passkey/client'
 
-export const authClient = createPayloadAuthClient()
+export const authClient = createAuthClient({
+  plugins: [twoFactorClient(), passkeyClient()],
+})
 
 export const { useSession, signIn, signUp, signOut, twoFactor, passkey } = authClient
 ```
+
+> Listing plugins inline (rather than using `createPayloadAuthClient()` or spreading `payloadAuthPlugins`) ensures `twoFactor` and other plugin methods are typed on the returned client.
 
 ### 5. Server-Side Session
 

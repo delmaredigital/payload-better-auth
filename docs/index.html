@@ -830,7 +830,7 @@ details .details-body > :first-child { margin-top: 0; }
           <tr><td><code>payload</code></td><td>&ge; 3.69.0</td></tr>
           <tr><td><code>@payloadcms/next</code></td><td>&ge; 3.69.0</td></tr>
           <tr><td><code>@payloadcms/ui</code></td><td>&ge; 3.69.0</td></tr>
-          <tr><td><code>better-auth</code></td><td>&ge; 1.4.0</td></tr>
+          <tr><td><code>better-auth</code></td><td>&ge; 1.6.0</td></tr>
           <tr><td><code>next</code></td><td>&ge; 15.4.8</td></tr>
           <tr><td><code>react</code></td><td>&ge; 19.2.1</td></tr>
         </tbody>
@@ -979,19 +979,19 @@ GOOGLE_CLIENT_SECRET=...</code></pre>
 
         <div class="step" id="step-4-client">
           <h3>Client-Side Auth</h3>
-          <p>Create a client with the plugins you need. <code>payloadAuthPlugins</code> includes core plugins (twoFactor). Add optional plugins like passkey, apiKey, or stripe directly:</p>
+          <p>Create a client by listing the plugins you need. For typed plugin methods (e.g. <code>client.twoFactor.verifyTotp</code>), list each plugin inline:</p>
           <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// src/lib/auth/client.ts</span>
 <span class="hl-string">'use client'</span>
 
-<span class="hl-keyword">import</span> { <span class="hl-func">createAuthClient</span>, payloadAuthPlugins } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/client'</span>
+<span class="hl-keyword">import</span> { <span class="hl-func">createAuthClient</span>, <span class="hl-func">twoFactorClient</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/client'</span>
 <span class="hl-keyword">import</span> { <span class="hl-func">passkeyClient</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@better-auth/passkey/client'</span>
 
 <span class="hl-keyword">export const</span> authClient = <span class="hl-func">createAuthClient</span>({
-  plugins: [...payloadAuthPlugins, <span class="hl-func">passkeyClient</span>()],
+  plugins: [<span class="hl-func">twoFactorClient</span>(), <span class="hl-func">passkeyClient</span>()],
 })
 
 <span class="hl-keyword">export const</span> { useSession, signIn, signUp, signOut, twoFactor, passkey } = authClient</code></pre>
-          <p><code>payloadAuthPlugins</code> includes <code>twoFactorClient()</code>. Optional plugins (<code>passkeyClient</code>, <code>apiKeyClient</code>, <code>stripeClient</code>, etc.) are added by you — this way your app only bundles what it uses.</p>
+          <p><strong>Since v0.7.0</strong>, <code>payloadAuthPlugins</code> and <code>createPayloadAuthClient()</code> are typed conservatively (<code>BetterAuthClientPlugin[]</code>) to keep generated declaration files portable — they work at runtime, but plugin methods like <code>twoFactor.verifyTotp</code> won't be typed on the returned client. List plugins inline (as above) when you need typed plugin methods.</p>
 
           <details>
             <summary>Minimal setup (no passkeys or optional plugins)</summary>

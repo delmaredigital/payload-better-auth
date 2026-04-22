@@ -1,6 +1,6 @@
 {
   "name": "@delmaredigital/payload-better-auth",
-  "version": "0.6.10",
+  "version": "0.7.0",
   "description": "Better Auth adapter and plugins for Payload CMS",
   "type": "module",
   "license": "MIT",
@@ -95,11 +95,11 @@
     "prepublishOnly": "pnpm build"
   },
   "peerDependencies": {
-    "@better-auth/api-key": ">=1.5.0",
-    "@better-auth/passkey": ">=1.5.0",
+    "@better-auth/api-key": ">=1.6.0",
+    "@better-auth/passkey": ">=1.6.0",
     "@payloadcms/next": ">=3.69.0",
     "@payloadcms/ui": ">=3.69.0",
-    "better-auth": ">=1.5.0",
+    "better-auth": ">=1.6.0",
     "next": ">=15.4.8",
     "payload": ">=3.69.0",
     "react": ">=19.2.1"
@@ -113,19 +113,20 @@
     }
   },
   "devDependencies": {
-    "@better-auth/api-key": "^1.5.1",
-    "@better-auth/passkey": "^1.5.1",
-    "@payloadcms/next": "^3.78.0",
-    "@payloadcms/ui": "^3.78.0",
+    "@better-auth/api-key": "^1.6.6",
+    "@better-auth/oauth-provider": "^1.6.6",
+    "@better-auth/passkey": "^1.6.6",
+    "@payloadcms/next": "^3.83.0",
+    "@payloadcms/ui": "^3.83.0",
     "@swc/cli": "^0.6.0",
-    "@swc/core": "^1.15.18",
-    "@types/node": "^24.11.0",
+    "@swc/core": "^1.15.30",
+    "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@vitest/coverage-v8": "^2.1.9",
-    "better-auth": "^1.5.1",
-    "next": "^16.1.6",
-    "payload": "^3.78.0",
-    "react": "^19.2.4",
+    "better-auth": "^1.6.6",
+    "next": "^16.2.4",
+    "payload": "^3.83.0",
+    "react": "^19.2.5",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^2.1.9"

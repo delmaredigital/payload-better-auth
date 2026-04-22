@@ -130,43 +130,76 @@ export type PasskeyFields = {
 
 export type Passkey = PasskeyFields
 
-export type OauthApplicationFields = {
-  name?: string
-  icon?: string
-  metadata?: string
-  clientId?: string
+export type OauthClientFields = {
+  clientId: string
   clientSecret?: string
-  redirectUrls?: string
-  type?: string
   disabled?: boolean
+  skipConsent?: boolean
+  enableEndSession?: boolean
+  subjectType?: string
+  scopes?: string[]
   userId?: string
   createdAt?: Date
   updatedAt?: Date
+  name?: string
+  uri?: string
+  icon?: string
+  contacts?: string[]
+  tos?: string
+  policy?: string
+  softwareId?: string
+  softwareVersion?: string
+  softwareStatement?: string
+  redirectUris: string[]
+  postLogoutRedirectUris?: string[]
+  tokenEndpointAuthMethod?: string
+  grantTypes?: string[]
+  responseTypes?: string[]
+  public?: boolean
+  type?: string
+  requirePKCE?: boolean
+  referenceId?: string
+  metadata?: unknown
 }
 
-export type OauthApplication = OauthApplicationFields
+export type OauthClient = OauthClientFields
+
+export type OauthRefreshTokenFields = {
+  token: string
+  clientId: string
+  sessionId?: string
+  userId: string
+  referenceId?: string
+  expiresAt?: Date
+  createdAt?: Date
+  revoked?: Date
+  authTime?: Date
+  scopes: string[]
+}
+
+export type OauthRefreshToken = OauthRefreshTokenFields
 
 export type OauthAccessTokenFields = {
-  accessToken?: string
-  refreshToken?: string
-  accessTokenExpiresAt?: Date
-  refreshTokenExpiresAt?: Date
-  clientId?: string
+  token?: string
+  clientId: string
+  sessionId?: string
   userId?: string
-  scopes?: string
+  referenceId?: string
+  refreshId?: string
+  expiresAt?: Date
   createdAt?: Date
-  updatedAt?: Date
+  scopes: string[]
 }
 
 export type OauthAccessToken = OauthAccessTokenFields
 
 export type OauthConsentFields = {
-  clientId?: string
+  clientId: string
   userId?: string
-  scopes?: string
+  referenceId?: string
+  scopes: string[]
   createdAt?: Date
   updatedAt?: Date
-  consentGiven?: boolean
 }
 
 export type OauthConsent = OauthConsentFields
@@ -233,6 +266,7 @@ export type TwoFactorFields = {
   secret: string
   backupCodes: string
   userId: string
+  verified?: boolean
 }
 
 export type TwoFactor = TwoFactorFields
@@ -240,7 +274,7 @@ export type TwoFactor = TwoFactorFields
 /**
  * Union of all supported plugin identifiers.
  */
-export type PluginId = "username" | "admin" | "api-key" | "passkey" | "bearer" | "email-otp" | "magic-link" | "phone-number" | "one-tap" | "anonymous" | "multi-session" | "one-time-token" | "oidc-provider" | "generic-oauth" | "open-api" | "organization" | "jwt" | "two-factor"
+export type PluginId = "username" | "admin" | "api-key" | "passkey" | "bearer" | "email-otp" | "magic-link" | "phone-number" | "one-tap" | "anonymous" | "multi-session" | "one-time-token" | "oauth-provider" | "generic-oauth" | "open-api" | "organization" | "jwt" | "two-factor"
 
 /**
  * Complete schema mapping of all models to their types.
@@ -252,7 +286,8 @@ export type BetterAuthFullSchema = {
   "verification": Verification
   "apikey": Apikey
   "passkey": Passkey
-  "oauthApplication": OauthApplication
+  "oauthClient": OauthClient
+  "oauthRefreshToken": OauthRefreshToken
   "oauthAccessToken": OauthAccessToken
   "oauthConsent": OauthConsent
   "organization": Organization

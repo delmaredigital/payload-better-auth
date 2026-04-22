@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-04-21
+
+### Breaking
+
+- **Better Auth 1.5 → 1.6 upgrade.** Peer dependency requirements raised accordingly. Consumers must upgrade `better-auth`, `@better-auth/api-key`, and `@better-auth/passkey` to `>=1.6.0`. Upstream breaking changes surfaced in this release:
+  - **`twoFactor` table: new `verified` column.** Better Auth 1.6.2 added a `verified` boolean field (default `true`) to the `twoFactor` schema to prevent unverified TOTP enrollment from blocking sign-in. Consumers using the `twoFactor` plugin **must run a Payload schema migration** to add the column. Existing rows do not need backfill — the column defaults to `true`.
+  - **`session.freshAge` calculation changed.** Better Auth 1.6.0 now computes `freshAge` from `session.createdAt` instead of `updatedAt`. To disable the check entirely, set `session: { freshAge: 0 }`. Not used internally by this library, but consumers relying on the prior behavior should review their `freshAge` config.
+- **Client exports widened for declaration-emit portability.** Better Auth 1.6's zod v4 adoption made the inferred plugin/client types non-portable under `tsc --emitDeclarationOnly`. To restore a stable public API surface:
+  - `payloadAuthPlugins` is now typed as `BetterAuthClientPlugin[]` (was an `as const` tuple).
+  - `createPayloadAuthClient()` return type is now `PayloadAuthClient = ReturnType<typeof createAuthClient>`.
+  - **Consumer impact:** the returned client no longer narrows to expose plugin-specific methods (e.g. `client.twoFactor.verifyTotp`) via this helper. Consumers who need typed plugin methods should call `createAuthClient` directly with `twoFactorClient()` passed explicitly, e.g. `createAuthClient({ plugins: [twoFactorClient()] })`.
+- **Schema type exports migrated from `oidcProvider` → `@better-auth/oauth-provider`.** The type-generation script now uses the actively maintained plugin since `oidcProvider` is deprecated in Better Auth 1.6 and will be removed in the next major. This changes the shape of OAuth-related generated types:
+  - `OauthApplication` type **removed**. Replaced by `OauthClient` with a substantially different field set (adds `scopes`, `redirectUris` array, `postLogoutRedirectUris`, `tokenEndpointAuthMethod`, `grantTypes`, `responseTypes`, `public`, `requirePKCE`, `referenceId`, `contacts`, `tos`, `policy`, `softwareId`/`Version`/`Statement`, etc.; drops `redirectUrls` singular, `metadata` becomes `unknown`).
+  - **New** `OauthRefreshToken` type — refresh tokens now live in their own model with `token`, `clientId`, `sessionId`, `referenceId`, `authTime`, `scopes` fields.
+  - `OauthAccessToken` fields changed: `accessToken`/`refreshToken` → `token`/`refreshId`, added `sessionId`/`referenceId`, `scopes` is now `string[]` (was `string`).
+  - `OauthConsent` fields changed: removed `consentGiven`, added `referenceId`, `scopes` is now `string[]`.
+  - `PluginId` string union: `"oidc-provider"` → `"oauth-provider"`.
+  - `ModelKey`: `"oauthApplication"` removed; `"oauthClient"` and `"oauthRefreshToken"` added.
+  - **Consumer impact:** consumers still using `oidcProvider()` at runtime will continue to function (the runtime collection generator reads from `getAuthTables()` and reflects whichever plugin is configured), but the statically generated types now reflect `oauth-provider`'s schema. Consumers narrowing on `PluginId`/`ModelKey` or importing `OauthApplication` must update to the new names. Recommended: migrate to `@better-auth/oauth-provider` and run the corresponding Payload schema migration.
+
+### Changed
+
+- **Dependency bumps.** `@payloadcms/next` and `@payloadcms/ui` 3.78 → 3.83, `next` 16.1.6 → 16.2.4, `react` 19.2.4 → 19.2.5, plus minor bumps to `@swc/core`/`@swc/cli`, `@types/node`.
+- **Generated types regenerated against Better Auth 1.6.6 schema.** `TwoFactorFields.verified?: boolean` added.
+
+### Fixed
+
+- **`tsc --emitDeclarationOnly` build no longer fails with TS2742 / TS7056.** Better Auth 1.6 moved to zod v4 internally, which caused the previously inferred types of `payloadAuthPlugins` and `createPayloadAuthClient` to reference `.pnpm/zod@.../v4/core` — a non-portable path that broke declaration emission. Resolved via the explicit type annotations described above under Breaking.
+
+### Added
+
+- **`@better-auth/oauth-provider`** as a devDependency for type generation. Not a runtime dependency — it is only imported by `src/scripts/generate-types.ts` to produce accurate schema types.
+
+### Known Issues
+
+- **Pre-existing test failure in `tests/adapter/adapter.test.ts`** (`should default to number ID type without warning when generateId is undefined`) — this test was already failing on v0.6.10 and is not introduced by this release. The adapter warns whenever `idType === 'number'` and `generateId !== 'serial'`; the test's comment asserts that `disableIdGeneration: true` should suppress the warning, but the implementation doesn't gate on that. Tracking separately.
+
 ## [0.6.10] - 2026-04-16
 
 ### Fixed
