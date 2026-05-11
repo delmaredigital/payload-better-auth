@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-05-11
+
+### Changed
+
+- **Better Auth bumped 1.6.6 → 1.6.10.** Patch-level upgrade — no breaking changes and no adapter/plugin code changes required. Dev/peer dependency versions updated for `better-auth`, `@better-auth/api-key`, `@better-auth/oauth-provider`, and `@better-auth/passkey`. Consumer-facing fixes inherited from upstream:
+  - **OAuth provider:** generated schemas now include FK indexes on referenced fields — consumers running the `@better-auth/oauth-provider` plugin should generate a fresh Payload migration to capture them.
+  - **Stripe plugin:** subscription lifecycle hooks (`onSubscriptionUpdate`, `onSubscriptionCancel`, `onTrialEnd`, `onTrialExpired`) now receive the post-update subscription row instead of a stale snapshot.
+  - **Auth flows:** duplicate `Set-Cookie` headers removed from social sign-in and magic-link redirects; `useSession` now revalidates after admin impersonation toggles; `callbackURL` honored on `signIn.username`; OAuth provider `prompt=login` is now correctly enforced after consent continuation.
+  - **OAuth:** `mapProfileToUser` fallback fixed for providers that omit `email`; OAuth callbacks no longer link accounts under an `undefined` provider account ID.
+  - **Organization plugin:** `cancelPendingInvitationsOnReInvite` now functions; dynamic access control roles accepted in invitations; `useActiveMemberRole` no longer retains a stale role after sign-out; `setActiveTeam` validates team membership against the active organization.
+  - **Misc:** `additionalFields` TS2742 type error in the organization plugin resolved; SAML2 `/sso/saml2/sp/metadata` works with `defaultSSO`; passkey autofill returns a handled cancellation instead of an unhandled error.
+
 ## [0.7.0] - 2026-04-21
 
 ### Breaking
