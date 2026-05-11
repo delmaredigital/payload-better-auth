@@ -167,26 +167,27 @@ describe('payloadAdapter', () => {
       expect(adapter).toBeDefined()
     })
 
-    it('should default to number ID type without warning when generateId is undefined', () => {
+    it('should default to number ID type and warn when generateId is undefined', () => {
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
       const factory = payloadAdapter({
         payloadClient: mockPayload,
       })
 
-      // Use options WITHOUT generateId - should work without warning
-      // because disableIdGeneration: true handles this case
-      const optionsWithoutSerial: BetterAuthOptions = {
+      const optionsWithoutGenerateId: BetterAuthOptions = {
         database: {} as any,
         baseURL: 'http://localhost:3000',
         secret: 'test-secret',
       }
 
-      const adapter = factory(optionsWithoutSerial)
+      const adapter = factory(optionsWithoutGenerateId)
       expect(adapter).toBeDefined()
 
-      // No warning should appear - disableIdGeneration handles undefined case
-      expect(consoleSpy).not.toHaveBeenCalled()
+      // Warning is expected: Better Auth's factory needs `generateId: 'serial'`
+      // to coerce relationship FK values to numbers when Payload uses SERIAL IDs.
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('generateId')
+      )
 
       consoleSpy.mockRestore()
     })
