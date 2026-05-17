@@ -100,7 +100,7 @@
     "@payloadcms/next": ">=3.69.0",
     "@payloadcms/ui": ">=3.69.0",
     "better-auth": ">=1.6.0",
-    "next": ">=15.4.8",
+    "next": ">=15.5.16",
     "payload": ">=3.69.0",
     "react": ">=19.2.1"
   },
@@ -124,7 +124,7 @@
     "@types/react": "^19.2.14",
     "@vitest/coverage-v8": "^2.1.9",
     "better-auth": "^1.6.10",
-    "next": "^16.2.4",
+    "next": "^16.2.5",
     "payload": "^3.83.0",
     "react": "^19.2.5",
     "tsx": "^4.21.0",

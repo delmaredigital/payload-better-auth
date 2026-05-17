@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.2] - 2026-05-16
+
+### Security
+
+- **Raised minimum `next` peer dependency to `>=15.5.16`** to mitigate [CVE-2026-44574](https://github.com/vercel/next.js/security/advisories/GHSA-492v-c6pp-mqqv) — a high-severity middleware/proxy bypass via dynamic route parameter injection affecting Next.js `15.4.0–15.5.15` and `16.0.0–16.2.4`. Fixed upstream in `15.5.16` and `16.2.5`. Dev dependency bumped `next` `16.2.4 → ^16.2.5` (resolves to `16.2.6`). This library doesn't ship middleware, but consumers using `betterAuthStrategy()` for route protection on vulnerable Next.js versions are exposed.
+
 ## [0.7.1] - 2026-05-11
 
 ### Changed
