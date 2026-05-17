@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.3] - 2026-05-16
+
+### Changed
+
+- **Payload bumped 3.83.0 → 3.84.1.** Patch-level upgrade — no breaking changes and no adapter/plugin code changes required. Dev dependency versions updated for `payload`, `@payloadcms/next`, and `@payloadcms/ui`. All tests pass against the new version.
+
 ## [0.7.2] - 2026-05-16
 
 ### Security
