@@ -35,6 +35,7 @@ export function TwoFactorManagementClient({
   const [backupCodes, setBackupCodes] = useState<string[]>([])
   const [verificationCode, setVerificationCode] = useState('')
   const [password, setPassword] = useState('')
+  const [passwordAction, setPasswordAction] = useState<'enable' | 'disable'>('enable')
   const [actionLoading, setActionLoading] = useState(false)
 
   const getClient = () => providedClient ?? createPayloadAuthClient()
@@ -64,9 +65,18 @@ export function TwoFactorManagementClient({
 
   function handleEnableClick() {
     // Show password prompt first
+    setPasswordAction('enable')
     setStep('password')
     setPassword('')
     setError(null)
+  }
+
+  function handlePasswordContinue() {
+    if (passwordAction === 'disable') {
+      void handleDisableWithPassword()
+    } else {
+      void handleEnableWithPassword()
+    }
   }
 
   async function handleEnableWithPassword() {
@@ -121,22 +131,33 @@ export function TwoFactorManagementClient({
     }
   }
 
-  async function handleDisable() {
+  function handleDisableClick() {
     if (!confirm('Are you sure you want to disable two-factor authentication?')) {
       return
     }
+    // Better Auth's /two-factor/disable requires the account password.
+    // Prompt for it instead of sending an empty string (which fails with
+    // "Invalid password" before the real password is ever checked).
+    setPasswordAction('disable')
+    setStep('password')
+    setPassword('')
+    setError(null)
+  }
 
+  async function handleDisableWithPassword() {
     setActionLoading(true)
     setError(null)
 
     try {
       const client = getClient()
-      const result = await client.twoFactor.disable({ password: '' })
+      const result = await client.twoFactor.disable({ password })
 
       if (result.error) {
         setError(result.error.message ?? 'Failed to disable 2FA')
       } else {
         setIsEnabled(false)
+        setPassword('')
+        setStep('status')
         onComplete?.()
       }
     } catch {
@@ -170,7 +191,7 @@ export function TwoFactorManagementClient({
           <Button
             buttonStyle={isEnabled ? 'error' : 'secondary'}
             size="small"
-            onClick={isEnabled ? handleDisable : handleEnableClick}
+            onClick={isEnabled ? handleDisableClick : handleEnableClick}
             disabled={actionLoading}
           >
             {actionLoading ? 'Loading...' : isEnabled ? 'Disable' : 'Enable'}
@@ -181,13 +202,13 @@ export function TwoFactorManagementClient({
       {step === 'password' && (
         <div>
           <p className="field-description">
-            Enter your password to enable two-factor authentication.
+            Enter your password to {passwordAction === 'disable' ? 'disable' : 'enable'} two-factor authentication.
           </p>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && password) { e.preventDefault(); handleEnableWithPassword() } }}
+            onKeyDown={(e) => { if (e.key === 'Enter' && password) { e.preventDefault(); handlePasswordContinue() } }}
             placeholder="Enter your password"
             className="field-type__wrap"
             style={{
@@ -206,10 +227,12 @@ export function TwoFactorManagementClient({
             <Button
               buttonStyle="primary"
               size="small"
-              onClick={handleEnableWithPassword}
+              onClick={handlePasswordContinue}
               disabled={actionLoading || !password}
             >
-              {actionLoading ? 'Enabling...' : 'Continue'}
+              {actionLoading
+                ? passwordAction === 'disable' ? 'Disabling...' : 'Enabling...'
+                : 'Continue'}
             </Button>
             <Button
               buttonStyle="secondary"

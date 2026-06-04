@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.4] - 2026-06-03
+
+### Fixed
+
+- **Disabling two-factor authentication from the admin no longer fails with "Invalid password".** `TwoFactorManagementClient` was calling `client.twoFactor.disable({ password: '' })` with a hardcoded empty string, so Better Auth's `/two-factor/disable` rejected the request with a `400 INVALID_PASSWORD` before the real password was ever checked. The disable flow now prompts for the account password (mirroring the enable flow) and submits it. Enabling 2FA was unaffected.
+
 ## [0.7.3] - 2026-05-16
 
 ### Changed
