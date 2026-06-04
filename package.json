@@ -122,14 +122,15 @@
     "@swc/core": "^1.15.30",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
-    "@vitest/coverage-v8": "^2.1.9",
+    "@vitest/coverage-v8": "^4.1.8",
     "better-auth": "^1.6.10",
     "next": "^16.2.5",
     "payload": "^3.84.1",
     "react": "^19.2.5",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vitest": "^2.1.9"
+    "vite": "^7.3.5",
+    "vitest": "^4.1.8"
   },
   "keywords": [
     "payload",
