@@ -11,6 +11,7 @@
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
+  color-scheme: dark;
   --bg: #010919;
   --bg-raised: #041020;
   --bg-surface: #0d1b2d;
@@ -25,6 +26,9 @@
   --accent-glow: rgba(0, 178, 179, 0.08);
   --code-bg: #000514;
   --code-border: #051223;
+  --code-text: #e8f0f3;
+  --header-bg: rgba(1, 9, 25, 0.82);
+  --nav-mobile-bg: rgba(1, 9, 25, 0.92);
   --success: #4ade80;
   --warning: #fbbf24;
   --danger: #f87171;
@@ -35,6 +39,28 @@
   --font-mono: 'DM Mono', 'SF Mono', monospace;
   --radius: 8px;
   --radius-sm: 5px;
+}
+
+/* Light theme. Code blocks intentionally stay dark in both themes so the
+   syntax-highlight palette (.hl-*) and code text stay readable — only the
+   page chrome switches. --code-bg/--code-border/--code-text keep the dark
+   defaults above by not being overridden here. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #ffffff;
+  --bg-raised: #f7f9fb;
+  --bg-surface: #eef2f6;
+  --bg-hover: #e4ebf1;
+  --border: #d7dfe7;
+  --border-subtle: #e8edf2;
+  --text: #0d1b2d;
+  --text-secondary: #44535f;
+  --text-muted: #6b7884;
+  --accent: #008789;
+  --accent-dim: #006d6e;
+  --accent-glow: rgba(0, 135, 137, 0.10);
+  --header-bg: rgba(255, 255, 255, 0.82);
+  --nav-mobile-bg: rgba(255, 255, 255, 0.94);
 }
 
 html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-h) + 24px); }
@@ -53,7 +79,7 @@ body {
   position: fixed;
   top: 0; left: 0; right: 0;
   height: var(--header-h);
-  background: rgba(1, 9, 25, 0.82);
+  background: var(--header-bg);
   backdrop-filter: blur(16px) saturate(1.4);
   -webkit-backdrop-filter: blur(16px) saturate(1.4);
   border-bottom: 1px solid var(--border-subtle);
@@ -127,6 +153,26 @@ body {
 }
 
 .menu-toggle svg { display: block; }
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+.theme-toggle:hover { color: var(--text); background: var(--bg-hover); }
+.theme-toggle svg { display: block; }
+/* Default (dark) shows the sun (tap → light); light theme shows the moon.
+   Selectors are scoped to .theme-toggle so they outrank `.theme-toggle svg`. */
+.theme-toggle .theme-icon-moon { display: none; }
+:root[data-theme="light"] .theme-toggle .theme-icon-sun { display: none; }
+:root[data-theme="light"] .theme-toggle .theme-icon-moon { display: block; }
 
 /* ── SEARCH ── */
 .search-wrap {
@@ -380,7 +426,7 @@ pre {
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.65;
-  color: var(--text);
+  color: var(--code-text);
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
@@ -601,7 +647,7 @@ details .details-body > :first-child { margin-top: 0; }
 .install-block code {
   flex: 1;
   background: none;
-  color: var(--text);
+  color: var(--code-text);
   padding: 0;
 }
 
@@ -626,7 +672,7 @@ details .details-body > :first-child { margin-top: 0; }
   position: fixed;
   top: var(--header-h);
   left: 0; right: 0; bottom: 0;
-  background: rgba(1, 9, 25, 0.92);
+  background: var(--nav-mobile-bg);
   backdrop-filter: blur(8px);
   z-index: 200;
   overflow-y: auto;
@@ -723,6 +769,18 @@ details .details-body > :first-child { margin-top: 0; }
   th, td { padding: 8px 10px; }
 }
 </style>
+<script>
+  // Apply the saved (or OS-preferred) theme before first paint to avoid a flash.
+  (function () {
+    try {
+      var stored = localStorage.getItem('pp-docs-theme');
+      var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      document.documentElement.setAttribute('data-theme', stored || (prefersLight ? 'light' : 'dark'));
+    } catch (e) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  })();
+</script>
 </head>
 <body>
 
@@ -734,7 +792,7 @@ details .details-body > :first-child { margin-top: 0; }
   <div class="header-brand">
     <span>payload</span>-better-auth
   </div>
-  <span class="header-badge">v0.5.6</span>
+  <span class="header-badge">v0.7.4</span>
 
   <div class="search-wrap">
     <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -743,6 +801,10 @@ details .details-body > :first-child { margin-top: 0; }
   </div>
 
   <div class="header-links">
+    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light and dark theme" title="Toggle theme">
+      <svg class="theme-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      <svg class="theme-icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
     <a href="https://github.com/delmaredigital/payload-better-auth">GitHub</a>
     <a href="https://www.npmjs.com/package/@delmaredigital/payload-better-auth">npm</a>
     <a href="https://demo.delmaredigital.com" class="cta">Live Demo</a>
@@ -831,7 +893,7 @@ details .details-body > :first-child { margin-top: 0; }
           <tr><td><code>@payloadcms/next</code></td><td>&ge; 3.69.0</td></tr>
           <tr><td><code>@payloadcms/ui</code></td><td>&ge; 3.69.0</td></tr>
           <tr><td><code>better-auth</code></td><td>&ge; 1.6.0</td></tr>
-          <tr><td><code>next</code></td><td>&ge; 15.4.8</td></tr>
+          <tr><td><code>next</code></td><td>&ge; 15.5.16</td></tr>
           <tr><td><code>react</code></td><td>&ge; 19.2.1</td></tr>
         </tbody>
       </table>
@@ -1739,6 +1801,14 @@ admin: { login: { enablePasskey: <span class="hl-const">true</span> } }
 </button>
 
 <script>
+// ── Theme toggle (light/dark) ──
+function toggleTheme() {
+  var root = document.documentElement;
+  var next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+  root.setAttribute('data-theme', next);
+  try { localStorage.setItem('pp-docs-theme', next); } catch (e) {}
+}
+
 // ── Sidebar toggle (mobile) ──
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
