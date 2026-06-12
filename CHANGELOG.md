@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.5] - 2026-06-12
+
+### Added
+
+- **Magic-link and email-OTP sign-in in the admin `LoginView`.** The generated login view now surfaces "Email me a link" (magic-link) and "Email me a code" (email-OTP) options, auto-detected when the Better Auth `magicLink()` / `emailOTP()` plugins are configured. Server-side plugin wiring and email delivery remain the integrator's responsibility. New `admin.login` options (each `boolean | 'auto'`, default `'auto'`): `enableMagicLink`, `enableEmailOtp`, plus `magicLinkCallbackURL`.
+- **Passwordless-only login.** New `admin.login.enablePassword` option (`boolean | 'auto'`, default `'auto'`) hides the password field when the email/password strategy is disabled (`emailAndPassword.enabled: false`), promoting a passwordless method to the primary sign-in action. Resolves [#20](https://github.com/delmaredigital/payload-better-auth/issues/20).
+
+### Changed
+
+- **Better Auth bumped 1.6.14 → 1.6.17** (dev dependencies `better-auth`, `@better-auth/api-key`, `@better-auth/passkey`, `@better-auth/oauth-provider`). Patch-level upgrade — no breaking changes and no adapter code changes required; the adapter's `updateMany` already returns affected-row counts per the 1.6.17 adapter contract, and the new optional `incrementOne` method falls back transparently. Peer floor remains `>=1.6.0`. Upstream is predominantly security hardening (atomic single-use tokens/counters, OAuth/SSO provider identity validation, rate-limit correctness).
+
 ## [0.7.4] - 2026-06-03
 
 ### Fixed
