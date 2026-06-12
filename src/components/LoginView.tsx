@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation.js'
 import { createAuthClient } from 'better-auth/react'
-import { twoFactorClient } from 'better-auth/client/plugins'
+import { twoFactorClient, magicLinkClient, emailOTPClient } from 'better-auth/client/plugins'
 import { hasAnyRole, hasAllRoles, normalizeRoles } from '../utils/access.js'
+import { resolveAvailability, pickPrimaryMethod } from '../utils/loginMethods.js'
 import { useConfig } from '@payloadcms/ui'
 
 export type LoginViewProps = {
@@ -62,6 +63,28 @@ export type LoginViewProps = {
    * The reset token will be appended as ?token=xxx
    */
   resetPasswordUrl?: string
+  /**
+   * Enable email + password sign-in.
+   * - true: Always show the password field
+   * - false: Hide the password field (passwordless-only)
+   * - 'auto' (default): Auto-detect via the /sign-in/email endpoint
+   */
+  enablePassword?: boolean | 'auto'
+  /**
+   * Enable magic-link sign-in ("email me a link").
+   * - true / false / 'auto' (default: auto-detect via /sign-in/magic-link)
+   */
+  enableMagicLink?: boolean | 'auto'
+  /**
+   * Enable email-OTP sign-in ("email me a code").
+   * - true / false / 'auto' (default: auto-detect via /email-otp/send-verification-otp)
+   */
+  enableEmailOtp?: boolean | 'auto'
+  /**
+   * Where the emailed magic link returns after verification.
+   * Default: afterLoginPath
+   */
+  magicLinkCallbackURL?: string
 }
 
 /**
@@ -91,7 +114,14 @@ function checkUserRoles(
  * Full login page component matching Payload's admin theme.
  * Registered as a custom admin view at /admin/login.
  */
-type ViewMode = 'login' | 'register' | 'forgotPassword' | 'resetSent' | 'twoFactor'
+type ViewMode =
+  | 'login'
+  | 'register'
+  | 'forgotPassword'
+  | 'resetSent'
+  | 'twoFactor'
+  | 'emailOtp'
+  | 'magicLinkSent'
 
 export function LoginView({
   authClient: providedClient,
@@ -105,6 +135,10 @@ export function LoginView({
   defaultSignUpRole = 'user',
   enableForgotPassword = 'auto',
   resetPasswordUrl,
+  enablePassword = 'auto',
+  enableMagicLink = 'auto',
+  enableEmailOtp = 'auto',
+  magicLinkCallbackURL,
 }: LoginViewProps) {
   const router = useRouter()
 
@@ -132,6 +166,17 @@ export function LoginView({
   const [signUpAvailable, setSignUpAvailable] = useState(enableSignUp === true)
   const [forgotPasswordAvailable, setForgotPasswordAvailable] = useState(enableForgotPassword === true)
 
+  // Probe results for the new methods (null = not yet probed).
+  // Password is optimistic (shown until a 404 proves the strategy is disabled);
+  // magic-link and email-OTP stay hidden until a probe confirms availability.
+  const [passwordProbe, setPasswordProbe] = useState<boolean | null>(true)
+  const [magicLinkProbe, setMagicLinkProbe] = useState<boolean | null>(null)
+  const [emailOtpProbe, setEmailOtpProbe] = useState<boolean | null>(null)
+
+  // Email-OTP code entry state
+  const [otp, setOtp] = useState('')
+  const [otpLoading, setOtpLoading] = useState(false)
+
   // Two-factor authentication state
   const [totpCode, setTotpCode] = useState('')
   const [totpLoading, setTotpLoading] = useState(false)
@@ -143,7 +188,7 @@ export function LoginView({
     if (clientRef.current) return clientRef.current
     const { passkeyClient } = await import('@better-auth/passkey/client')
     clientRef.current = createAuthClient({
-      plugins: [twoFactorClient(), passkeyClient()],
+      plugins: [twoFactorClient(), magicLinkClient(), emailOTPClient(), passkeyClient()],
     })
     return clientRef.current
   }
@@ -237,6 +282,30 @@ export function LoginView({
       setForgotPasswordAvailable(enableForgotPassword === true)
     }
   }, [enableForgotPassword])
+
+  // Auto-detect password (email) sign-in availability if set to 'auto'
+  useEffect(() => {
+    if (enablePassword !== 'auto') return
+    fetch(`${apiRoute}/auth/sign-in/email`, { method: 'OPTIONS', credentials: 'include' })
+      .then((res) => setPasswordProbe(res.status !== 404))
+      .catch(() => setPasswordProbe(true)) // core method: assume available on probe error
+  }, [enablePassword])
+
+  // Auto-detect magic-link availability if set to 'auto'
+  useEffect(() => {
+    if (enableMagicLink !== 'auto') return
+    fetch(`${apiRoute}/auth/sign-in/magic-link`, { method: 'OPTIONS', credentials: 'include' })
+      .then((res) => setMagicLinkProbe(res.status !== 404))
+      .catch(() => setMagicLinkProbe(false)) // optional method: assume unavailable on error
+  }, [enableMagicLink])
+
+  // Auto-detect email-OTP availability if set to 'auto'
+  useEffect(() => {
+    if (enableEmailOtp !== 'auto') return
+    fetch(`${apiRoute}/auth/email-otp/send-verification-otp`, { method: 'OPTIONS', credentials: 'include' })
+      .then((res) => setEmailOtpProbe(res.status !== 404))
+      .catch(() => setEmailOtpProbe(false))
+  }, [enableEmailOtp])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
