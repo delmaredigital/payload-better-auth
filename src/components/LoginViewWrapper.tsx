@@ -27,6 +27,10 @@ export async function LoginViewWrapper({ initPageResult }: LoginViewWrapperProps
       defaultSignUpRole={loginConfig.defaultSignUpRole}
       enableForgotPassword={loginConfig.enableForgotPassword}
       resetPasswordUrl={loginConfig.resetPasswordUrl}
+      enablePassword={loginConfig.enablePassword}
+      enableMagicLink={loginConfig.enableMagicLink}
+      enableEmailOtp={loginConfig.enableEmailOtp}
+      magicLinkCallbackURL={loginConfig.magicLinkCallbackURL}
       title={loginConfig.title}
     />
   )

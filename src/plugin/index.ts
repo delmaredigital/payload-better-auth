@@ -90,6 +90,36 @@ export type BetterAuthPluginAdminOptions = {
      * instead of showing the inline password reset form.
      */
     resetPasswordUrl?: string
+    /**
+     * Enable email + password sign-in.
+     * - true: Always show the password field
+     * - false: Hide the password field (passwordless-only)
+     * - 'auto': Auto-detect via the /sign-in/email endpoint
+     * Default: 'auto' - LoginView hides the password field when the email/password
+     * strategy is disabled in Better Auth.
+     */
+    enablePassword?: boolean | 'auto'
+    /**
+     * Enable magic-link sign-in ("email me a link").
+     * - true: Always show the magic-link option
+     * - false: Never show it
+     * - 'auto': Auto-detect via the /sign-in/magic-link endpoint
+     * Default: 'auto' - requires the Better Auth magicLink() plugin.
+     */
+    enableMagicLink?: boolean | 'auto'
+    /**
+     * Enable email-OTP sign-in ("email me a code").
+     * - true: Always show the email-OTP option
+     * - false: Never show it
+     * - 'auto': Auto-detect via the /email-otp/send-verification-otp endpoint
+     * Default: 'auto' - requires the Better Auth emailOTP() plugin.
+     */
+    enableEmailOtp?: boolean | 'auto'
+    /**
+     * Where the emailed magic link returns after verification.
+     * Default: afterLoginPath
+     */
+    magicLinkCallbackURL?: string
   }
   /** Path to custom logout button component (import map format) */
   logoutButtonComponent?: string
