@@ -68,10 +68,14 @@ export type PayloadAuthClient = ReturnType<typeof createAuthClient>
  * ```
  */
 export function createPayloadAuthClient(options?: PayloadAuthClientOptions): PayloadAuthClient {
+  // `payloadAuthPlugins` is intentionally widened to `BetterAuthClientPlugin[]` for
+  // declaration-emit portability. That widening makes the inferred return type drop
+  // some base-client methods (e.g. `refreshToken`, present at runtime) relative to the
+  // zero-arg `ReturnType<typeof createAuthClient>`, so we cast back to the stable type.
   return createAuthClient({
     baseURL:
       options?.baseURL ??
       (typeof window !== 'undefined' ? window.location.origin : ''),
     plugins: [...payloadAuthPlugins],
-  })
+  }) as unknown as PayloadAuthClient
 }

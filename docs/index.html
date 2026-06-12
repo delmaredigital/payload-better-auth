@@ -792,7 +792,7 @@ details .details-body > :first-child { margin-top: 0; }
   <div class="header-brand">
     <span>payload</span>-better-auth
   </div>
-  <span class="header-badge">v0.7.4</span>
+  <span class="header-badge">v0.7.6</span>
 
   <div class="search-wrap">
     <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -1692,6 +1692,25 @@ admin: { login: { enablePasskey: <span class="hl-const">true</span> } }
 <span class="hl-keyword">await</span> authClient.passkey.<span class="hl-func">deletePasskey</span>({ id: passkeyId })</code></pre>
         </div>
       </details>
+    </div>
+
+    <div class="section" id="passwordless">
+      <h3>Passwordless Sign-In (Magic Link &amp; Email OTP)</h3>
+
+      <p>The LoginView <strong>auto-detects</strong> the Better Auth <code>magicLink()</code> and <code>emailOTP()</code> plugins and surfaces <strong>"Email me a link"</strong> / <strong>"Email me a code"</strong> options on the admin login. If your Better Auth config sets <code>emailAndPassword.enabled: false</code>, the password field is hidden automatically and a passwordless method becomes the primary action.</p>
+
+      <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// Each option defaults to 'auto' (show iff the matching plugin is installed).</span>
+<span class="hl-comment">// Force on/off or hide the password field for passwordless-only sign-in:</span>
+admin: {
+  login: {
+    enableMagicLink: <span class="hl-string">'auto'</span>,   <span class="hl-comment">// requires magicLink() plugin</span>
+    enableEmailOtp: <span class="hl-string">'auto'</span>,    <span class="hl-comment">// requires emailOTP() plugin</span>
+    enablePassword: <span class="hl-const">false</span>,     <span class="hl-comment">// hide password field (passwordless-only)</span>
+    magicLinkCallbackURL: <span class="hl-string">'/admin'</span>,
+  },
+}</code></pre>
+
+      <p>Server-side wiring stays yours: configure the <code>magicLink()</code> / <code>emailOTP()</code> plugins and their email senders in your Better Auth instance, and the UI lights up automatically. <em>Added in v0.7.5.</em></p>
     </div>
 
     <div class="section" id="security-management">

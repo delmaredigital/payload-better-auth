@@ -178,7 +178,7 @@ export default async function Dashboard() {
 
 ---
 
-For MongoDB setup, API reference, customization, access control helpers, API key scopes, plugin compatibility, UI components (2FA, passkeys, password reset), recipes, and types — see the **[full documentation](https://delmaredigital.github.io/payload-better-auth/)**.
+For MongoDB setup, API reference, customization, access control helpers, API key scopes, plugin compatibility, UI components (2FA, passkeys, password reset, passwordless login via magic-link & email-OTP), recipes, and types — see the **[full documentation](https://delmaredigital.github.io/payload-better-auth/)**.
 
 ## License
 

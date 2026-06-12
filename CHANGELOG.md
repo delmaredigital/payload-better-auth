@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.6] - 2026-06-12
+
+### Changed
+
+- **Better Auth dev dependencies bumped 1.6.17 → 1.6.18** (`better-auth`, `@better-auth/api-key`, `@better-auth/oauth-provider`, `@better-auth/passkey`). Patch-level; the peer floor remains `>=1.6.0`, so consumers are unaffected. Upstream is bug fixes and security hardening only.
+
+### Fixed
+
+- **`createPayloadAuthClient()` declaration build under Better Auth 1.6.18.** 1.6.18's base client type added a `refreshToken` method; because `payloadAuthPlugins` is intentionally widened to `BetterAuthClientPlugin[]` for `.d.ts` portability, the inferred return type dropped `refreshToken` and broke `tsc --emitDeclarationOnly`. The return is now cast back to the stable `PayloadAuthClient` type — the runtime client is unchanged and still exposes `refreshToken`.
+
+### Documentation
+
+- Documented passwordless admin login (magic-link & email-OTP). Added a "Passwordless Sign-In" section to the docs site, refreshed the stale version badge (was v0.7.4), and noted the new login options in the README. (The feature itself shipped in 0.7.5.)
+
 ## [0.7.5] - 2026-06-12
 
 ### Added
