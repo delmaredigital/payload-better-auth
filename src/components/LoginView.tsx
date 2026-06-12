@@ -1613,6 +1613,68 @@ export function LoginView({
     )
   }
 
+  // Resolve which methods are available and which owns the primary action
+  const passwordAvailable = resolveAvailability(enablePassword, passwordProbe)
+  const magicLinkAvailable = resolveAvailability(enableMagicLink, magicLinkProbe)
+  const emailOtpAvailable = resolveAvailability(enableEmailOtp, emailOtpProbe)
+  const primaryMethod = pickPrimaryMethod({
+    password: passwordAvailable,
+    magicLink: magicLinkAvailable,
+    emailOtp: emailOtpAvailable,
+  })
+
+  const primarySubmit =
+    primaryMethod === 'magicLink'
+      ? handleSendMagicLink
+      : primaryMethod === 'emailOtp'
+        ? handleSendEmailOtp
+        : handleSubmit
+  const primaryLabel = loading
+    ? primaryMethod === 'password'
+      ? 'Signing in...'
+      : 'Sending...'
+    : primaryMethod === 'magicLink'
+      ? 'Email me a link'
+      : primaryMethod === 'emailOtp'
+        ? 'Email me a code'
+        : 'Sign In'
+
+  // Secondary methods shown under the "or" divider (available but not the primary)
+  const secondaryMethods: Array<{
+    key: string
+    icon: string
+    label: string
+    onClick: () => void
+    busy: boolean
+  }> = []
+  if (passkeyAvailable) {
+    secondaryMethods.push({
+      key: 'passkey',
+      icon: '🔐',
+      label: passkeyLoading ? 'Authenticating...' : 'Sign in with Passkey',
+      onClick: handlePasskeySignIn,
+      busy: passkeyLoading,
+    })
+  }
+  if (magicLinkAvailable && primaryMethod !== 'magicLink') {
+    secondaryMethods.push({
+      key: 'magicLink',
+      icon: '✉',
+      label: 'Email me a link',
+      onClick: () => handleSendMagicLink(),
+      busy: false,
+    })
+  }
+  if (emailOtpAvailable && primaryMethod !== 'emailOtp') {
+    secondaryMethods.push({
+      key: 'emailOtp',
+      icon: '#️⃣',
+      label: 'Email me a code',
+      onClick: () => handleSendEmailOtp(),
+      busy: false,
+    })
+  }
+
   // Main login view
   return (
     <div
@@ -1674,7 +1736,7 @@ export function LoginView({
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={primarySubmit}>
           <div style={{ marginBottom: 'var(--base)' }}>
             <label
               htmlFor="email"
@@ -1709,6 +1771,8 @@ export function LoginView({
             />
           </div>
 
+          {passwordAvailable && (
+          <>
           <div style={{ marginBottom: 'var(--base)' }}>
             <label
               htmlFor="password"
@@ -1768,6 +1832,8 @@ export function LoginView({
               </button>
             </div>
           )}
+          </>
+          )}
 
           {error && (
             <div
@@ -1802,11 +1868,11 @@ export function LoginView({
               transition: 'opacity 150ms ease',
             }}
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {primaryLabel}
           </button>
         </form>
 
-        {passkeyAvailable && (
+        {secondaryMethods.length > 0 && (
           <>
             <div
               style={{
@@ -1816,57 +1882,57 @@ export function LoginView({
                 gap: 'calc(var(--base) * 1)',
               }}
             >
-              <div
-                style={{
-                  flex: 1,
-                  height: '1px',
-                  background: 'var(--theme-elevation-150)',
-                }}
-              />
-              <span
-                style={{
-                  color: 'var(--theme-text)',
-                  opacity: 0.6,
-                  fontSize: 'var(--font-size-small)',
-                }}
-              >
+              <div style={{ flex: 1, height: '1px', background: 'var(--theme-elevation-150)' }} />
+              <span style={{ color: 'var(--theme-text)', opacity: 0.6, fontSize: 'var(--font-size-small)' }}>
                 or
               </span>
-              <div
-                style={{
-                  flex: 1,
-                  height: '1px',
-                  background: 'var(--theme-elevation-150)',
-                }}
-              />
+              <div style={{ flex: 1, height: '1px', background: 'var(--theme-elevation-150)' }} />
             </div>
 
-            <button
-              type="button"
-              onClick={handlePasskeySignIn}
-              disabled={loading || passkeyLoading}
-              style={{
-                width: '100%',
-                padding: 'calc(var(--base) * 0.75)',
-                background: 'transparent',
-                border: '1px solid var(--theme-elevation-300)',
-                borderRadius: 'var(--style-radius-s)',
-                color: 'var(--theme-text)',
-                fontSize: 'var(--font-size-base)',
-                fontWeight: 500,
-                cursor: loading || passkeyLoading ? 'not-allowed' : 'pointer',
-                opacity: loading || passkeyLoading ? 0.7 : 1,
-                transition: 'opacity 150ms ease',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 'calc(var(--base) * 0.5)',
-              }}
-            >
-              <span style={{ fontSize: '18px' }}>🔐</span>
-              {passkeyLoading ? 'Authenticating...' : 'Sign in with Passkey'}
-            </button>
+            {secondaryMethods.map((method) => (
+              <button
+                key={method.key}
+                type="button"
+                onClick={method.onClick}
+                disabled={loading || passkeyLoading || method.busy}
+                style={{
+                  width: '100%',
+                  marginBottom: 'calc(var(--base) * 0.5)',
+                  padding: 'calc(var(--base) * 0.75)',
+                  background: 'transparent',
+                  border: '1px solid var(--theme-elevation-300)',
+                  borderRadius: 'var(--style-radius-s)',
+                  color: 'var(--theme-text)',
+                  fontSize: 'var(--font-size-base)',
+                  fontWeight: 500,
+                  cursor: loading || passkeyLoading || method.busy ? 'not-allowed' : 'pointer',
+                  opacity: loading || passkeyLoading || method.busy ? 0.7 : 1,
+                  transition: 'opacity 150ms ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 'calc(var(--base) * 0.5)',
+                }}
+              >
+                <span style={{ fontSize: '18px' }}>{method.icon}</span>
+                {method.label}
+              </button>
+            ))}
           </>
+        )}
+
+        {primaryMethod === null && secondaryMethods.length === 0 && (
+          <p
+            style={{
+              marginTop: 'var(--base)',
+              textAlign: 'center',
+              fontSize: 'var(--font-size-small)',
+              color: 'var(--theme-text)',
+              opacity: 0.7,
+            }}
+          >
+            No sign-in methods are currently enabled.
+          </p>
         )}
 
         {signUpAvailable && (
