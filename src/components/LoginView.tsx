@@ -497,6 +497,7 @@ export function LoginView({
     if (newView === 'login') {
       setTotpCode('')
       setConfirmPassword('')
+      setOtp('')
     } else if (newView === 'register') {
       setPassword('')
       setConfirmPassword('')
@@ -542,6 +543,85 @@ export function LoginView({
         setError(err instanceof Error ? err.message : 'Passkey authentication failed')
       }
       setPasskeyLoading(false)
+    }
+  }
+
+  async function handleSendMagicLink(e?: FormEvent) {
+    e?.preventDefault()
+    if (!email) {
+      setError('Please enter your email address first')
+      return
+    }
+    setLoading(true)
+    setError(null)
+    setSuccessMessage(null)
+    try {
+      const client = await getClient()
+      const result = await client.signIn.magicLink({
+        email,
+        callbackURL: magicLinkCallbackURL ?? afterLoginPath,
+      })
+      if (result.error) {
+        setError(result.error.message ?? 'Failed to send sign-in link')
+        setLoading(false)
+        return
+      }
+      setViewMode('magicLinkSent')
+      setLoading(false)
+    } catch {
+      setError('An error occurred. Please try again.')
+      setLoading(false)
+    }
+  }
+
+  async function handleSendEmailOtp(e?: FormEvent) {
+    e?.preventDefault()
+    if (!email) {
+      setError('Please enter your email address first')
+      return
+    }
+    setLoading(true)
+    setError(null)
+    setSuccessMessage(null)
+    try {
+      const client = await getClient()
+      const result = await client.emailOtp.sendVerificationOtp({ email, type: 'sign-in' })
+      if (result.error) {
+        setError(result.error.message ?? 'Failed to send verification code')
+        setLoading(false)
+        return
+      }
+      setOtp('')
+      setViewMode('emailOtp')
+      setLoading(false)
+    } catch {
+      setError('An error occurred. Please try again.')
+      setLoading(false)
+    }
+  }
+
+  async function handleVerifyEmailOtp(e: FormEvent) {
+    e.preventDefault()
+    setOtpLoading(true)
+    setError(null)
+    try {
+      const client = await getClient()
+      const result = await client.signIn.emailOtp({ email, otp })
+      if (result.error) {
+        setError(result.error.message ?? 'Invalid verification code')
+        setOtpLoading(false)
+        return
+      }
+      const outcome = await completeSignIn(client)
+      if (outcome === 'noSession') {
+        setError('Sign-in succeeded but session could not be verified')
+        setOtpLoading(false)
+      } else if (outcome === 'accessDenied') {
+        setOtpLoading(false)
+      }
+    } catch {
+      setError('An error occurred. Please try again.')
+      setOtpLoading(false)
     }
   }
 
@@ -768,6 +848,156 @@ export function LoginView({
               }}
             >
               {totpLoading ? 'Verifying...' : 'Verify'}
+            </button>
+          </form>
+
+          <button
+            type="button"
+            onClick={handleBackToLogin}
+            style={{
+              width: '100%',
+              marginTop: 'var(--base)',
+              padding: 'calc(var(--base) * 0.5)',
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--theme-text)',
+              opacity: 0.7,
+              fontSize: 'var(--font-size-small)',
+              cursor: 'pointer',
+            }}
+          >
+            ← Back to login
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Email-OTP code entry view
+  if (viewMode === 'emailOtp') {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--theme-bg)',
+          padding: 'var(--base)',
+        }}
+      >
+        <div
+          style={{
+            background: 'var(--theme-elevation-50)',
+            padding: 'calc(var(--base) * 2)',
+            borderRadius: 'var(--style-radius-m)',
+            boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
+            width: '100%',
+            maxWidth: '400px',
+          }}
+        >
+          {logo && (
+            <div style={{ textAlign: 'center', marginBottom: 'calc(var(--base) * 1.5)' }}>{logo}</div>
+          )}
+
+          <h1
+            style={{
+              color: 'var(--theme-text)',
+              fontSize: 'var(--font-size-h3)',
+              fontWeight: 600,
+              margin: '0 0 calc(var(--base) * 0.5) 0',
+              textAlign: 'center',
+            }}
+          >
+            Enter Your Code
+          </h1>
+
+          <p
+            style={{
+              color: 'var(--theme-text)',
+              opacity: 0.7,
+              fontSize: 'var(--font-size-small)',
+              textAlign: 'center',
+              marginBottom: 'calc(var(--base) * 1.5)',
+            }}
+          >
+            We&apos;ve sent a verification code to <strong>{email}</strong>
+          </p>
+
+          <form onSubmit={handleVerifyEmailOtp}>
+            <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
+              <label
+                htmlFor="email-otp-code"
+                style={{
+                  display: 'block',
+                  color: 'var(--theme-text)',
+                  marginBottom: 'calc(var(--base) * 0.5)',
+                  fontSize: 'var(--font-size-small)',
+                  fontWeight: 500,
+                }}
+              >
+                Verification Code
+              </label>
+              <input
+                id="email-otp-code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                required
+                placeholder="000000"
+                style={{
+                  width: '100%',
+                  padding: 'calc(var(--base) * 0.75)',
+                  background: 'var(--theme-input-bg)',
+                  border: '1px solid var(--theme-elevation-150)',
+                  borderRadius: 'var(--style-radius-s)',
+                  color: 'var(--theme-text)',
+                  fontSize: 'var(--font-size-h4)',
+                  fontFamily: 'monospace',
+                  textAlign: 'center',
+                  letterSpacing: '0.5em',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {error && (
+              <div
+                style={{
+                  color: 'var(--theme-error-500)',
+                  marginBottom: 'var(--base)',
+                  fontSize: 'var(--font-size-small)',
+                  padding: 'calc(var(--base) * 0.5)',
+                  background: 'var(--theme-error-50)',
+                  borderRadius: 'var(--style-radius-s)',
+                  border: '1px solid var(--theme-error-200)',
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={otpLoading || otp.length !== 6}
+              style={{
+                width: '100%',
+                padding: 'calc(var(--base) * 0.75)',
+                background: 'var(--theme-elevation-800)',
+                border: 'none',
+                borderRadius: 'var(--style-radius-s)',
+                color: 'var(--theme-elevation-50)',
+                fontSize: 'var(--font-size-base)',
+                fontWeight: 500,
+                cursor: otpLoading || otp.length !== 6 ? 'not-allowed' : 'pointer',
+                opacity: otpLoading || otp.length !== 6 ? 0.7 : 1,
+                transition: 'opacity 150ms ease',
+              }}
+            >
+              {otpLoading ? 'Verifying...' : 'Verify'}
             </button>
           </form>
 
@@ -1277,6 +1507,90 @@ export function LoginView({
             }}
           >
             Didn&apos;t receive the email? Check your spam folder or try again.
+          </p>
+
+          <button
+            type="button"
+            onClick={handleBackToLogin}
+            style={{
+              padding: 'calc(var(--base) * 0.75) calc(var(--base) * 1.5)',
+              background: 'var(--theme-elevation-150)',
+              border: 'none',
+              borderRadius: 'var(--style-radius-s)',
+              color: 'var(--theme-text)',
+              fontSize: 'var(--font-size-base)',
+              cursor: 'pointer',
+            }}
+          >
+            Back to login
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Magic-link sent confirmation view
+  if (viewMode === 'magicLinkSent') {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--theme-bg)',
+          padding: 'var(--base)',
+        }}
+      >
+        <div
+          style={{
+            background: 'var(--theme-elevation-50)',
+            padding: 'calc(var(--base) * 2)',
+            borderRadius: 'var(--style-radius-m)',
+            boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
+            width: '100%',
+            maxWidth: '400px',
+            textAlign: 'center',
+          }}
+        >
+          {logo && <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>{logo}</div>}
+
+          <div
+            style={{
+              width: '64px',
+              height: '64px',
+              background: 'var(--theme-success-100)',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto calc(var(--base) * 1.5)',
+              fontSize: '28px',
+            }}
+          >
+            ✉
+          </div>
+
+          <h1
+            style={{
+              color: 'var(--theme-text)',
+              fontSize: 'var(--font-size-h3)',
+              fontWeight: 600,
+              margin: '0 0 calc(var(--base) * 0.5) 0',
+            }}
+          >
+            Check Your Email
+          </h1>
+
+          <p
+            style={{
+              color: 'var(--theme-text)',
+              opacity: 0.7,
+              fontSize: 'var(--font-size-small)',
+              marginBottom: 'calc(var(--base) * 1.5)',
+            }}
+          >
+            We&apos;ve sent a sign-in link to <strong>{email}</strong>
           </p>
 
           <button
