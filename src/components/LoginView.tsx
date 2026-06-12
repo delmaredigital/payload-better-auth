@@ -307,6 +307,28 @@ export function LoginView({
       .catch(() => setEmailOtpProbe(false))
   }, [enableEmailOtp])
 
+  /**
+   * Shared post-authentication tail: re-fetch the session for complete user data
+   * (e.g. roles applied by hooks), enforce the role gate, and redirect on success.
+   * Returns the outcome so each caller can reset its own loading flag / show its own
+   * "no session" message.
+   */
+  async function completeSignIn(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    client: any,
+  ): Promise<'redirected' | 'accessDenied' | 'noSession'> {
+    const sessionResult = await client.getSession()
+    if (!sessionResult.data?.user) return 'noSession'
+    const user = sessionResult.data.user as { role?: unknown }
+    if (!checkUserRoles(user, requiredRole, requireAllRoles)) {
+      setAccessDenied(true)
+      return 'accessDenied'
+    }
+    router.push(afterLoginPath)
+    router.refresh()
+    return 'redirected'
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -335,16 +357,13 @@ export function LoginView({
       }
 
       if (result.data?.user) {
-        const user = result.data.user as { role?: unknown }
-        // Check role if required
-        if (!checkUserRoles(user, requiredRole, requireAllRoles)) {
-          setAccessDenied(true)
+        const outcome = await completeSignIn(client)
+        if (outcome === 'noSession') {
+          setError('Sign-in succeeded but session could not be verified')
           setLoading(false)
-          return
+        } else if (outcome === 'accessDenied') {
+          setLoading(false)
         }
-
-        router.push(afterLoginPath)
-        router.refresh()
       }
     } catch {
       setError('An error occurred. Please try again.')
@@ -389,22 +408,15 @@ export function LoginView({
 
       // Registration successful - either auto-signed in or need to verify email
       if (result.data?.user) {
-        // Re-fetch session to get updated user data (role may have been changed by hooks)
-        // This handles cases like firstUserAdmin where the role is set after creation
-        const sessionResult = await client.getSession()
-
-        if (sessionResult.data?.user) {
-          const user = sessionResult.data.user as { role?: unknown }
-          // Check role if required
-          if (!checkUserRoles(user, requiredRole, requireAllRoles)) {
-            setAccessDenied(true)
-            setLoading(false)
-            return
-          }
+        // Re-fetch session via completeSignIn to pick up hook-applied roles
+        // (e.g. firstUserAdmin sets the role after creation).
+        const outcome = await completeSignIn(client)
+        if (outcome === 'noSession') {
+          setError('Account created but session could not be verified. Please sign in.')
+          setLoading(false)
+        } else if (outcome === 'accessDenied') {
+          setLoading(false)
         }
-
-        router.push(afterLoginPath)
-        router.refresh()
       } else {
         // Likely requires email verification - show success and switch to login
         setSuccessMessage('Account created! Please check your email to verify your account.')
@@ -462,22 +474,15 @@ export function LoginView({
         return
       }
 
-      // Verify-totp may not return all user fields (like custom 'role')
-      // Fetch the session to get complete user data for role check
-      if (requiredRole) {
-        const sessionResult = await client.getSession()
-        if (sessionResult.data?.user) {
-          const user = sessionResult.data.user as { role?: unknown }
-          if (!checkUserRoles(user, requiredRole, requireAllRoles)) {
-            setAccessDenied(true)
-            setTotpLoading(false)
-            return
-          }
-        }
+      // verify-totp may not return all user fields (e.g. custom 'role');
+      // completeSignIn re-fetches the session for the role gate.
+      const outcome = await completeSignIn(client)
+      if (outcome === 'noSession') {
+        setError('Sign-in succeeded but session could not be verified')
+        setTotpLoading(false)
+      } else if (outcome === 'accessDenied') {
+        setTotpLoading(false)
       }
-
-      router.push(afterLoginPath)
-      router.refresh()
     } catch {
       setError('An error occurred. Please try again.')
       setTotpLoading(false)
@@ -521,24 +526,13 @@ export function LoginView({
         return
       }
 
-      // Passkey sign-in succeeded - fetch session to get full user data (including role)
-      // This is more reliable than checking result.data.user which may vary by SDK version
-      const sessionResult = await client.getSession()
-
-      if (sessionResult.data?.user) {
-        const user = sessionResult.data.user as { role?: unknown }
-        // Check role if required
-        if (!checkUserRoles(user, requiredRole, requireAllRoles)) {
-          setAccessDenied(true)
-          setPasskeyLoading(false)
-          return
-        }
-
-        router.push(afterLoginPath)
-        router.refresh()
-      } else {
-        // Session fetch failed - shouldn't happen after successful passkey auth
+      // Passkey sign-in succeeded - completeSignIn re-fetches the session for full
+      // user data (including role), more reliable than result.data.user across SDK versions.
+      const outcome = await completeSignIn(client)
+      if (outcome === 'noSession') {
         setError('Authentication succeeded but session could not be verified')
+        setPasskeyLoading(false)
+      } else if (outcome === 'accessDenied') {
         setPasskeyLoading(false)
       }
     } catch (err) {
