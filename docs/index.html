@@ -1301,6 +1301,10 @@ strategies: [<span class="hl-func">betterAuthStrategy</span>({ idType: <span cla
               <tr><td><code>admin.login.defaultSignUpRole</code></td><td><code>'user'</code></td><td>Default role for new users</td></tr>
               <tr><td><code>admin.login.enableForgotPassword</code></td><td><code>'auto'</code></td><td>Enable forgot password</td></tr>
               <tr><td><code>admin.login.resetPasswordUrl</code></td><td>&mdash;</td><td>Custom password reset URL</td></tr>
+              <tr><td><code>admin.login.enablePassword</code></td><td><code>'auto'</code></td><td>Show the email/password field. <code>false</code> (or auto-detect) hides it for passwordless-only sign-in.</td></tr>
+              <tr><td><code>admin.login.enableMagicLink</code></td><td><code>'auto'</code></td><td>Enable magic-link ("email me a link") sign-in. Requires the Better Auth <code>magicLink()</code> plugin.</td></tr>
+              <tr><td><code>admin.login.enableEmailOtp</code></td><td><code>'auto'</code></td><td>Enable email-OTP ("email me a code") sign-in. Requires the Better Auth <code>emailOTP()</code> plugin.</td></tr>
+              <tr><td><code>admin.login.magicLinkCallbackURL</code></td><td>&mdash;</td><td>Where the emailed magic link returns. Defaults to <code>afterLoginPath</code>.</td></tr>
               <tr><td><code>admin.enableManagementUI</code></td><td><code>true</code></td><td>Enable security management views</td></tr>
             </tbody>
           </table>
@@ -1542,7 +1546,8 @@ read: <span class="hl-func">requireApiKey</span>()</code></pre>
         <thead><tr><th>Plugin</th><th>Package</th><th>Notes</th></tr></thead>
         <tbody>
           <tr><td>OAuth</td><td><code>better-auth</code></td><td>Uses accounts collection</td></tr>
-          <tr><td>Magic Link</td><td><code>better-auth</code></td><td>Uses verifications collection</td></tr>
+          <tr><td>Magic Link</td><td><code>better-auth</code></td><td>Uses verifications collection &middot; login UI supported</td></tr>
+          <tr><td>Email OTP</td><td><code>better-auth</code></td><td>Uses verifications collection &middot; login UI supported</td></tr>
           <tr><td>Two-Factor</td><td><code>better-auth</code></td><td>Auto-generates twoFactors</td></tr>
           <tr><td>API Keys</td><td><code>better-auth</code></td><td>Auto-generates apikeys</td></tr>
           <tr><td>Organizations</td><td><code>better-auth</code></td><td>Auto-generates orgs, members, invitations</td></tr>
