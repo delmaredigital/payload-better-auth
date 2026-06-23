@@ -12,6 +12,7 @@ import { AuthBanner } from './login/AuthBanner.js'
 import { AuthButton } from './login/AuthButton.js'
 import { AuthField } from './login/AuthField.js'
 import { OrDivider } from './login/OrDivider.js'
+import { OtpInput } from './login/OtpInput.js'
 
 export type LoginViewProps = {
   /** Optional pre-configured auth client */
@@ -655,31 +656,7 @@ export function LoginView({
               >
                 Verification Code
               </label>
-              <input
-                id="totp-code"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                autoComplete="one-time-code"
-                value={totpCode}
-                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                required
-                placeholder="000000"
-                style={{
-                  width: '100%',
-                  padding: 'calc(var(--base) * 0.75)',
-                  background: 'var(--theme-input-bg)',
-                  border: '1px solid var(--theme-elevation-150)',
-                  borderRadius: 'var(--style-radius-s)',
-                  color: 'var(--theme-text)',
-                  fontSize: 'var(--font-size-h4)',
-                  fontFamily: 'monospace',
-                  textAlign: 'center',
-                  letterSpacing: '0.5em',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
+              <OtpInput id="totp-code" value={totpCode} onChange={setTotpCode} />
             </div>
 
             {error && <AuthBanner kind="error">{error}</AuthBanner>}
@@ -753,30 +730,7 @@ export function LoginView({
               >
                 Verification Code
               </label>
-              <input
-                id="email-otp-code"
-                type="text"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                required
-                placeholder="000000"
-                style={{
-                  width: '100%',
-                  padding: 'calc(var(--base) * 0.75)',
-                  background: 'var(--theme-input-bg)',
-                  border: '1px solid var(--theme-elevation-150)',
-                  borderRadius: 'var(--style-radius-s)',
-                  color: 'var(--theme-text)',
-                  fontSize: 'var(--font-size-h4)',
-                  fontFamily: 'monospace',
-                  textAlign: 'center',
-                  letterSpacing: '0.5em',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
+              <OtpInput id="email-otp-code" value={otp} onChange={setOtp} />
             </div>
 
             {error && <AuthBanner kind="error">{error}</AuthBanner>}
