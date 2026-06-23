@@ -9,6 +9,7 @@ import { resolveAvailability, pickPrimaryMethod } from '../utils/loginMethods.js
 import { useConfig } from '@payloadcms/ui'
 import { AuthCard } from './login/AuthCard.js'
 import { AuthBanner } from './login/AuthBanner.js'
+import { AuthField } from './login/AuthField.js'
 
 export type LoginViewProps = {
   /** Optional pre-configured auth client */
@@ -854,141 +855,10 @@ export function LoginView({
           </h1>
 
           <form onSubmit={handleSignUp}>
-            <div style={{ marginBottom: 'var(--base)' }}>
-              <label
-                htmlFor="name"
-                style={{
-                  display: 'block',
-                  color: 'var(--theme-text)',
-                  marginBottom: 'calc(var(--base) * 0.5)',
-                  fontSize: 'var(--font-size-small)',
-                  fontWeight: 500,
-                }}
-              >
-                Name
-              </label>
-              <input
-                id="name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                autoComplete="name"
-                style={{
-                  width: '100%',
-                  padding: 'calc(var(--base) * 0.75)',
-                  background: 'var(--theme-input-bg)',
-                  border: '1px solid var(--theme-elevation-150)',
-                  borderRadius: 'var(--style-radius-s)',
-                  color: 'var(--theme-text)',
-                  fontSize: 'var(--font-size-base)',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: 'var(--base)' }}>
-              <label
-                htmlFor="register-email"
-                style={{
-                  display: 'block',
-                  color: 'var(--theme-text)',
-                  marginBottom: 'calc(var(--base) * 0.5)',
-                  fontSize: 'var(--font-size-small)',
-                  fontWeight: 500,
-                }}
-              >
-                Email
-              </label>
-              <input
-                id="register-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                style={{
-                  width: '100%',
-                  padding: 'calc(var(--base) * 0.75)',
-                  background: 'var(--theme-input-bg)',
-                  border: '1px solid var(--theme-elevation-150)',
-                  borderRadius: 'var(--style-radius-s)',
-                  color: 'var(--theme-text)',
-                  fontSize: 'var(--font-size-base)',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: 'var(--base)' }}>
-              <label
-                htmlFor="register-password"
-                style={{
-                  display: 'block',
-                  color: 'var(--theme-text)',
-                  marginBottom: 'calc(var(--base) * 0.5)',
-                  fontSize: 'var(--font-size-small)',
-                  fontWeight: 500,
-                }}
-              >
-                Password
-              </label>
-              <input
-                id="register-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="new-password"
-                style={{
-                  width: '100%',
-                  padding: 'calc(var(--base) * 0.75)',
-                  background: 'var(--theme-input-bg)',
-                  border: '1px solid var(--theme-elevation-150)',
-                  borderRadius: 'var(--style-radius-s)',
-                  color: 'var(--theme-text)',
-                  fontSize: 'var(--font-size-base)',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
-              <label
-                htmlFor="confirm-password"
-                style={{
-                  display: 'block',
-                  color: 'var(--theme-text)',
-                  marginBottom: 'calc(var(--base) * 0.5)',
-                  fontSize: 'var(--font-size-small)',
-                  fontWeight: 500,
-                }}
-              >
-                Confirm Password
-              </label>
-              <input
-                id="confirm-password"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                autoComplete="new-password"
-                style={{
-                  width: '100%',
-                  padding: 'calc(var(--base) * 0.75)',
-                  background: 'var(--theme-input-bg)',
-                  border: '1px solid var(--theme-elevation-150)',
-                  borderRadius: 'var(--style-radius-s)',
-                  color: 'var(--theme-text)',
-                  fontSize: 'var(--font-size-base)',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
+            <AuthField id="name" label="Name" type="text" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
+            <AuthField id="register-email" label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+            <AuthField id="register-password" label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+            <AuthField id="confirm-password" label="Confirm Password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" />
 
             {error && <AuthBanner kind="error">{error}</AuthBanner>}
 
@@ -1073,39 +943,7 @@ export function LoginView({
           </p>
 
           <form onSubmit={handleForgotPassword}>
-            <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
-              <label
-                htmlFor="forgot-email"
-                style={{
-                  display: 'block',
-                  color: 'var(--theme-text)',
-                  marginBottom: 'calc(var(--base) * 0.5)',
-                  fontSize: 'var(--font-size-small)',
-                  fontWeight: 500,
-                }}
-              >
-                Email
-              </label>
-              <input
-                id="forgot-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                style={{
-                  width: '100%',
-                  padding: 'calc(var(--base) * 0.75)',
-                  background: 'var(--theme-input-bg)',
-                  border: '1px solid var(--theme-elevation-150)',
-                  borderRadius: 'var(--style-radius-s)',
-                  color: 'var(--theme-text)',
-                  fontSize: 'var(--font-size-base)',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
+            <AuthField id="forgot-email" label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
 
             {error && <AuthBanner kind="error">{error}</AuthBanner>}
 
@@ -1364,75 +1202,11 @@ export function LoginView({
         {successMessage && <AuthBanner kind="success">{successMessage}</AuthBanner>}
 
         <form onSubmit={primarySubmit}>
-          <div style={{ marginBottom: 'var(--base)' }}>
-            <label
-              htmlFor="email"
-              style={{
-                display: 'block',
-                color: 'var(--theme-text)',
-                marginBottom: 'calc(var(--base) * 0.5)',
-                fontSize: 'var(--font-size-small)',
-                fontWeight: 500,
-              }}
-            >
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              style={{
-                width: '100%',
-                padding: 'calc(var(--base) * 0.75)',
-                background: 'var(--theme-input-bg)',
-                border: '1px solid var(--theme-elevation-150)',
-                borderRadius: 'var(--style-radius-s)',
-                color: 'var(--theme-text)',
-                fontSize: 'var(--font-size-base)',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
+          <AuthField id="email" label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
 
           {passwordAvailable && (
           <>
-          <div style={{ marginBottom: 'var(--base)' }}>
-            <label
-              htmlFor="password"
-              style={{
-                display: 'block',
-                color: 'var(--theme-text)',
-                marginBottom: 'calc(var(--base) * 0.5)',
-                fontSize: 'var(--font-size-small)',
-                fontWeight: 500,
-              }}
-            >
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-              style={{
-                width: '100%',
-                padding: 'calc(var(--base) * 0.75)',
-                background: 'var(--theme-input-bg)',
-                border: '1px solid var(--theme-elevation-150)',
-                borderRadius: 'var(--style-radius-s)',
-                color: 'var(--theme-text)',
-                fontSize: 'var(--font-size-base)',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
+          <AuthField id="password" label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
 
           {forgotPasswordAvailable && (
             <div
