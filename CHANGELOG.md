@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.7] - 2026-06-23
+
+### Fixed
+
+- **Login-method auto-detection now resolves server-side instead of probing endpoints.** The `'auto'` mode for `enablePassword`, `enableMagicLink`, `enableEmailOtp`, `enablePasskey`, `enableSignUp`, and `enableForgotPassword` previously probed `OPTIONS /sign-in/*` from the client and treated any non-404 as "enabled". Better Auth answers **every** `OPTIONS` request with `200` (CORS preflight), so detection always reported *enabled* — surfacing magic-link / email-OTP buttons even when those plugins weren't installed, never hiding the password field when `emailAndPassword.enabled: false`, and over-showing the sign-up / forgot-password links. `LoginViewWrapper` (a server component) now reads the Better Auth instance's resolved `options` and passes concrete booleans to `LoginView`:
+  - `enablePassword` ← `emailAndPassword.enabled`
+  - `enableSignUp` ← `emailAndPassword.enabled && !disableSignUp`
+  - `enableForgotPassword` ← `emailAndPassword.enabled && sendResetPassword` configured
+  - `enablePasskey` / `enableMagicLink` / `enableEmailOtp` ← the `passkey()` / `magicLink()` / `emailOTP()` plugin being registered
+
+  Explicit `true` / `false` config still takes precedence. The client-side `OPTIONS` probes were removed; for standalone `<LoginView>` use (without the plugin wrapper), an unresolved `'auto'` now falls back to safe defaults — password shown, optional methods hidden. Thanks to [@Tasztalos69](https://github.com/Tasztalos69) for the precise report ([#20](https://github.com/delmaredigital/payload-better-auth/issues/20)).
+
 ## [0.7.6] - 2026-06-12
 
 ### Changed

@@ -143,7 +143,7 @@ export function LoginView({
   const router = useRouter()
 
   // Payload Config
-  const {config: {routes: {admin:adminRoute, api:apiRoute}}} = useConfig()
+  const {config: {routes: {admin:adminRoute}}} = useConfig()
   // View state
   const [viewMode, setViewMode] = useState<ViewMode>('login')
 
@@ -161,17 +161,18 @@ export function LoginView({
   const [checkingSession, setCheckingSession] = useState(true)
   const [accessDenied, setAccessDenied] = useState(false)
 
-  // Feature availability
-  const [passkeyAvailable, setPasskeyAvailable] = useState(enablePasskey === true)
-  const [signUpAvailable, setSignUpAvailable] = useState(enableSignUp === true)
-  const [forgotPasswordAvailable, setForgotPasswordAvailable] = useState(enableForgotPassword === true)
-
-  // Probe results for the new methods (null = not yet probed).
-  // Password is optimistic (shown until a 404 proves the strategy is disabled);
-  // magic-link and email-OTP stay hidden until a probe confirms availability.
-  const [passwordProbe, setPasswordProbe] = useState<boolean | null>(true)
-  const [magicLinkProbe, setMagicLinkProbe] = useState<boolean | null>(null)
-  const [emailOtpProbe, setEmailOtpProbe] = useState<boolean | null>(null)
+  // Which methods to show. LoginViewWrapper resolves these server-side from the
+  // Better Auth instance's options and passes concrete booleans. For standalone
+  // <LoginView> use, an unresolved 'auto' falls back to safe defaults: password
+  // shown, optional methods hidden. We no longer probe endpoints — Better Auth
+  // answers every OPTIONS request with 200 (CORS preflight), so probing could
+  // never tell whether a method was actually enabled.
+  const passwordAvailable = resolveAvailability(enablePassword, true)
+  const passkeyAvailable = resolveAvailability(enablePasskey, false)
+  const signUpAvailable = resolveAvailability(enableSignUp, false)
+  const forgotPasswordAvailable = resolveAvailability(enableForgotPassword, false)
+  const magicLinkAvailable = resolveAvailability(enableMagicLink, false)
+  const emailOtpAvailable = resolveAvailability(enableEmailOtp, false)
 
   // Email-OTP code entry state
   const [otp, setOtp] = useState('')
@@ -218,94 +219,6 @@ export function LoginView({
     checkSession()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [afterLoginPath, requiredRole, requireAllRoles, router])
-
-  // Auto-detect passkey availability if set to 'auto'
-  useEffect(() => {
-    if (enablePasskey === 'auto') {
-      // Check if passkey endpoint exists (GET request)
-      // Better Auth passkey routes are at /passkey/* (singular)
-      fetch(`${apiRoute}/auth/passkey/generate-authenticate-options`, {
-        method: 'GET',
-        credentials: 'include',
-      })
-        .then((res) => {
-          // If we get a response (even 400/401 for not authenticated), passkey is available
-          // 404 means passkey plugin is not installed
-          setPasskeyAvailable(res.status !== 404)
-        })
-        .catch(() => {
-          setPasskeyAvailable(false)
-        })
-    } else {
-      setPasskeyAvailable(enablePasskey === true)
-    }
-  }, [enablePasskey])
-
-  // Auto-detect sign up availability if set to 'auto'
-  useEffect(() => {
-    if (enableSignUp === 'auto') {
-      // Check if sign-up endpoint exists
-      fetch(`${apiRoute}/auth/sign-up/email`, {
-        method: 'OPTIONS',
-        credentials: 'include',
-      })
-        .then((res) => {
-          // 404 means sign-up is not available
-          setSignUpAvailable(res.status !== 404)
-        })
-        .catch(() => {
-          // If OPTIONS fails, try a HEAD or just assume it's available since it's a core endpoint
-          setSignUpAvailable(true)
-        })
-    } else {
-      setSignUpAvailable(enableSignUp === true)
-    }
-  }, [enableSignUp])
-
-  // Auto-detect forgot password availability if set to 'auto'
-  useEffect(() => {
-    if (enableForgotPassword === 'auto') {
-      // Check if request-password-reset endpoint exists
-      fetch(`${apiRoute}/auth/request-password-reset`, {
-        method: 'OPTIONS',
-        credentials: 'include',
-      })
-        .then((res) => {
-          // 404 means request-password-reset is not available
-          setForgotPasswordAvailable(res.status !== 404)
-        })
-        .catch(() => {
-          // If OPTIONS fails, assume it's available since it's a core endpoint
-          setForgotPasswordAvailable(true)
-        })
-    } else {
-      setForgotPasswordAvailable(enableForgotPassword === true)
-    }
-  }, [enableForgotPassword])
-
-  // Auto-detect password (email) sign-in availability if set to 'auto'
-  useEffect(() => {
-    if (enablePassword !== 'auto') return
-    fetch(`${apiRoute}/auth/sign-in/email`, { method: 'OPTIONS', credentials: 'include' })
-      .then((res) => setPasswordProbe(res.status !== 404))
-      .catch(() => setPasswordProbe(true)) // core method: assume available on probe error
-  }, [enablePassword])
-
-  // Auto-detect magic-link availability if set to 'auto'
-  useEffect(() => {
-    if (enableMagicLink !== 'auto') return
-    fetch(`${apiRoute}/auth/sign-in/magic-link`, { method: 'OPTIONS', credentials: 'include' })
-      .then((res) => setMagicLinkProbe(res.status !== 404))
-      .catch(() => setMagicLinkProbe(false)) // optional method: assume unavailable on error
-  }, [enableMagicLink])
-
-  // Auto-detect email-OTP availability if set to 'auto'
-  useEffect(() => {
-    if (enableEmailOtp !== 'auto') return
-    fetch(`${apiRoute}/auth/email-otp/send-verification-otp`, { method: 'OPTIONS', credentials: 'include' })
-      .then((res) => setEmailOtpProbe(res.status !== 404))
-      .catch(() => setEmailOtpProbe(false))
-  }, [enableEmailOtp])
 
   /**
    * Shared post-authentication tail: re-fetch the session for complete user data
@@ -1613,10 +1526,7 @@ export function LoginView({
     )
   }
 
-  // Resolve which methods are available and which owns the primary action
-  const passwordAvailable = resolveAvailability(enablePassword, passwordProbe)
-  const magicLinkAvailable = resolveAvailability(enableMagicLink, magicLinkProbe)
-  const emailOtpAvailable = resolveAvailability(enableEmailOtp, emailOtpProbe)
+  // Which method owns the primary submit button (availability resolved above)
   const primaryMethod = pickPrimaryMethod({
     password: passwordAvailable,
     magicLink: magicLinkAvailable,

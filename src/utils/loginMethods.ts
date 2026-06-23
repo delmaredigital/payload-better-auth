@@ -37,3 +37,55 @@ export function pickPrimaryMethod(available: {
   if (available.emailOtp) return 'emailOtp'
   return null
 }
+
+/** Which sign-in methods a Better Auth instance actually has enabled. */
+export interface DetectedMethods {
+  password: boolean
+  signup: boolean
+  forgotPassword: boolean
+  passkey: boolean
+  magicLink: boolean
+  emailOtp: boolean
+}
+
+/**
+ * Minimal structural shape of the Better Auth resolved options we read.
+ * Declared locally (not imported from better-auth) so this stays dependency-free
+ * and unit-testable.
+ */
+export interface AuthOptionsLike {
+  emailAndPassword?: {
+    enabled?: boolean
+    disableSignUp?: boolean
+    sendResetPassword?: unknown
+  }
+  plugins?: Array<{ id?: string } | null | undefined>
+}
+
+/**
+ * Determine which sign-in methods are enabled from a Better Auth instance's
+ * resolved `options`. This is the authoritative, server-side replacement for the
+ * old client-side endpoint probing: Better Auth answers every `OPTIONS` request
+ * with 200 (CORS preflight), so probing `OPTIONS /sign-in/*` could never tell
+ * whether a method was actually enabled.
+ *
+ * `forgotPassword` requires a configured `sendResetPassword` callback, since the
+ * reset flow can't email a link without it.
+ */
+export function detectEnabledMethods(options: AuthOptionsLike | null | undefined): DetectedMethods {
+  const ep = options?.emailAndPassword
+  const password = !!ep?.enabled
+  const pluginIds = new Set(
+    (options?.plugins ?? [])
+      .map((p) => p?.id)
+      .filter((id): id is string => typeof id === 'string'),
+  )
+  return {
+    password,
+    signup: password && !ep?.disableSignUp,
+    forgotPassword: password && !!ep?.sendResetPassword,
+    passkey: pluginIds.has('passkey'),
+    magicLink: pluginIds.has('magic-link'),
+    emailOtp: pluginIds.has('email-otp'),
+  }
+}

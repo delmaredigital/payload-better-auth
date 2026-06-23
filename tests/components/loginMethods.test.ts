@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { resolveAvailability, pickPrimaryMethod } from '../../src/utils/loginMethods.js'
+import {
+  resolveAvailability,
+  pickPrimaryMethod,
+  detectEnabledMethods,
+} from '../../src/utils/loginMethods.js'
 
 describe('resolveAvailability', () => {
   it('returns true when the setting is explicitly true, regardless of probe', () => {
@@ -38,5 +42,60 @@ describe('pickPrimaryMethod', () => {
 
   it('returns null when no method is available', () => {
     expect(pickPrimaryMethod({ password: false, magicLink: false, emailOtp: false })).toBe(null)
+  })
+})
+
+describe('detectEnabledMethods', () => {
+  it('detects password + plugin-based methods from resolved auth options', () => {
+    expect(
+      detectEnabledMethods({
+        emailAndPassword: { enabled: true },
+        plugins: [{ id: 'magic-link' }, { id: 'email-otp' }],
+      }),
+    ).toEqual({
+      password: true,
+      signup: true,
+      forgotPassword: false,
+      passkey: false,
+      magicLink: true,
+      emailOtp: true,
+    })
+  })
+
+  it('treats absent/disabled emailAndPassword as no password, signup, or forgot', () => {
+    expect(detectEnabledMethods({ plugins: [{ id: 'passkey' }] })).toEqual({
+      password: false,
+      signup: false,
+      forgotPassword: false,
+      passkey: true,
+      magicLink: false,
+      emailOtp: false,
+    })
+    expect(detectEnabledMethods({ emailAndPassword: { enabled: false } }).password).toBe(false)
+  })
+
+  it('respects disableSignUp and requires sendResetPassword for forgot-password', () => {
+    const r = detectEnabledMethods({
+      emailAndPassword: { enabled: true, disableSignUp: true, sendResetPassword: async () => {} },
+      plugins: [],
+    })
+    expect(r.password).toBe(true)
+    expect(r.signup).toBe(false)
+    expect(r.forgotPassword).toBe(true)
+  })
+
+  it('returns all-false for empty or undefined options', () => {
+    const allFalse = {
+      password: false,
+      signup: false,
+      forgotPassword: false,
+      passkey: false,
+      magicLink: false,
+      emailOtp: false,
+    }
+    expect(detectEnabledMethods(undefined)).toEqual(allFalse)
+    expect(detectEnabledMethods({})).toEqual(allFalse)
+    // tolerates malformed plugin entries
+    expect(detectEnabledMethods({ plugins: [null, undefined, { id: 'passkey' }] }).passkey).toBe(true)
   })
 })
