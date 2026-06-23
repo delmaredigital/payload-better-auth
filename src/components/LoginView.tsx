@@ -8,6 +8,7 @@ import { hasAnyRole, hasAllRoles, normalizeRoles } from '../utils/access.js'
 import { resolveAvailability, pickPrimaryMethod } from '../utils/loginMethods.js'
 import { useConfig } from '@payloadcms/ui'
 import { AuthCard } from './login/AuthCard.js'
+import { AuthBanner } from './login/AuthBanner.js'
 
 export type LoginViewProps = {
   /** Optional pre-configured auth client */
@@ -678,21 +679,7 @@ export function LoginView({
               />
             </div>
 
-            {error && (
-              <div
-                style={{
-                  color: 'var(--theme-error-500)',
-                  marginBottom: 'var(--base)',
-                  fontSize: 'var(--font-size-small)',
-                  padding: 'calc(var(--base) * 0.5)',
-                  background: 'var(--theme-error-50)',
-                  borderRadius: 'var(--style-radius-s)',
-                  border: '1px solid var(--theme-error-200)',
-                }}
-              >
-                {error}
-              </div>
-            )}
+            {error && <AuthBanner kind="error">{error}</AuthBanner>}
 
             <button
               type="submit"
@@ -805,21 +792,7 @@ export function LoginView({
               />
             </div>
 
-            {error && (
-              <div
-                style={{
-                  color: 'var(--theme-error-500)',
-                  marginBottom: 'var(--base)',
-                  fontSize: 'var(--font-size-small)',
-                  padding: 'calc(var(--base) * 0.5)',
-                  background: 'var(--theme-error-50)',
-                  borderRadius: 'var(--style-radius-s)',
-                  border: '1px solid var(--theme-error-200)',
-                }}
-              >
-                {error}
-              </div>
-            )}
+            {error && <AuthBanner kind="error">{error}</AuthBanner>}
 
             <button
               type="submit"
@@ -1017,21 +990,7 @@ export function LoginView({
               />
             </div>
 
-            {error && (
-              <div
-                style={{
-                  color: 'var(--theme-error-500)',
-                  marginBottom: 'var(--base)',
-                  fontSize: 'var(--font-size-small)',
-                  padding: 'calc(var(--base) * 0.5)',
-                  background: 'var(--theme-error-50)',
-                  borderRadius: 'var(--style-radius-s)',
-                  border: '1px solid var(--theme-error-200)',
-                }}
-              >
-                {error}
-              </div>
-            )}
+            {error && <AuthBanner kind="error">{error}</AuthBanner>}
 
             <button
               type="submit"
@@ -1148,21 +1107,7 @@ export function LoginView({
               />
             </div>
 
-            {error && (
-              <div
-                style={{
-                  color: 'var(--theme-error-500)',
-                  marginBottom: 'var(--base)',
-                  fontSize: 'var(--font-size-small)',
-                  padding: 'calc(var(--base) * 0.5)',
-                  background: 'var(--theme-error-50)',
-                  borderRadius: 'var(--style-radius-s)',
-                  border: '1px solid var(--theme-error-200)',
-                }}
-              >
-                {error}
-              </div>
-            )}
+            {error && <AuthBanner kind="error">{error}</AuthBanner>}
 
             <button
               type="submit"
@@ -1416,21 +1361,7 @@ export function LoginView({
           {title}
         </h1>
 
-        {successMessage && (
-          <div
-            style={{
-              color: 'var(--theme-success-500)',
-              marginBottom: 'var(--base)',
-              fontSize: 'var(--font-size-small)',
-              padding: 'calc(var(--base) * 0.5)',
-              background: 'var(--theme-success-50)',
-              borderRadius: 'var(--style-radius-s)',
-              border: '1px solid var(--theme-success-200)',
-            }}
-          >
-            {successMessage}
-          </div>
-        )}
+        {successMessage && <AuthBanner kind="success">{successMessage}</AuthBanner>}
 
         <form onSubmit={primarySubmit}>
           <div style={{ marginBottom: 'var(--base)' }}>
@@ -1531,21 +1462,7 @@ export function LoginView({
           </>
           )}
 
-          {error && (
-            <div
-              style={{
-                color: 'var(--theme-error-500)',
-                marginBottom: 'var(--base)',
-                fontSize: 'var(--font-size-small)',
-                padding: 'calc(var(--base) * 0.5)',
-                background: 'var(--theme-error-50)',
-                borderRadius: 'var(--style-radius-s)',
-                border: '1px solid var(--theme-error-200)',
-              }}
-            >
-              {error}
-            </div>
-          )}
+          {error && <AuthBanner kind="error">{error}</AuthBanner>}
 
           <button
             type="submit"
