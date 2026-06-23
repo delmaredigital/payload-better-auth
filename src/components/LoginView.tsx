@@ -9,6 +9,7 @@ import { resolveAvailability, pickPrimaryMethod } from '../utils/loginMethods.js
 import { useConfig } from '@payloadcms/ui'
 import { AuthCard } from './login/AuthCard.js'
 import { AuthBanner } from './login/AuthBanner.js'
+import { AuthButton } from './login/AuthButton.js'
 import { AuthField } from './login/AuthField.js'
 
 export type LoginViewProps = {
@@ -682,25 +683,9 @@ export function LoginView({
 
             {error && <AuthBanner kind="error">{error}</AuthBanner>}
 
-            <button
-              type="submit"
-              disabled={totpLoading || totpCode.length !== 6}
-              style={{
-                width: '100%',
-                padding: 'calc(var(--base) * 0.75)',
-                background: 'var(--theme-elevation-800)',
-                border: 'none',
-                borderRadius: 'var(--style-radius-s)',
-                color: 'var(--theme-elevation-50)',
-                fontSize: 'var(--font-size-base)',
-                fontWeight: 500,
-                cursor: totpLoading || totpCode.length !== 6 ? 'not-allowed' : 'pointer',
-                opacity: totpLoading || totpCode.length !== 6 ? 0.7 : 1,
-                transition: 'opacity 150ms ease',
-              }}
-            >
+            <AuthButton type="submit" disabled={totpLoading || totpCode.length !== 6}>
               {totpLoading ? 'Verifying...' : 'Verify'}
-            </button>
+            </AuthButton>
           </form>
 
           <button
@@ -795,25 +780,9 @@ export function LoginView({
 
             {error && <AuthBanner kind="error">{error}</AuthBanner>}
 
-            <button
-              type="submit"
-              disabled={otpLoading || otp.length !== 6}
-              style={{
-                width: '100%',
-                padding: 'calc(var(--base) * 0.75)',
-                background: 'var(--theme-elevation-800)',
-                border: 'none',
-                borderRadius: 'var(--style-radius-s)',
-                color: 'var(--theme-elevation-50)',
-                fontSize: 'var(--font-size-base)',
-                fontWeight: 500,
-                cursor: otpLoading || otp.length !== 6 ? 'not-allowed' : 'pointer',
-                opacity: otpLoading || otp.length !== 6 ? 0.7 : 1,
-                transition: 'opacity 150ms ease',
-              }}
-            >
+            <AuthButton type="submit" disabled={otpLoading || otp.length !== 6}>
               {otpLoading ? 'Verifying...' : 'Verify'}
-            </button>
+            </AuthButton>
           </form>
 
           <button
@@ -862,25 +831,9 @@ export function LoginView({
 
             {error && <AuthBanner kind="error">{error}</AuthBanner>}
 
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: 'calc(var(--base) * 0.75)',
-                background: 'var(--theme-elevation-800)',
-                border: 'none',
-                borderRadius: 'var(--style-radius-s)',
-                color: 'var(--theme-elevation-50)',
-                fontSize: 'var(--font-size-base)',
-                fontWeight: 500,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.7 : 1,
-                transition: 'opacity 150ms ease',
-              }}
-            >
+            <AuthButton type="submit" disabled={loading}>
               {loading ? 'Creating account...' : 'Create Account'}
-            </button>
+            </AuthButton>
           </form>
 
           <div
@@ -947,25 +900,9 @@ export function LoginView({
 
             {error && <AuthBanner kind="error">{error}</AuthBanner>}
 
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: 'calc(var(--base) * 0.75)',
-                background: 'var(--theme-elevation-800)',
-                border: 'none',
-                borderRadius: 'var(--style-radius-s)',
-                color: 'var(--theme-elevation-50)',
-                fontSize: 'var(--font-size-base)',
-                fontWeight: 500,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.7 : 1,
-                transition: 'opacity 150ms ease',
-              }}
-            >
+            <AuthButton type="submit" disabled={loading}>
               {loading ? 'Sending...' : 'Send Reset Link'}
-            </button>
+            </AuthButton>
           </form>
 
           <button
@@ -1238,25 +1175,9 @@ export function LoginView({
 
           {error && <AuthBanner kind="error">{error}</AuthBanner>}
 
-          <button
-            type="submit"
-            disabled={loading || passkeyLoading}
-            style={{
-              width: '100%',
-              padding: 'calc(var(--base) * 0.75)',
-              background: 'var(--theme-elevation-800)',
-              border: 'none',
-              borderRadius: 'var(--style-radius-s)',
-              color: 'var(--theme-elevation-50)',
-              fontSize: 'var(--font-size-base)',
-              fontWeight: 500,
-              cursor: loading || passkeyLoading ? 'not-allowed' : 'pointer',
-              opacity: loading || passkeyLoading ? 0.7 : 1,
-              transition: 'opacity 150ms ease',
-            }}
-          >
+          <AuthButton type="submit" disabled={loading || passkeyLoading}>
             {primaryLabel}
-          </button>
+          </AuthButton>
         </form>
 
         {secondaryMethods.length > 0 && (
@@ -1277,33 +1198,16 @@ export function LoginView({
             </div>
 
             {secondaryMethods.map((method) => (
-              <button
-                key={method.key}
-                type="button"
-                onClick={method.onClick}
-                disabled={loading || passkeyLoading || method.busy}
-                style={{
-                  width: '100%',
-                  marginBottom: 'calc(var(--base) * 0.5)',
-                  padding: 'calc(var(--base) * 0.75)',
-                  background: 'transparent',
-                  border: '1px solid var(--theme-elevation-300)',
-                  borderRadius: 'var(--style-radius-s)',
-                  color: 'var(--theme-text)',
-                  fontSize: 'var(--font-size-base)',
-                  fontWeight: 500,
-                  cursor: loading || passkeyLoading || method.busy ? 'not-allowed' : 'pointer',
-                  opacity: loading || passkeyLoading || method.busy ? 0.7 : 1,
-                  transition: 'opacity 150ms ease',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 'calc(var(--base) * 0.5)',
-                }}
-              >
-                <span style={{ fontSize: '18px' }}>{method.icon}</span>
-                {method.label}
-              </button>
+              <div key={method.key} style={{ marginBottom: 'calc(var(--base) * 0.5)' }}>
+                <AuthButton
+                  variant="secondary"
+                  icon={method.icon}
+                  disabled={loading || passkeyLoading || method.busy}
+                  onClick={method.onClick}
+                >
+                  {method.label}
+                </AuthButton>
+              </div>
             ))}
           </>
         )}
