@@ -13,6 +13,7 @@ import { AuthButton } from './login/AuthButton.js'
 import { AuthField } from './login/AuthField.js'
 import { OrDivider } from './login/OrDivider.js'
 import { OtpInput } from './login/OtpInput.js'
+import { LoadingScreen } from './login/LoadingScreen.js'
 
 export type LoginViewProps = {
   /** Optional pre-configured auth client */
@@ -553,21 +554,7 @@ export function LoginView({
 
   // Loading state while checking session
   if (checkingSession) {
-    return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--theme-bg)',
-        }}
-      >
-        <div style={{ color: 'var(--theme-text)', opacity: 0.7 }}>
-          Loading...
-        </div>
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   // Access denied state
