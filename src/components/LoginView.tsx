@@ -568,7 +568,7 @@ export function LoginView({
   // Access denied state
   if (accessDenied) {
     return (
-      <AuthCard logo={logo} center>
+      <AuthCard center>
           <h1
             style={{
               color: 'var(--theme-error-500)',

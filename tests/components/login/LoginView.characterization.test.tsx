@@ -85,4 +85,10 @@ describe('LoginView — flows', () => {
     renderLogin({ enablePassword: true, requiredRole: 'admin' }, { role: 'editor' })
     expect(await screen.findByText('Access Denied')).toBeInTheDocument()
   })
+
+  it('does not render the logo on the Access Denied screen', async () => {
+    renderLogin({ enablePassword: true, requiredRole: 'admin', logo: <span>BRANDLOGO</span> }, { role: 'editor' })
+    expect(await screen.findByText('Access Denied')).toBeInTheDocument()
+    expect(screen.queryByText('BRANDLOGO')).not.toBeInTheDocument()
+  })
 })
