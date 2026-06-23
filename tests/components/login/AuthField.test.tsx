@@ -67,4 +67,25 @@ describe('AuthField', () => {
     expect(capturedRef).not.toBeNull()
     expect((capturedRef as HTMLInputElement | null)?.id).toBe('ref-field')
   })
+
+  it('uses var(--base) as the default wrapper marginBottom', () => {
+    const { container } = render(
+      <AuthField id="x" label="X" type="text" value="" onChange={() => {}} />
+    )
+    expect((container.firstChild as HTMLElement).style.marginBottom).toBe('var(--base)')
+  })
+
+  it('honors a custom marginBottom prop on the wrapper div', () => {
+    const { container } = render(
+      <AuthField
+        id="x"
+        label="X"
+        type="text"
+        value=""
+        onChange={() => {}}
+        marginBottom="calc(var(--base) * 1.5)"
+      />
+    )
+    expect((container.firstChild as HTMLElement).style.marginBottom).toBe('calc(var(--base) * 1.5)')
+  })
 })

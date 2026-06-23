@@ -858,7 +858,7 @@ export function LoginView({
             <AuthField id="name" label="Name" type="text" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
             <AuthField id="register-email" label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
             <AuthField id="register-password" label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
-            <AuthField id="confirm-password" label="Confirm Password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" />
+            <AuthField id="confirm-password" label="Confirm Password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" marginBottom="calc(var(--base) * 1.5)" />
 
             {error && <AuthBanner kind="error">{error}</AuthBanner>}
 
@@ -943,7 +943,7 @@ export function LoginView({
           </p>
 
           <form onSubmit={handleForgotPassword}>
-            <AuthField id="forgot-email" label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+            <AuthField id="forgot-email" label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" marginBottom="calc(var(--base) * 1.5)" />
 
             {error && <AuthBanner kind="error">{error}</AuthBanner>}
 
