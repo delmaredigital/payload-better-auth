@@ -7,6 +7,7 @@ import { twoFactorClient, magicLinkClient, emailOTPClient } from 'better-auth/cl
 import { hasAnyRole, hasAllRoles, normalizeRoles } from '../utils/access.js'
 import { resolveAvailability, pickPrimaryMethod } from '../utils/loginMethods.js'
 import { useConfig } from '@payloadcms/ui'
+import { AuthCard } from './login/AuthCard.js'
 
 export type LoginViewProps = {
   /** Optional pre-configured auth client */
@@ -567,27 +568,7 @@ export function LoginView({
   // Access denied state
   if (accessDenied) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--theme-bg)',
-          padding: 'var(--base)',
-        }}
-      >
-        <div
-          style={{
-            background: 'var(--theme-elevation-50)',
-            padding: 'calc(var(--base) * 2)',
-            borderRadius: 'var(--style-radius-m)',
-            boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
-            width: '100%',
-            maxWidth: '400px',
-            textAlign: 'center',
-          }}
-        >
+      <AuthCard logo={logo} center>
           <h1
             style={{
               color: 'var(--theme-error-500)',
@@ -623,44 +604,14 @@ export function LoginView({
           >
             Sign out and try again
           </button>
-        </div>
-      </div>
+      </AuthCard>
     )
   }
 
   // Two-factor verification view
   if (viewMode === 'twoFactor') {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--theme-bg)',
-          padding: 'var(--base)',
-        }}
-      >
-        <div
-          style={{
-            background: 'var(--theme-elevation-50)',
-            padding: 'calc(var(--base) * 2)',
-            borderRadius: 'var(--style-radius-m)',
-            boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
-            width: '100%',
-            maxWidth: '400px',
-          }}
-        >
-          {logo && (
-            <div
-              style={{
-                textAlign: 'center',
-                marginBottom: 'calc(var(--base) * 1.5)',
-              }}
-            >
-              {logo}
-            </div>
-          )}
+      <AuthCard logo={logo}>
 
           <h1
             style={{
@@ -781,37 +732,14 @@ export function LoginView({
           >
             ← Back to login
           </button>
-        </div>
-      </div>
+      </AuthCard>
     )
   }
 
   // Email-OTP code entry view
   if (viewMode === 'emailOtp') {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--theme-bg)',
-          padding: 'var(--base)',
-        }}
-      >
-        <div
-          style={{
-            background: 'var(--theme-elevation-50)',
-            padding: 'calc(var(--base) * 2)',
-            borderRadius: 'var(--style-radius-m)',
-            boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
-            width: '100%',
-            maxWidth: '400px',
-          }}
-        >
-          {logo && (
-            <div style={{ textAlign: 'center', marginBottom: 'calc(var(--base) * 1.5)' }}>{logo}</div>
-          )}
+      <AuthCard logo={logo}>
 
           <h1
             style={{
@@ -931,44 +859,14 @@ export function LoginView({
           >
             ← Back to login
           </button>
-        </div>
-      </div>
+      </AuthCard>
     )
   }
 
   // Registration view
   if (viewMode === 'register') {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--theme-bg)',
-          padding: 'var(--base)',
-        }}
-      >
-        <div
-          style={{
-            background: 'var(--theme-elevation-50)',
-            padding: 'calc(var(--base) * 2)',
-            borderRadius: 'var(--style-radius-m)',
-            boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
-            width: '100%',
-            maxWidth: '400px',
-          }}
-        >
-          {logo && (
-            <div
-              style={{
-                textAlign: 'center',
-                marginBottom: 'calc(var(--base) * 1.5)',
-              }}
-            >
-              {logo}
-            </div>
-          )}
+      <AuthCard logo={logo}>
 
           <h1
             style={{
@@ -1182,44 +1080,14 @@ export function LoginView({
               Sign in
             </button>
           </div>
-        </div>
-      </div>
+      </AuthCard>
     )
   }
 
   // Forgot password view
   if (viewMode === 'forgotPassword') {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--theme-bg)',
-          padding: 'var(--base)',
-        }}
-      >
-        <div
-          style={{
-            background: 'var(--theme-elevation-50)',
-            padding: 'calc(var(--base) * 2)',
-            borderRadius: 'var(--style-radius-m)',
-            boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
-            width: '100%',
-            maxWidth: '400px',
-          }}
-        >
-          {logo && (
-            <div
-              style={{
-                textAlign: 'center',
-                marginBottom: 'calc(var(--base) * 1.5)',
-              }}
-            >
-              {logo}
-            </div>
-          )}
+      <AuthCard logo={logo}>
 
           <h1
             style={{
@@ -1334,44 +1202,14 @@ export function LoginView({
           >
             ← Back to login
           </button>
-        </div>
-      </div>
+      </AuthCard>
     )
   }
 
   // Reset link sent confirmation view
   if (viewMode === 'resetSent') {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--theme-bg)',
-          padding: 'var(--base)',
-        }}
-      >
-        <div
-          style={{
-            background: 'var(--theme-elevation-50)',
-            padding: 'calc(var(--base) * 2)',
-            borderRadius: 'var(--style-radius-m)',
-            boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
-            width: '100%',
-            maxWidth: '400px',
-            textAlign: 'center',
-          }}
-        >
-          {logo && (
-            <div
-              style={{
-                marginBottom: 'calc(var(--base) * 1.5)',
-              }}
-            >
-              {logo}
-            </div>
-          )}
+      <AuthCard logo={logo} center>
 
           <div
             style={{
@@ -1437,36 +1275,14 @@ export function LoginView({
           >
             Back to login
           </button>
-        </div>
-      </div>
+      </AuthCard>
     )
   }
 
   // Magic-link sent confirmation view
   if (viewMode === 'magicLinkSent') {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--theme-bg)',
-          padding: 'var(--base)',
-        }}
-      >
-        <div
-          style={{
-            background: 'var(--theme-elevation-50)',
-            padding: 'calc(var(--base) * 2)',
-            borderRadius: 'var(--style-radius-m)',
-            boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
-            width: '100%',
-            maxWidth: '400px',
-            textAlign: 'center',
-          }}
-        >
-          {logo && <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>{logo}</div>}
+      <AuthCard logo={logo} center>
 
           <div
             style={{
@@ -1521,8 +1337,7 @@ export function LoginView({
           >
             Back to login
           </button>
-        </div>
-      </div>
+      </AuthCard>
     )
   }
 
@@ -1587,36 +1402,7 @@ export function LoginView({
 
   // Main login view
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--theme-bg)',
-        padding: 'var(--base)',
-      }}
-    >
-      <div
-        style={{
-          background: 'var(--theme-elevation-50)',
-          padding: 'calc(var(--base) * 2)',
-          borderRadius: 'var(--style-radius-m)',
-          boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
-          width: '100%',
-          maxWidth: '400px',
-        }}
-      >
-        {logo && (
-          <div
-            style={{
-              textAlign: 'center',
-              marginBottom: 'calc(var(--base) * 1.5)',
-            }}
-          >
-            {logo}
-          </div>
-        )}
+    <AuthCard logo={logo}>
 
         <h1
           style={{
@@ -1873,8 +1659,7 @@ export function LoginView({
             </button>
           </div>
         )}
-      </div>
-    </div>
+    </AuthCard>
   )
 }
 
