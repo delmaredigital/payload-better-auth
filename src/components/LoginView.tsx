@@ -11,6 +11,7 @@ import { AuthCard } from './login/AuthCard.js'
 import { AuthBanner } from './login/AuthBanner.js'
 import { AuthButton } from './login/AuthButton.js'
 import { AuthField } from './login/AuthField.js'
+import { OrDivider } from './login/OrDivider.js'
 
 export type LoginViewProps = {
   /** Optional pre-configured auth client */
@@ -1182,20 +1183,7 @@ export function LoginView({
 
         {secondaryMethods.length > 0 && (
           <>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                margin: 'calc(var(--base) * 1.5) 0',
-                gap: 'calc(var(--base) * 1)',
-              }}
-            >
-              <div style={{ flex: 1, height: '1px', background: 'var(--theme-elevation-150)' }} />
-              <span style={{ color: 'var(--theme-text)', opacity: 0.6, fontSize: 'var(--font-size-small)' }}>
-                or
-              </span>
-              <div style={{ flex: 1, height: '1px', background: 'var(--theme-elevation-150)' }} />
-            </div>
+            <OrDivider />
 
             {secondaryMethods.map((method) => (
               <div key={method.key} style={{ marginBottom: 'calc(var(--base) * 0.5)' }}>
