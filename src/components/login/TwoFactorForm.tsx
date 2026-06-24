@@ -54,7 +54,7 @@ export function TwoFactorForm({ code, onCodeChange, onSubmit, onBack, loading, e
             >
               Verification Code
             </label>
-            <OtpInput id="totp-code" value={code} onChange={onCodeChange} autoFocus />
+            <OtpInput id="totp-code" value={code} onChange={onCodeChange} autoFocus pattern="[0-9]*" />
           </div>
 
           {error && <AuthBanner kind="error">{error}</AuthBanner>}

@@ -71,4 +71,14 @@ describe('OtpInput', () => {
     render(<OtpInput id="no-focus-otp" value="" onChange={vi.fn()} />)
     expect(screen.getByRole('textbox')).not.toHaveFocus()
   })
+
+  it('forwards pattern attribute when pattern prop is provided', () => {
+    render(<OtpInput id="pattern-otp" value="" onChange={vi.fn()} pattern="[0-9]*" />)
+    expect(screen.getByRole('textbox')).toHaveAttribute('pattern', '[0-9]*')
+  })
+
+  it('omits pattern attribute when pattern prop is not provided', () => {
+    render(<OtpInput id="no-pattern-otp" value="" onChange={vi.fn()} />)
+    expect(screen.getByRole('textbox')).not.toHaveAttribute('pattern')
+  })
 })
