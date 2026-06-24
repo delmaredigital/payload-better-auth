@@ -17,6 +17,7 @@ import { LoadingScreen } from './login/LoadingScreen.js'
 import { AccessDeniedScreen } from './login/AccessDeniedScreen.js'
 import { EmailSentScreen } from './login/EmailSentScreen.js'
 import { TwoFactorForm } from './login/TwoFactorForm.js'
+import { EmailOtpForm } from './login/EmailOtpForm.js'
 
 export type LoginViewProps = {
   /** Optional pre-configured auth client */
@@ -572,76 +573,7 @@ export function LoginView({
 
   // Email-OTP code entry view
   if (viewMode === 'emailOtp') {
-    return (
-      <AuthCard logo={logo}>
-
-          <h1
-            style={{
-              color: 'var(--theme-text)',
-              fontSize: 'var(--font-size-h3)',
-              fontWeight: 600,
-              margin: '0 0 calc(var(--base) * 0.5) 0',
-              textAlign: 'center',
-            }}
-          >
-            Enter Your Code
-          </h1>
-
-          <p
-            style={{
-              color: 'var(--theme-text)',
-              opacity: 0.7,
-              fontSize: 'var(--font-size-small)',
-              textAlign: 'center',
-              marginBottom: 'calc(var(--base) * 1.5)',
-            }}
-          >
-            We&apos;ve sent a verification code to <strong>{email}</strong>
-          </p>
-
-          <form onSubmit={handleVerifyEmailOtp}>
-            <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
-              <label
-                htmlFor="email-otp-code"
-                style={{
-                  display: 'block',
-                  color: 'var(--theme-text)',
-                  marginBottom: 'calc(var(--base) * 0.5)',
-                  fontSize: 'var(--font-size-small)',
-                  fontWeight: 500,
-                }}
-              >
-                Verification Code
-              </label>
-              <OtpInput id="email-otp-code" value={otp} onChange={setOtp} />
-            </div>
-
-            {error && <AuthBanner kind="error">{error}</AuthBanner>}
-
-            <AuthButton type="submit" disabled={otpLoading || otp.length !== 6}>
-              {otpLoading ? 'Verifying...' : 'Verify'}
-            </AuthButton>
-          </form>
-
-          <button
-            type="button"
-            onClick={handleBackToLogin}
-            style={{
-              width: '100%',
-              marginTop: 'var(--base)',
-              padding: 'calc(var(--base) * 0.5)',
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--theme-text)',
-              opacity: 0.7,
-              fontSize: 'var(--font-size-small)',
-              cursor: 'pointer',
-            }}
-          >
-            ← Back to login
-          </button>
-      </AuthCard>
-    )
+    return <EmailOtpForm email={email} code={otp} onCodeChange={setOtp} onSubmit={handleVerifyEmailOtp} onBack={handleBackToLogin} loading={otpLoading} error={error} logo={logo} />
   }
 
   // Registration view
