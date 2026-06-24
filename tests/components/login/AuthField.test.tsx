@@ -88,4 +88,31 @@ describe('AuthField', () => {
     )
     expect((container.firstChild as HTMLElement).style.marginBottom).toBe('calc(var(--base) * 1.5)')
   })
+
+  it('focuses the input when autoFocus is true', () => {
+    render(
+      <AuthField
+        id="focus-field"
+        label="Focus Field"
+        type="text"
+        value=""
+        onChange={() => {}}
+        autoFocus
+      />
+    )
+    expect(screen.getByLabelText('Focus Field')).toHaveFocus()
+  })
+
+  it('does not focus the input when autoFocus is omitted', () => {
+    render(
+      <AuthField
+        id="no-focus-field"
+        label="No Focus Field"
+        type="text"
+        value=""
+        onChange={() => {}}
+      />
+    )
+    expect(screen.getByLabelText('No Focus Field')).not.toHaveFocus()
+  })
 })

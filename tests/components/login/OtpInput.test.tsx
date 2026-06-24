@@ -61,4 +61,14 @@ describe('OtpInput', () => {
     expect(input).toHaveAttribute('autocomplete', 'one-time-code')
     expect(input).toHaveAttribute('required')
   })
+
+  it('focuses the input when autoFocus is true', () => {
+    render(<OtpInput id="focus-otp" value="" onChange={vi.fn()} autoFocus />)
+    expect(screen.getByRole('textbox')).toHaveFocus()
+  })
+
+  it('does not focus the input when autoFocus is omitted', () => {
+    render(<OtpInput id="no-focus-otp" value="" onChange={vi.fn()} />)
+    expect(screen.getByRole('textbox')).not.toHaveFocus()
+  })
 })

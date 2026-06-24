@@ -30,6 +30,11 @@ describe('LoginForm', () => {
     expect(screen.getByLabelText('Email')).toBeInTheDocument()
   })
 
+  it('focuses the email field on render', () => {
+    render(<LoginForm {...defaultProps} />)
+    expect(screen.getByLabelText('Email')).toHaveFocus()
+  })
+
   it('shows password field when passwordAvailable is true', () => {
     render(<LoginForm {...defaultProps} passwordAvailable={true} />)
     expect(screen.getByLabelText('Password')).toBeInTheDocument()

@@ -55,7 +55,7 @@ export function EmailOtpForm({ email, code, onCodeChange, onSubmit, onBack, load
             >
               Verification Code
             </label>
-            <OtpInput id="email-otp-code" value={code} onChange={onCodeChange} />
+            <OtpInput id="email-otp-code" value={code} onChange={onCodeChange} autoFocus />
           </div>
 
           {error && <AuthBanner kind="error">{error}</AuthBanner>}

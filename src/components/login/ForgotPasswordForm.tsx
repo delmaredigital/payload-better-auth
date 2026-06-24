@@ -41,7 +41,7 @@ export function ForgotPasswordForm({ email, onEmailChange, onSubmit, onBack, loa
         </p>
 
         <form onSubmit={onSubmit}>
-          <AuthField id="forgot-email" label="Email" type="email" value={email} onChange={onEmailChange} autoComplete="email" marginBottom="calc(var(--base) * 1.5)" />
+          <AuthField id="forgot-email" label="Email" type="email" value={email} onChange={onEmailChange} autoComplete="email" marginBottom="calc(var(--base) * 1.5)" autoFocus />
 
           {error && <AuthBanner kind="error">{error}</AuthBanner>}
 

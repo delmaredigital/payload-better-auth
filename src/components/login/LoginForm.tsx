@@ -53,7 +53,7 @@ export function LoginForm({
         {successMessage && <AuthBanner kind="success">{successMessage}</AuthBanner>}
 
         <form onSubmit={onSubmit}>
-          <AuthField id="email" label="Email" type="email" value={email} onChange={onEmailChange} autoComplete="email" />
+          <AuthField id="email" label="Email" type="email" value={email} onChange={onEmailChange} autoComplete="email" autoFocus />
 
           {passwordAvailable && (
           <>

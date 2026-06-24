@@ -51,7 +51,7 @@ export function RegisterForm({
         </h1>
 
         <form onSubmit={onSubmit}>
-          <AuthField id="name" label="Name" type="text" value={name} onChange={onNameChange} autoComplete="name" />
+          <AuthField id="name" label="Name" type="text" value={name} onChange={onNameChange} autoComplete="name" autoFocus />
           <AuthField id="register-email" label="Email" type="email" value={email} onChange={onEmailChange} autoComplete="email" />
           <AuthField id="register-password" label="Password" type="password" value={password} onChange={onPasswordChange} autoComplete="new-password" />
           <AuthField id="confirm-password" label="Confirm Password" type="password" value={confirmPassword} onChange={onConfirmPasswordChange} autoComplete="new-password" marginBottom="calc(var(--base) * 1.5)" />
