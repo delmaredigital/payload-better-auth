@@ -16,6 +16,7 @@ import { OtpInput } from './login/OtpInput.js'
 import { LoadingScreen } from './login/LoadingScreen.js'
 import { AccessDeniedScreen } from './login/AccessDeniedScreen.js'
 import { EmailSentScreen } from './login/EmailSentScreen.js'
+import { TwoFactorForm } from './login/TwoFactorForm.js'
 
 export type LoginViewProps = {
   /** Optional pre-configured auth client */
@@ -566,76 +567,7 @@ export function LoginView({
 
   // Two-factor verification view
   if (viewMode === 'twoFactor') {
-    return (
-      <AuthCard logo={logo}>
-
-          <h1
-            style={{
-              color: 'var(--theme-text)',
-              fontSize: 'var(--font-size-h3)',
-              fontWeight: 600,
-              margin: '0 0 calc(var(--base) * 0.5) 0',
-              textAlign: 'center',
-            }}
-          >
-            Two-Factor Authentication
-          </h1>
-
-          <p
-            style={{
-              color: 'var(--theme-text)',
-              opacity: 0.7,
-              fontSize: 'var(--font-size-small)',
-              textAlign: 'center',
-              marginBottom: 'calc(var(--base) * 1.5)',
-            }}
-          >
-            Enter the 6-digit code from your authenticator app
-          </p>
-
-          <form onSubmit={handleTotpVerify}>
-            <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
-              <label
-                htmlFor="totp-code"
-                style={{
-                  display: 'block',
-                  color: 'var(--theme-text)',
-                  marginBottom: 'calc(var(--base) * 0.5)',
-                  fontSize: 'var(--font-size-small)',
-                  fontWeight: 500,
-                }}
-              >
-                Verification Code
-              </label>
-              <OtpInput id="totp-code" value={totpCode} onChange={setTotpCode} />
-            </div>
-
-            {error && <AuthBanner kind="error">{error}</AuthBanner>}
-
-            <AuthButton type="submit" disabled={totpLoading || totpCode.length !== 6}>
-              {totpLoading ? 'Verifying...' : 'Verify'}
-            </AuthButton>
-          </form>
-
-          <button
-            type="button"
-            onClick={handleBackToLogin}
-            style={{
-              width: '100%',
-              marginTop: 'var(--base)',
-              padding: 'calc(var(--base) * 0.5)',
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--theme-text)',
-              opacity: 0.7,
-              fontSize: 'var(--font-size-small)',
-              cursor: 'pointer',
-            }}
-          >
-            ← Back to login
-          </button>
-      </AuthCard>
-    )
+    return <TwoFactorForm code={totpCode} onCodeChange={setTotpCode} onSubmit={handleTotpVerify} onBack={handleBackToLogin} loading={totpLoading} error={error} logo={logo} />
   }
 
   // Email-OTP code entry view
