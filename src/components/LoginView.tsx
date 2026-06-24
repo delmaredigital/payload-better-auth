@@ -20,6 +20,7 @@ import { TwoFactorForm } from './login/TwoFactorForm.js'
 import { EmailOtpForm } from './login/EmailOtpForm.js'
 import { ForgotPasswordForm } from './login/ForgotPasswordForm.js'
 import { RegisterForm } from './login/RegisterForm.js'
+import { LoginForm } from './login/LoginForm.js'
 
 export type LoginViewProps = {
   /** Optional pre-configured auth client */
@@ -674,126 +675,16 @@ export function LoginView({
 
   // Main login view
   return (
-    <AuthCard logo={logo}>
-
-        <h1
-          style={{
-            color: 'var(--theme-text)',
-            fontSize: 'var(--font-size-h3)',
-            fontWeight: 600,
-            textAlign: 'center',
-            margin: '0 0 calc(var(--base) * 1.5) 0',
-          }}
-        >
-          {title}
-        </h1>
-
-        {successMessage && <AuthBanner kind="success">{successMessage}</AuthBanner>}
-
-        <form onSubmit={primarySubmit}>
-          <AuthField id="email" label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
-
-          {passwordAvailable && (
-          <>
-          <AuthField id="password" label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
-
-          {forgotPasswordAvailable && (
-            <div
-              style={{
-                marginBottom: 'calc(var(--base) * 1.5)',
-                textAlign: 'right',
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => switchView('forgotPassword')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--theme-text)',
-                  opacity: 0.7,
-                  cursor: 'pointer',
-                  fontSize: 'var(--font-size-small)',
-                  padding: 0,
-                  textDecoration: 'underline',
-                }}
-              >
-                Forgot password?
-              </button>
-            </div>
-          )}
-          </>
-          )}
-
-          {error && <AuthBanner kind="error">{error}</AuthBanner>}
-
-          <AuthButton type="submit" disabled={loading || passkeyLoading}>
-            {primaryLabel}
-          </AuthButton>
-        </form>
-
-        {secondaryMethods.length > 0 && (
-          <>
-            <OrDivider />
-
-            {secondaryMethods.map((method) => (
-              <div key={method.key} style={{ marginBottom: 'calc(var(--base) * 0.5)' }}>
-                <AuthButton
-                  variant="secondary"
-                  icon={method.icon}
-                  disabled={loading || passkeyLoading || method.busy}
-                  onClick={method.onClick}
-                >
-                  {method.label}
-                </AuthButton>
-              </div>
-            ))}
-          </>
-        )}
-
-        {primaryMethod === null && secondaryMethods.length === 0 && (
-          <p
-            style={{
-              marginTop: 'var(--base)',
-              textAlign: 'center',
-              fontSize: 'var(--font-size-small)',
-              color: 'var(--theme-text)',
-              opacity: 0.7,
-            }}
-          >
-            No sign-in methods are currently enabled.
-          </p>
-        )}
-
-        {signUpAvailable && (
-          <div
-            style={{
-              marginTop: 'calc(var(--base) * 1.5)',
-              textAlign: 'center',
-              fontSize: 'var(--font-size-small)',
-              color: 'var(--theme-text)',
-              opacity: 0.8,
-            }}
-          >
-            Don&apos;t have an account?{' '}
-            <button
-              type="button"
-              onClick={() => switchView('register')}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--theme-elevation-800)',
-                cursor: 'pointer',
-                fontSize: 'inherit',
-                textDecoration: 'underline',
-                padding: 0,
-              }}
-            >
-              Create account
-            </button>
-          </div>
-        )}
-    </AuthCard>
+    <LoginForm
+      logo={logo} title={title} successMessage={successMessage} error={error}
+      email={email} onEmailChange={(e) => setEmail(e.target.value)}
+      passwordAvailable={passwordAvailable} password={password} onPasswordChange={(e) => setPassword(e.target.value)}
+      forgotPasswordAvailable={forgotPasswordAvailable} onForgotPassword={() => switchView('forgotPassword')}
+      onSubmit={primarySubmit} primaryLabel={primaryLabel} actionsDisabled={loading || passkeyLoading}
+      secondaryMethods={secondaryMethods}
+      showEmptyState={primaryMethod === null && secondaryMethods.length === 0}
+      signUpAvailable={signUpAvailable} onCreateAccount={() => switchView('register')}
+    />
   )
 }
 
