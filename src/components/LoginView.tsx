@@ -19,6 +19,7 @@ import { EmailSentScreen } from './login/EmailSentScreen.js'
 import { TwoFactorForm } from './login/TwoFactorForm.js'
 import { EmailOtpForm } from './login/EmailOtpForm.js'
 import { ForgotPasswordForm } from './login/ForgotPasswordForm.js'
+import { RegisterForm } from './login/RegisterForm.js'
 
 export type LoginViewProps = {
   /** Optional pre-configured auth client */
@@ -579,62 +580,7 @@ export function LoginView({
 
   // Registration view
   if (viewMode === 'register') {
-    return (
-      <AuthCard logo={logo}>
-
-          <h1
-            style={{
-              color: 'var(--theme-text)',
-              fontSize: 'var(--font-size-h3)',
-              fontWeight: 600,
-              margin: '0 0 calc(var(--base) * 1.5) 0',
-              textAlign: 'center',
-            }}
-          >
-            Create Account
-          </h1>
-
-          <form onSubmit={handleSignUp}>
-            <AuthField id="name" label="Name" type="text" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
-            <AuthField id="register-email" label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
-            <AuthField id="register-password" label="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
-            <AuthField id="confirm-password" label="Confirm Password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" marginBottom="calc(var(--base) * 1.5)" />
-
-            {error && <AuthBanner kind="error">{error}</AuthBanner>}
-
-            <AuthButton type="submit" disabled={loading}>
-              {loading ? 'Creating account...' : 'Create Account'}
-            </AuthButton>
-          </form>
-
-          <div
-            style={{
-              marginTop: 'calc(var(--base) * 1.5)',
-              textAlign: 'center',
-              fontSize: 'var(--font-size-small)',
-              color: 'var(--theme-text)',
-              opacity: 0.8,
-            }}
-          >
-            Already have an account?{' '}
-            <button
-              type="button"
-              onClick={handleBackToLogin}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--theme-elevation-800)',
-                cursor: 'pointer',
-                fontSize: 'inherit',
-                textDecoration: 'underline',
-                padding: 0,
-              }}
-            >
-              Sign in
-            </button>
-          </div>
-      </AuthCard>
-    )
+    return <RegisterForm name={name} email={email} password={password} confirmPassword={confirmPassword} onNameChange={(e) => setName(e.target.value)} onEmailChange={(e) => setEmail(e.target.value)} onPasswordChange={(e) => setPassword(e.target.value)} onConfirmPasswordChange={(e) => setConfirmPassword(e.target.value)} onSubmit={handleSignUp} onBackToLogin={handleBackToLogin} loading={loading} error={error} logo={logo} />
   }
 
   // Forgot password view
