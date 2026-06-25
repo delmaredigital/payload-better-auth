@@ -60,6 +60,7 @@ export interface AuthOptionsLike {
     sendResetPassword?: unknown
   }
   plugins?: Array<{ id?: string } | null | undefined>
+  socialProviders?: Record<string, unknown> | null
 }
 
 /**
@@ -88,4 +89,65 @@ export function detectEnabledMethods(options: AuthOptionsLike | null | undefined
     magicLink: pluginIds.has('magic-link'),
     emailOtp: pluginIds.has('email-otp'),
   }
+}
+
+/** A resolved social provider ready to render in the LoginView. */
+export interface SocialProvider {
+  id: string
+  label: string
+}
+
+/**
+ * Provider ids Better Auth actually has configured — the keys of `socialProviders`.
+ * (genericOAuth providers live in plugin config and are intentionally not included.)
+ */
+export function detectSocialProviders(options: AuthOptionsLike | null | undefined): string[] {
+  const sp = options?.socialProviders
+  if (!sp || typeof sp !== 'object') return []
+  return Object.keys(sp)
+}
+
+/**
+ * Resolve the `enableSocial` setting against the detected provider ids.
+ * - `false` / `undefined` -> `[]` (off; the default)
+ * - `true`                -> every detected provider, as `{ id, label }`
+ * - `string[]`            -> allowlist ∩ detected, in the ALLOWLIST's order; unknown ids dropped
+ */
+export function resolveSocialProviders(
+  enableSocial: boolean | string[] | undefined,
+  detected: string[],
+): SocialProvider[] {
+  if (!enableSocial) return []
+  const ids =
+    enableSocial === true ? detected : enableSocial.filter((id) => detected.includes(id))
+  return ids.map((id) => ({ id, label: socialProviderLabel(id) }))
+}
+
+/** Human-facing label for a provider id: canonical casing for known ids, else capitalized. */
+export function socialProviderLabel(id: string): string {
+  const known: Record<string, string> = {
+    google: 'Google',
+    github: 'GitHub',
+    microsoft: 'Microsoft',
+    apple: 'Apple',
+    facebook: 'Facebook',
+    discord: 'Discord',
+    gitlab: 'GitLab',
+    twitch: 'Twitch',
+    spotify: 'Spotify',
+    twitter: 'Twitter',
+    dropbox: 'Dropbox',
+    linkedin: 'LinkedIn',
+    reddit: 'Reddit',
+    kick: 'Kick',
+    tiktok: 'TikTok',
+    x: 'X',
+    zoom: 'Zoom',
+    roblox: 'Roblox',
+    vk: 'VK',
+    notion: 'Notion',
+  }
+  if (known[id]) return known[id]
+  if (!id) return id
+  return id.charAt(0).toUpperCase() + id.slice(1)
 }

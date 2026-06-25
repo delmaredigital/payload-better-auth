@@ -3,6 +3,9 @@ import {
   resolveAvailability,
   pickPrimaryMethod,
   detectEnabledMethods,
+  detectSocialProviders,
+  resolveSocialProviders,
+  socialProviderLabel,
 } from '../../src/utils/loginMethods.js'
 
 describe('resolveAvailability', () => {
@@ -97,5 +100,70 @@ describe('detectEnabledMethods', () => {
     expect(detectEnabledMethods({})).toEqual(allFalse)
     // tolerates malformed plugin entries
     expect(detectEnabledMethods({ plugins: [null, undefined, { id: 'passkey' }] }).passkey).toBe(true)
+  })
+})
+
+describe('detectSocialProviders', () => {
+  it('returns the keys of socialProviders', () => {
+    expect(detectSocialProviders({ socialProviders: { google: {}, github: {} } })).toEqual([
+      'google',
+      'github',
+    ])
+  })
+
+  it('returns [] when socialProviders is absent, null, or not an object', () => {
+    expect(detectSocialProviders({})).toEqual([])
+    expect(detectSocialProviders(null)).toEqual([])
+    expect(detectSocialProviders(undefined)).toEqual([])
+    expect(detectSocialProviders({ socialProviders: null })).toEqual([])
+  })
+})
+
+describe('resolveSocialProviders', () => {
+  const detected = ['google', 'github']
+
+  it('returns [] for false or undefined (the default)', () => {
+    expect(resolveSocialProviders(false, detected)).toEqual([])
+    expect(resolveSocialProviders(undefined, detected)).toEqual([])
+  })
+
+  it('returns all detected providers as {id,label} when true', () => {
+    expect(resolveSocialProviders(true, detected)).toEqual([
+      { id: 'google', label: 'Google' },
+      { id: 'github', label: 'GitHub' },
+    ])
+  })
+
+  it('intersects an allowlist with detected, preserving allowlist order', () => {
+    expect(resolveSocialProviders(['github', 'google'], detected)).toEqual([
+      { id: 'github', label: 'GitHub' },
+      { id: 'google', label: 'Google' },
+    ])
+  })
+
+  it('drops allowlist ids that are not configured', () => {
+    expect(resolveSocialProviders(['google', 'okta'], detected)).toEqual([
+      { id: 'google', label: 'Google' },
+    ])
+  })
+
+  it('returns [] when nothing is detected even if true', () => {
+    expect(resolveSocialProviders(true, [])).toEqual([])
+  })
+})
+
+describe('socialProviderLabel', () => {
+  it('uses canonical casing for known providers', () => {
+    expect(socialProviderLabel('github')).toBe('GitHub')
+    expect(socialProviderLabel('google')).toBe('Google')
+    expect(socialProviderLabel('linkedin')).toBe('LinkedIn')
+  })
+
+  it('capitalizes unknown provider ids', () => {
+    expect(socialProviderLabel('okta')).toBe('Okta')
+  })
+
+  it('returns an empty string unchanged', () => {
+    expect(socialProviderLabel('')).toBe('')
   })
 })
