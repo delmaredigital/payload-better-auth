@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.8] - 2026-06-24
+
+### Added
+
+- **Social / OAuth provider sign-in buttons on the admin login (opt-in).** A new `admin.login.enableSocial` option surfaces "Continue with {Provider}" buttons for the providers configured in your Better Auth `socialProviders`:
+  - `false` (default) — no social buttons.
+  - `true` — a button for every configured provider.
+  - `string[]` — an allowlist of provider ids (intersected with what's configured).
+
+  Providers are detected **server-side** from the Better Auth instance's resolved `socialProviders` — the same authoritative approach as the other `admin.login` methods, with no endpoint probing. Clicking a button calls Better Auth's core `signIn.social(...)`; on success it returns to the **login page** so the existing session check + role gate run uniformly (a user who lacks the required role lands on Access Denied, not `/admin`). A new `admin.login.socialCallbackURL` overrides the success destination; sign-in errors always return to the login page and are surfaced inline. There is intentionally no `'auto'` mode — social is opt-in.
+
+  > **Account creation:** a social button on a public admin login lets anyone with that provider account create a (non-admin) user row — the role gate blocks admin *access*, but the row (and any creation hooks) is still created. Set Better Auth's `disableImplicitSignUp` (per-provider or global) if you don't want open sign-up. This is why `enableSocial` defaults to `false`. ([#21](https://github.com/delmaredigital/payload-better-auth/issues/21))
+
+### Internal
+
+- **`LoginView` decomposed into focused, independently-tested components** (`src/components/login/`: `AuthCard`, `AuthField`, `AuthButton`, `AuthBanner`, `OrDivider`, `OtpInput`, plus the per-screen forms). No change to the public `LoginView` API or its rendered output. Added a jsdom + React Testing Library component-test suite alongside a behavior characterization safety net; the test suite now stands at 197 tests.
+
 ## [0.7.7] - 2026-06-23
 
 ### Fixed
