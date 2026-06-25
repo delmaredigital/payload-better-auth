@@ -120,6 +120,23 @@ export type BetterAuthPluginAdminOptions = {
      * Default: afterLoginPath
      */
     magicLinkCallbackURL?: string
+    /**
+     * Enable social / OAuth provider sign-in buttons on the admin login.
+     * - false (default): no social buttons.
+     * - true: a button for every provider configured in Better Auth's `socialProviders`.
+     * - string[]: only these provider ids (intersected with what's configured).
+     *
+     * Opt-in by design: `socialProviders` is global Better Auth config (often meant for your
+     * public app), and surfacing it on the admin login lets anyone create a (non-admin) user
+     * row. See the docs note on Better Auth's `disableImplicitSignUp`. There is no 'auto'.
+     */
+    enableSocial?: boolean | string[]
+    /**
+     * Where a successful social sign-in returns. Default: the admin login page itself, so the
+     * built-in session check + role gate run (a non-admin lands on Access Denied, not /admin).
+     * Override only to bypass that round-trip. Errors always return to the login page.
+     */
+    socialCallbackURL?: string
   }
   /** Path to custom logout button component (import map format) */
   logoutButtonComponent?: string

@@ -4,11 +4,15 @@ import type { PayloadWithAuth } from '../types/betterAuth.js'
 import {
   detectEnabledMethods,
   resolveAvailability,
+  detectSocialProviders,
+  resolveSocialProviders,
   type DetectedMethods,
   type MethodSetting,
 } from '../utils/loginMethods.js'
 
-type LoginConfig = Omit<LoginViewProps, 'authClient' | 'logo'>
+type LoginConfig = Omit<LoginViewProps, 'authClient' | 'logo' | 'socialProviders'> & {
+  enableSocial?: boolean | string[]
+}
 
 type LoginViewWrapperProps = AdminViewProps
 
@@ -48,6 +52,8 @@ export async function LoginViewWrapper({ initPageResult }: LoginViewWrapperProps
   // Detect which methods Better Auth actually has enabled, from its resolved options.
   const authOptions = (payload as PayloadWithAuth).betterAuth?.options
   const detected = authOptions ? detectEnabledMethods(authOptions) : FALLBACK_DETECTED
+  const detectedSocial = authOptions ? detectSocialProviders(authOptions) : []
+  const socialProviders = resolveSocialProviders(loginConfig.enableSocial, detectedSocial)
 
   // Resolve each option: explicit boolean wins; 'auto' (or unset) uses detection.
   const resolve = (setting: MethodSetting | undefined, detectedValue: boolean) =>
@@ -67,6 +73,8 @@ export async function LoginViewWrapper({ initPageResult }: LoginViewWrapperProps
       enableEmailOtp={resolve(loginConfig.enableEmailOtp, detected.emailOtp)}
       resetPasswordUrl={loginConfig.resetPasswordUrl}
       magicLinkCallbackURL={loginConfig.magicLinkCallbackURL}
+      socialProviders={socialProviders}
+      socialCallbackURL={loginConfig.socialCallbackURL}
       title={loginConfig.title}
     />
   )
