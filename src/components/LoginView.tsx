@@ -93,6 +93,24 @@ export type LoginViewProps = {
    * Default: afterLoginPath
    */
   magicLinkCallbackURL?: string
+  /** Resolved social providers to display (server-resolved by LoginViewWrapper). Default: none. */
+  socialProviders?: Array<{ id: string; label: string }>
+  /**
+   * Where a successful social sign-in returns. Default: the current login page URL, so the
+   * built-in session check + role gate run. Errors always return to the login page.
+   */
+  socialCallbackURL?: string
+}
+
+/** Map a Better Auth social `?error=` code to a friendly message. */
+function humanizeSocialError(code: string): string {
+  const known: Record<string, string> = {
+    access_denied: 'Access was denied by the provider.',
+    oauth_code_missing: 'Sign-in was interrupted. Please try again.',
+    state_mismatch: 'Sign-in could not be verified. Please try again.',
+    please_restart_the_process: 'Sign-in was interrupted. Please try again.',
+  }
+  return known[code] ?? `Social sign-in failed (${code}).`
 }
 
 /**
@@ -147,6 +165,8 @@ export function LoginView({
   enableMagicLink = 'auto',
   enableEmailOtp = 'auto',
   magicLinkCallbackURL,
+  socialProviders = [],
+  socialCallbackURL,
 }: LoginViewProps) {
   const router = useRouter()
 
@@ -166,6 +186,7 @@ export function LoginView({
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [passkeyLoading, setPasskeyLoading] = useState(false)
+  const [socialLoading, setSocialLoading] = useState<string | null>(null) // provider id in flight
   const [checkingSession, setCheckingSession] = useState(true)
   const [accessDenied, setAccessDenied] = useState(false)
 
@@ -227,6 +248,18 @@ export function LoginView({
     checkSession()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [afterLoginPath, requiredRole, requireAllRoles, router])
+
+  // Surface a social-OAuth error returned on the callback (?error=...), then strip it so a
+  // refresh doesn't re-show it. Runs once; independent of the session check (error returns
+  // carry no session).
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get('error')
+    if (!code) return
+    setError(humanizeSocialError(code))
+    const clean = window.location.href.split('?')[0].split('#')[0]
+    window.history.replaceState(null, '', clean)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   /**
    * Shared post-authentication tail: re-fetch the session for complete user data
@@ -467,6 +500,37 @@ export function LoginView({
     }
   }
 
+  async function handleSocialSignIn(providerId: string) {
+    if (socialLoading) return
+    setSocialLoading(providerId)
+    setError(null)
+    setSuccessMessage(null)
+    setAccessDenied(false)
+    try {
+      const client = await getClient()
+      const loginUrl = window.location.href.split('?')[0].split('#')[0]
+      const result = await client.signIn.social({
+        provider: providerId,
+        callbackURL: socialCallbackURL ?? loginUrl,
+        errorCallbackURL: loginUrl,
+      })
+      if (result?.error) {
+        // BA returned an error WITHOUT redirecting (e.g. provider misconfigured server-side).
+        setError(result.error.message ?? 'Social sign-in failed. Please try again.')
+        setSocialLoading(null)
+        return
+      }
+      // Most BA client versions auto-navigate on success and we never reach here. If a version
+      // returns the URL without navigating, drive the redirect ourselves so the user is never
+      // stranded. Leave socialLoading set (the page is navigating away).
+      const url = (result?.data as { url?: string } | undefined)?.url
+      if (url) window.location.href = url
+    } catch {
+      setError('An error occurred. Please try again.')
+      setSocialLoading(null)
+    }
+  }
+
   async function handleSendMagicLink(e?: FormEvent) {
     e?.preventDefault()
     if (!email) {
@@ -634,7 +698,7 @@ export function LoginView({
   // Secondary methods shown under the "or" divider (available but not the primary)
   const secondaryMethods: Array<{
     key: string
-    icon: string
+    icon?: React.ReactNode
     label: string
     onClick: () => void
     busy: boolean
@@ -666,6 +730,17 @@ export function LoginView({
       busy: false,
     })
   }
+  for (const provider of socialProviders) {
+    secondaryMethods.push({
+      key: `social:${provider.id}`,
+      label:
+        socialLoading === provider.id
+          ? `Connecting to ${provider.label}…`
+          : `Continue with ${provider.label}`,
+      onClick: () => handleSocialSignIn(provider.id),
+      busy: socialLoading === provider.id,
+    })
+  }
 
   // Main login view
   return (
@@ -674,7 +749,7 @@ export function LoginView({
       email={email} onEmailChange={(e) => setEmail(e.target.value)}
       passwordAvailable={passwordAvailable} password={password} onPasswordChange={(e) => setPassword(e.target.value)}
       forgotPasswordAvailable={forgotPasswordAvailable} onForgotPassword={() => switchView('forgotPassword')}
-      onSubmit={primarySubmit} primaryLabel={primaryLabel} actionsDisabled={loading || passkeyLoading}
+      onSubmit={primarySubmit} primaryLabel={primaryLabel} actionsDisabled={loading || passkeyLoading || socialLoading !== null}
       secondaryMethods={secondaryMethods}
       showEmptyState={primaryMethod === null && secondaryMethods.length === 0}
       signUpAvailable={signUpAvailable} onCreateAccount={() => switchView('register')}

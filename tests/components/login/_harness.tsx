@@ -32,6 +32,7 @@ export function makeClient(overrides: Record<string, unknown> = {}) {
       magicLink: vi.fn(ok),
       passkey: vi.fn(ok),
       emailOtp: vi.fn(ok),
+      social: vi.fn(ok),
     },
     signUp: { email: vi.fn(ok) },
     emailOtp: { sendVerificationOtp: vi.fn(ok) },
