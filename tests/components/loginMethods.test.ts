@@ -150,6 +150,12 @@ describe('resolveSocialProviders', () => {
   it('returns [] when nothing is detected even if true', () => {
     expect(resolveSocialProviders(true, [])).toEqual([])
   })
+
+  it('dedupes duplicate allowlist ids', () => {
+    expect(resolveSocialProviders(['google', 'google'], ['google', 'github'])).toEqual([
+      { id: 'google', label: 'Google' },
+    ])
+  })
 })
 
 describe('socialProviderLabel', () => {

@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import { renderLogin } from './_harness.js'
 
@@ -40,8 +40,9 @@ describe('LoginView — social sign-in', () => {
     })
     await user.click(await screen.findByRole('button', { name: 'Continue with Google' }))
     const arg = client.signIn.social.mock.calls[0][0]
+    const loginUrl = window.location.href.split('?')[0].split('#')[0]
     expect(arg.callbackURL).toBe('https://example.com/welcome')
-    expect(arg.errorCallbackURL).not.toBe('https://example.com/welcome')
+    expect(arg.errorCallbackURL).toBe(loginUrl)
   })
 
   it('shows a pending label and disables the button while the request is in flight', async () => {
@@ -69,5 +70,53 @@ describe('LoginView — social sign-in', () => {
     renderLogin({ socialProviders: google })
     expect(await screen.findByRole('alert')).toBeInTheDocument()
     await waitFor(() => expect(window.location.search).toBe(''))
+  })
+
+  it('surfaces a generic error and re-enables the button when signIn.social throws', async () => {
+    const { client, user } = renderLogin({ socialProviders: google })
+    client.signIn.social.mockRejectedValueOnce(new Error('network'))
+    await user.click(await screen.findByRole('button', { name: 'Continue with Google' }))
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Continue with Google' })).not.toBeDisabled()
+  })
+
+  it('renders multiple providers, routes each to its provider id, and cross-locks while one is in flight', async () => {
+    const providers = [{ id: 'google', label: 'Google' }, { id: 'github', label: 'GitHub' }]
+    const { client, user } = renderLogin({ socialProviders: providers })
+    // both render
+    expect(await screen.findByRole('button', { name: 'Continue with Google' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Continue with GitHub' })).toBeInTheDocument()
+    // make Google hang to assert cross-lock
+    let release: (v: unknown) => void = () => {}
+    client.signIn.social.mockImplementationOnce(() => new Promise((r) => { release = r }))
+    await user.click(screen.getByRole('button', { name: 'Continue with Google' }))
+    expect(client.signIn.social.mock.calls[0][0].provider).toBe('google')
+    // GitHub button is disabled while Google is in flight (actionsDisabled uses socialLoading !== null)
+    expect(screen.getByRole('button', { name: 'Continue with GitHub' })).toBeDisabled()
+    release({ data: {}, error: null }) // cleanup; with Fix 4 the buttons re-enable
+    // after release, GitHub routes to its own id
+    await screen.findByRole('button', { name: 'Continue with GitHub' })
+    await user.click(screen.getByRole('button', { name: 'Continue with GitHub' }))
+    expect(client.signIn.social.mock.calls.at(-1)?.[0].provider).toBe('github')
+  })
+
+  it('navigates to data.url when the client returns a URL without auto-redirecting', async () => {
+    const realLocation = window.location
+    const stub = {
+      _href: 'http://localhost:3000/admin/login',
+      search: '',
+      hash: '',
+      get href() { return this._href },
+      set href(v: string) { this._href = v },
+    }
+    Object.defineProperty(window, 'location', { configurable: true, value: stub })
+    try {
+      const { client, user } = renderLogin({ socialProviders: google })
+      client.signIn.social.mockResolvedValueOnce({ data: { url: 'https://provider.example/auth' }, error: null })
+      await user.click(await screen.findByRole('button', { name: 'Continue with Google' }))
+      await waitFor(() => expect(window.location.href).toBe('https://provider.example/auth'))
+    } finally {
+      Object.defineProperty(window, 'location', { configurable: true, value: realLocation })
+    }
   })
 })

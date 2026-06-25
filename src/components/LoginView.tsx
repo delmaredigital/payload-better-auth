@@ -105,12 +105,20 @@ export type LoginViewProps = {
 /** Map a Better Auth social `?error=` code to a friendly message. */
 function humanizeSocialError(code: string): string {
   const known: Record<string, string> = {
+    // Standard OAuth provider denial (e.g. user clicked "Cancel" on the consent screen)
     access_denied: 'Access was denied by the provider.',
-    oauth_code_missing: 'Sign-in was interrupted. Please try again.',
-    state_mismatch: 'Sign-in could not be verified. Please try again.',
-    please_restart_the_process: 'Sign-in was interrupted. Please try again.',
+    // BA callback.mjs: no authorization code in the callback
+    no_code: 'Sign-in was interrupted — no authorization code received. Please try again.',
+    // BA callback.mjs: unknown or unconfigured provider
+    oauth_provider_not_found: 'This sign-in provider is not configured. Please contact support.',
+    // BA callback.mjs: code exchange with the provider failed
+    invalid_code: 'Sign-in could not be completed. Please try again.',
+    // BA callback.mjs: provider did not return usable user information
+    unable_to_get_user_info: 'Could not retrieve your account information. Please try again.',
+    // BA callback.mjs: provider did not return an email address
+    email_not_found: 'Your provider did not share an email address. Please use a different sign-in method.',
   }
-  return known[code] ?? `Social sign-in failed (${code}).`
+  return known[code] ?? 'Social sign-in failed. Please try again.'
 }
 
 /**
@@ -251,8 +259,10 @@ export function LoginView({
 
   // Surface a social-OAuth error returned on the callback (?error=...), then strip it so a
   // refresh doesn't re-show it. Runs once; independent of the session check (error returns
-  // carry no session).
+  // carry no session). Only acts when social buttons are present — a non-social admin app
+  // landing on ?error=anything should not see a misleading "Social sign-in failed" banner.
   useEffect(() => {
+    if (socialProviders.length === 0) return
     const code = new URLSearchParams(window.location.search).get('error')
     if (!code) return
     setError(humanizeSocialError(code))
@@ -524,7 +534,14 @@ export function LoginView({
       // returns the URL without navigating, drive the redirect ourselves so the user is never
       // stranded. Leave socialLoading set (the page is navigating away).
       const url = (result?.data as { url?: string } | undefined)?.url
-      if (url) window.location.href = url
+      if (url) {
+        window.location.href = url
+      } else {
+        // No error and no redirect URL: nothing is navigating, so don't leave the
+        // buttons stuck disabled. (Real BA always returns a url or an error; this is
+        // defensive against client/version anomalies.)
+        setSocialLoading(null)
+      }
     } catch {
       setError('An error occurred. Please try again.')
       setSocialLoading(null)

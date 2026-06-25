@@ -120,7 +120,8 @@ export function resolveSocialProviders(
   if (!enableSocial) return []
   const ids =
     enableSocial === true ? detected : enableSocial.filter((id) => detected.includes(id))
-  return ids.map((id) => ({ id, label: socialProviderLabel(id) }))
+  const unique = [...new Set(ids)]
+  return unique.map((id) => ({ id, label: socialProviderLabel(id) }))
 }
 
 /** Human-facing label for a provider id: canonical casing for known ids, else capitalized. */
