@@ -30,7 +30,7 @@ export function LoginForm({
   onSubmit: (e: React.FormEvent) => void
   primaryLabel: string
   actionsDisabled: boolean
-  secondaryMethods: Array<{ key: string; icon: React.ReactNode; label: string; onClick: () => void; busy: boolean }>
+  secondaryMethods: Array<{ key: string; icon?: React.ReactNode; label: string; onClick: () => void; busy: boolean }>
   showEmptyState: boolean
   signUpAvailable: boolean
   onCreateAccount: () => void

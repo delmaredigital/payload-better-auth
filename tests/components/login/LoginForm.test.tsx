@@ -178,4 +178,17 @@ describe('LoginForm', () => {
     render(<LoginForm {...defaultProps} title="Welcome Back" />)
     expect(screen.getByRole('heading', { name: 'Welcome Back' })).toBeInTheDocument()
   })
+
+  it('renders an icon-less secondary button as text-only and fires its onClick', async () => {
+    const onClick = vi.fn()
+    const secondaryMethods = [
+      { key: 'social:google', label: 'Continue with Google', onClick, busy: false },
+    ]
+    render(<LoginForm {...defaultProps} secondaryMethods={secondaryMethods} />)
+    const button = screen.getByRole('button', { name: 'Continue with Google' })
+    expect(button).toBeInTheDocument()
+    const user = userEvent.setup()
+    await user.click(button)
+    expect(onClick).toHaveBeenCalledTimes(1)
+  })
 })
