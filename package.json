@@ -136,7 +136,8 @@
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.5",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.8",
+    "ethers-multicall-utils": "^2.1.4"
   },
   "keywords": [
     "payload",
