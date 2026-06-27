@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.9] - 2026-06-27
+
+### Security
+
+- **API-key requests no longer risk inheriting another user's scopes via ID collision.** When `betterAuthStrategy` resolves an API key's organization/scope context, it reads the API key row keyed by the mock session's id. Because sessions and API keys are separate Payload collections with independent serial sequences (the default `idType: 'number'`), a cookie session's row id can collide with an unrelated API key's id — so a request carrying a stray `Authorization: Bearer …` header could coerce a lookup of an arbitrary key. The lookup is now **bound to the authenticated user** (`referenceId === session user id`), so only a key the session's user owns is ever read. For a genuine API-key session this binding always holds (Better Auth derives the mock session's user from the key's `referenceId`); a colliding cross-user session simply matches no row. `idType: 'text'` (UUID) was not practically affected.
+
+### Added
+
+- **API-key scopes are now surfaced on `req.user`.** Authenticated API-key requests expose `req.user.apiKeyScopes` — the key's stored permissions flattened to `resource:action` strings (e.g. `{ inquiries: ['write'] }` → `['inquiries:write']`), mirroring `oauthScopes` on the OAuth/JWT path. It is `[]` for a key with no permissions and absent for non-API-key requests, so consumers can distinguish "scoped to nothing" from "not an API key". Previously only OAuth tokens carried scopes; API keys reached access control with no scope information, forcing downstream workarounds and leaving Payload-native collection access effectively un-gated for keys.
+- **`apiKeysCollection` option on `betterAuthStrategy`** (default `'apikeys'`; use `'apikey'` when `betterAuthCollections({ usePlural: false })`) — the collection the strategy reads to resolve API-key scopes and organization metadata.
+
+### Changed
+
+- **`betterAuthStrategy` resolves API-key organization context and scopes by reading the API key row directly, instead of calling `auth.api.verifyApiKey`.** `verifyApiKey` is not a read — it consumes the key's usage quota (`remaining`) and a rate-limit slot, and can delete the key on exhaustion/expiry. Combined with the validation Better Auth already performs inside `getSession`, the previous code consumed quota/rate-limit **twice per request** for keys with `remaining` or rate limits configured. The strategy now performs a single, side-effect-free row read, so each API-key request consumes the key exactly once.
+
 ## [0.7.8] - 2026-06-24
 
 ### Added
