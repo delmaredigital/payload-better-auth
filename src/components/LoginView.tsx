@@ -54,8 +54,11 @@ export type LoginViewProps = {
    */
   enableSignUp?: boolean | 'auto'
   /**
-   * Default role to assign to new users during registration.
-   * Default: 'user'
+   * @deprecated No longer sent to the server. Role is now assigned
+   * authoritatively server-side (the sign-up form no longer transmits a role,
+   * to close a privilege-escalation path). Configure the default self-sign-up
+   * role via `firstUserAdmin: { defaultRole }` in `betterAuthCollections()`
+   * instead. This prop is retained for backward compatibility but is ignored.
    */
   defaultSignUpRole?: string
   /**
@@ -166,7 +169,8 @@ export function LoginView({
   requireAllRoles = false,
   enablePasskey = 'auto',
   enableSignUp = 'auto',
-  defaultSignUpRole = 'user',
+  // defaultSignUpRole is deprecated and intentionally no longer destructured/used
+  // (role is assigned server-side). Kept in the props type for back-compat.
   enableForgotPassword = 'auto',
   resetPasswordUrl,
   enablePassword = 'auto',
@@ -357,11 +361,15 @@ export function LoginView({
 
     try {
       const client = await getClient()
+      // Do NOT send `role` from the client. Role is assigned authoritatively on
+      // the server (firstUserAdmin hook / your own gated hook). Sending it here
+      // required configuring `role` as a client-writable field, which let anyone
+      // self-provision an admin by POSTing `{ role: 'admin' }` to the sign-up
+      // endpoint. See MIGRATION notes for `defaultSignUpRole`.
       const result = await client.signUp.email({
         email,
         password,
         name,
-        role: defaultSignUpRole,
       } as Parameters<typeof client.signUp.email>[0])
 
       if (result.error) {

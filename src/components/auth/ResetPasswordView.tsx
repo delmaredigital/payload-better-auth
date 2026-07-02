@@ -47,6 +47,16 @@ export function ResetPasswordView({
       setError('Invalid or missing reset token. Please request a new password reset link.')
     } else {
       setToken(tokenParam)
+      // Strip the token from the URL so it doesn't linger in browser history,
+      // synced history, or any analytics that records URLs. Remove only the
+      // `token` param, preserving the rest of the query string.
+      if (typeof window !== 'undefined') {
+        const url = new URL(window.location.href)
+        if (url.searchParams.has('token')) {
+          url.searchParams.delete('token')
+          window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+        }
+      }
     }
   }, [searchParams])
 

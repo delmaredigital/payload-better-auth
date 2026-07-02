@@ -12,6 +12,17 @@ Better Auth adapter and plugins for Payload CMS. Enables seamless integration be
   <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fdelmaredigital%2Fdd-starter&project-name=my-payload-site&build-command=pnpm%20run%20ci&env=PAYLOAD_SECRET,BETTER_AUTH_SECRET&stores=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22productSlug%22%3A%22neon%22%2C%22integrationSlug%22%3A%22neon%22%7D%2C%7B%22type%22%3A%22blob%22%7D%5D"><img src="https://vercel.com/button" alt="Deploy with Vercel" height="32"></a>
 </p>
 
+> 🔒 **Upgrading to 0.8?** This is a **security-hardening release** with breaking changes. Summary (full migration in the [CHANGELOG](./CHANGELOG.md#080---2026-07-02)):
+>
+> - **Roles are assigned server-side on sign-up.** The admin login form no longer sends a `role`, and the first-user-admin hooks ignore any client-supplied role for non-first users. **Action:** if `role` is a Better Auth `additionalField`, set `input: false`; set the default self-sign-up role via `firstUserAdmin: { defaultRole }`. Closes a privilege-escalation path (`POST { role: 'admin' }`).
+> - **API-key scope enforcement for `x-api-key`.** Keys sent via `x-api-key` are now scope-checked instead of being treated as a full session under `allowSessionOrPermission` / `allowAuthenticatedUsers`.
+> - **2FA QR codes render locally** (new `qrcode.react` dependency, auto-installed) — the TOTP secret is no longer sent to a third-party QR service.
+> - **Node >= 20.9 required**; peer ranges capped to tested majors; `defaultSignUpRole` (LoginView prop) is deprecated and ignored.
+>
+> See the [CHANGELOG](./CHANGELOG.md#080---2026-07-02) for full details and migration steps.
+
+---
+
 > ⚠️ **Upgrading to 0.7?** This release requires **Better Auth 1.6** and includes several breaking changes:
 >
 > - **Schema migration required** for projects using the `twoFactor` plugin — Better Auth 1.6.2 added a `verified` column to the `twoFactor` table.
@@ -36,7 +47,7 @@ For AI-assisted exploration: [DeepWiki](https://deepwiki.com/delmaredigital/payl
 pnpm add @delmaredigital/payload-better-auth better-auth
 ```
 
-**Requirements:** `payload` >= 3.69.0 · `better-auth` >= 1.6.0 · `next` >= 15.5.16 · `react` >= 19.2.1
+**Requirements:** `payload` >= 3.69.0 · `better-auth` >= 1.6.0 (1.6.23+ recommended) · `next` >= 15.5.16 · `react` >= 19.2.1 · Node >= 20.9
 
 ## Quick Start
 
@@ -49,7 +60,10 @@ import type { BetterAuthOptions } from 'better-auth'
 export const betterAuthOptions: Partial<BetterAuthOptions> = {
   user: {
     additionalFields: {
-      role: { type: 'string', defaultValue: 'user' },
+      // `input: false` keeps `role` server-only — clients cannot set it at
+      // sign-up. Role is assigned by the first-user-admin hook; configure the
+      // default self-sign-up role via `firstUserAdmin: { defaultRole }`.
+      role: { type: 'string', defaultValue: 'user', input: false },
     },
   },
   emailAndPassword: { enabled: true },

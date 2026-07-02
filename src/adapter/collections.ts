@@ -4,11 +4,18 @@
  * @packageDocumentation
  */
 
-import type { Config, CollectionConfig, Field, Plugin, CollectionBeforeChangeHook } from 'payload'
+import type {
+  Config,
+  CollectionConfig,
+  Field,
+  Plugin,
+  CollectionBeforeChangeHook,
+  CollectionAfterChangeHook,
+} from 'payload'
 import type { BetterAuthOptions } from 'better-auth'
 import { getAuthTables } from 'better-auth/db'
 import type { FirstUserAdminOptions } from '../utils/firstUserAdmin.js'
-import { isAdmin } from '../utils/access.js'
+import { isAdmin, hasAnyRole } from '../utils/access.js'
 
 export type { FirstUserAdminOptions }
 
@@ -103,23 +110,58 @@ export type BetterAuthCollectionsOptions = {
   ) => CollectionConfig
 }
 
+/** req.context key marking a create that was auto-assigned admin as "first user". */
+const FIRST_ADMIN_MARKER = '__betterAuthFirstUserAdminAssigned'
+
+/** Deterministic "who was first" ordering: earliest createdAt, then lowest id. */
+function compareCreated(
+  a: { id: unknown; createdAt?: unknown },
+  b: { id: unknown; createdAt?: unknown }
+): number {
+  const ac = new Date((a.createdAt as string | number | Date) ?? 0).getTime()
+  const bc = new Date((b.createdAt as string | number | Date) ?? 0).getTime()
+  if (ac !== bc) return ac - bc
+  const ai = String(a.id)
+  const bi = String(b.id)
+  return ai < bi ? -1 : ai > bi ? 1 : 0
+}
+
 /**
- * Creates a beforeChange hook that makes the first user an admin.
+ * Creates the first-user-admin hooks.
+ *
+ * Security model (roles are assigned authoritatively on the server):
+ * - The FIRST user (no users exist yet) is bootstrapped as admin.
+ * - A role supplied in `data` is honored ONLY when an already-authenticated
+ *   admin performs the create (e.g. via the Payload admin UI). For
+ *   self-service sign-up, `data` is attacker-controllable, so any incoming
+ *   role is ignored and `defaultRole` is assigned. This closes the
+ *   privilege-escalation path where a client POSTs `{ role: 'admin' }` to the
+ *   sign-up endpoint.
+ * - `afterChange` resolves a concurrent-first-signup race: if this user was
+ *   bootstrap-assigned admin but other admins now exist, only the canonical
+ *   first admin is kept and the rest are demoted. Only bootstrap-assigned
+ *   admins (flagged via req.context) are ever demoted, so admins created
+ *   deliberately by an existing admin are never touched.
  */
-function createFirstUserAdminHook(
+export function createFirstUserAdminHooks(
   options: FirstUserAdminOptions,
   usersSlug: string
-): CollectionBeforeChangeHook {
+): { before: CollectionBeforeChangeHook; after: CollectionAfterChangeHook } {
   const {
     adminRole = 'admin',
     defaultRole = 'user',
     roleField = 'role',
   } = options
 
-  return async ({ data, operation, req }) => {
+  const before: CollectionBeforeChangeHook = async ({ data, operation, req, context }) => {
     if (operation !== 'create') {
       return data
     }
+
+    // Honor an incoming role only for an authenticated admin; otherwise force
+    // the default. Applied in both the success and error branches (fail closed).
+    const byAdmin = hasAnyRole(req?.user as { role?: unknown } | null, [adminRole])
+    const resolvedRole = byAdmin ? (data[roleField] ?? defaultRole) : defaultRole
 
     try {
       const { totalDocs } = await req.payload.count({
@@ -128,45 +170,92 @@ function createFirstUserAdminHook(
       })
 
       if (totalDocs === 0) {
-        // First user becomes admin
+        // Bootstrap the first user as admin; mark so afterChange can resolve
+        // a concurrent-signup race to a single admin.
+        if (context) context[FIRST_ADMIN_MARKER] = true
         return {
           ...data,
           [roleField]: adminRole,
         }
       }
 
-      // Subsequent users get default role if not already set
       return {
         ...data,
-        [roleField]: data[roleField] ?? defaultRole,
+        [roleField]: resolvedRole,
       }
     } catch (error) {
-      // On error, don't block user creation - just use provided or default role
+      // On error, don't block user creation - but never honor a client role.
       console.warn('[betterAuthCollections] Failed to check user count:', error)
       return {
         ...data,
-        [roleField]: data[roleField] ?? defaultRole,
+        [roleField]: resolvedRole,
       }
     }
   }
+
+  const after: CollectionAfterChangeHook = async ({ doc, operation, req, context }) => {
+    if (operation !== 'create') return doc
+    if (!context?.[FIRST_ADMIN_MARKER]) return doc
+
+    try {
+      const admins = await req.payload.find({
+        collection: usersSlug,
+        where: { [roleField]: { equals: adminRole } },
+        limit: 100,
+        depth: 0,
+        overrideAccess: true,
+      })
+      if (admins.docs.length <= 1) return doc
+
+      // Keep only the canonical first admin; demote this one if it isn't it.
+      const keep = [...(admins.docs as Array<{ id: unknown; createdAt?: unknown }>)].sort(
+        compareCreated
+      )[0]
+      if (String(keep.id) === String(doc.id)) return doc
+
+      await req.payload.update({
+        collection: usersSlug,
+        id: doc.id as string | number,
+        data: { [roleField]: defaultRole },
+        overrideAccess: true,
+      })
+      return { ...doc, [roleField]: defaultRole }
+    } catch (error) {
+      console.warn(
+        '[betterAuthCollections] first-user-admin race resolution failed:',
+        error
+      )
+      return doc
+    }
+  }
+
+  return { before, after }
 }
 
 /**
- * Inject the first-user-admin hook into a collection's hooks.
+ * Inject the first-user-admin hooks (before + after) into a collection.
  */
 function injectFirstUserAdminHook(
   collection: CollectionConfig,
   options: FirstUserAdminOptions,
   usersSlug: string
 ): CollectionConfig {
-  const hook = createFirstUserAdminHook(options, usersSlug)
-  const existingHooks = collection.hooks?.beforeChange ?? []
+  const { before, after } = createFirstUserAdminHooks(options, usersSlug)
+  const existingBefore = collection.hooks?.beforeChange ?? []
+  const existingAfter = collection.hooks?.afterChange ?? []
 
   return {
     ...collection,
     hooks: {
       ...collection.hooks,
-      beforeChange: [hook, ...(Array.isArray(existingHooks) ? existingHooks : [existingHooks])],
+      beforeChange: [
+        before,
+        ...(Array.isArray(existingBefore) ? existingBefore : [existingBefore]),
+      ],
+      afterChange: [
+        ...(Array.isArray(existingAfter) ? existingAfter : [existingAfter]),
+        after,
+      ],
     },
   }
 }

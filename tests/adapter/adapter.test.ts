@@ -443,6 +443,57 @@ describe('payloadAdapter', () => {
         })
       )
     })
+
+    // M8: the factory maps `where` field names (userId → user) but NOT sortBy;
+    // the adapter must map the sort field itself or it sorts on a missing column.
+    it('maps a renamed reference field in sortBy (userId → user)', async () => {
+      const factory = payloadAdapter({ payloadClient: mockPayload })
+      const adapter = factory(betterAuthOptions)
+
+      await adapter.findMany({
+        model: 'session',
+        limit: 10,
+        sortBy: { field: 'userId', direction: 'asc' },
+      })
+
+      expect(mockPayload.find).toHaveBeenCalledWith(
+        expect.objectContaining({ sort: 'user' })
+      )
+    })
+
+    // H4: page = floor(offset/limit)+1 is wrong unless offset is a multiple of
+    // limit. For an aligned offset the page shortcut is used directly.
+    it('uses the page shortcut for an offset that is a multiple of limit', async () => {
+      const factory = payloadAdapter({ payloadClient: mockPayload })
+      const adapter = factory(betterAuthOptions)
+
+      await adapter.findMany({ model: 'user', limit: 2, offset: 4 })
+
+      expect(mockPayload.find).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 2, page: 3 })
+      )
+    })
+
+    // H4: for a non-aligned offset, over-fetch from page 1 and slice to the
+    // true offset so the correct rows are returned.
+    it('over-fetches and slices for a non-aligned offset', async () => {
+      const docs = Array.from({ length: 6 }, (_, i) => ({
+        id: String(i),
+        email: `u${i}@example.com`,
+      }))
+      const pagedPayload = createMockPayload({ documents: { users: docs } })
+      const factory = payloadAdapter({ payloadClient: pagedPayload })
+      const adapter = factory(betterAuthOptions)
+
+      const result = await adapter.findMany({ model: 'user', limit: 2, offset: 3 })
+
+      // Over-fetch: limit = offset + limit = 5, page 1.
+      expect(pagedPayload.find).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 5, page: 1 })
+      )
+      // Sliced to rows starting at index 3: ids '3','4'.
+      expect((result as Array<{ id: string }>).map((d) => d.id)).toEqual(['3', '4'])
+    })
   })
 
   describe('update', () => {
@@ -470,6 +521,20 @@ describe('payloadAdapter', () => {
         })
       )
     })
+
+    // H6: BA reference adapters treat update-not-found as null, not a 500.
+    it('returns null instead of throwing when the target row is gone', async () => {
+      const factory = payloadAdapter({ payloadClient: mockPayload })
+      const adapter = factory(betterAuthOptions)
+
+      const result = await adapter.update({
+        model: 'user',
+        where: [{ field: 'id', value: '9999', operator: 'eq' }],
+        update: { name: 'Nope' },
+      })
+
+      expect(result).toBeNull()
+    })
   })
 
   describe('delete', () => {
@@ -491,6 +556,43 @@ describe('payloadAdapter', () => {
           id: 1, // Number because generateId: 'serial'
         })
       )
+    })
+
+    // H6: real Payload throws a 404 APIError on delete-by-id-not-found; that
+    // must be swallowed (idempotent no-op), matching BA's reference adapters.
+    it('swallows a 404 on delete-by-id (idempotent)', async () => {
+      const notFound = Object.assign(new Error('Not Found'), { status: 404 })
+      const throwingPayload = createMockPayload({
+        documents: { users: [{ id: '1' }] },
+        throwOn: { delete: notFound },
+      })
+      const factory = payloadAdapter({ payloadClient: throwingPayload })
+      const adapter = factory(betterAuthOptions)
+
+      await expect(
+        adapter.delete({
+          model: 'user',
+          where: [{ field: 'id', value: '1', operator: 'eq' }],
+        })
+      ).resolves.toBeUndefined()
+    })
+
+    // Non-404 errors must still propagate.
+    it('rethrows a non-404 error on delete-by-id', async () => {
+      const boom = Object.assign(new Error('DB down'), { status: 500 })
+      const throwingPayload = createMockPayload({
+        documents: { users: [{ id: '1' }] },
+        throwOn: { delete: boom },
+      })
+      const factory = payloadAdapter({ payloadClient: throwingPayload })
+      const adapter = factory(betterAuthOptions)
+
+      await expect(
+        adapter.delete({
+          model: 'user',
+          where: [{ field: 'id', value: '1', operator: 'eq' }],
+        })
+      ).rejects.toThrow('DB down')
     })
   })
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, type FormEvent } from 'react'
 import { useConfig } from '@payloadcms/ui'
+import { QRCodeSVG } from 'qrcode.react'
 
 export type TwoFactorSetupViewProps = {
   /** Custom logo element */
@@ -389,13 +390,18 @@ export function TwoFactorSetupView({
               marginBottom: 'calc(var(--base) * 1.5)',
             }}
           >
-            {/* QR code using QRServer.com API */}
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(totpUri)}`}
-              alt="QR Code for authenticator app"
+            {/*
+              QR rendered client-side as inline SVG. The TOTP provisioning URI
+              contains the shared secret and must NEVER be sent to a third party
+              (it previously went to api.qrserver.com, leaking every user's 2FA
+              secret to an external service).
+            */}
+            <QRCodeSVG
+              value={totpUri}
+              size={200}
+              marginSize={2}
+              title="QR code for authenticator app"
               style={{
-                width: '200px',
-                height: '200px',
                 border: '1px solid var(--theme-elevation-150)',
                 borderRadius: 'var(--style-radius-s)',
               }}

@@ -35,3 +35,4 @@ WARP.md
 # Internal planning docs
 docs/*
 !docs/index.html
+plans/

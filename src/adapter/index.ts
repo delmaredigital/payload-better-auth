@@ -280,12 +280,28 @@ export function payloadAdapter({
         // Only do this for references to 'id' (primary key). Non-PK references
         // (e.g., oauthRefreshToken.clientId → oauthClient.clientId) stay as plain
         // text fields and should keep their original name.
-        for (const table of Object.values(schema)) {
+        //
+        // We also record each rename in `fieldRenameByModel` so sortBy fields can
+        // be mapped the same way (the factory maps `where` but not `sortBy`).
+        // It's keyed by BOTH the singular schema key AND the resolved model name
+        // the factory passes to adapter methods (plural when usePlural is on).
+        const fieldRenameByModel = new Map<string, Record<string, string>>()
+        for (const [modelKey, table] of Object.entries(schema)) {
+          const renames: Record<string, string> = {}
           for (const [fieldKey, fieldDef] of Object.entries(table.fields)) {
             if (fieldDef.references && (!fieldDef.references.field || fieldDef.references.field === 'id')) {
               const stripped = fieldKey.replace(/(_id|Id)$/, '');
-              if (stripped !== fieldKey) fieldDef.fieldName = stripped;
+              if (stripped !== fieldKey) {
+                fieldDef.fieldName = stripped;
+                renames[fieldKey] = stripped;
+              }
             }
+          }
+          fieldRenameByModel.set(modelKey, renames)
+          try {
+            fieldRenameByModel.set(getModelName(modelKey), renames)
+          } catch {
+            // getModelName may throw for unknown keys; the singular key is enough.
           }
         }
 
@@ -351,6 +367,21 @@ export function payloadAdapter({
           }
           return name as CollectionSlug
         }
+
+        // Payload throws a 404 APIError when an id-targeted op finds no doc.
+        // Better Auth's reference adapters treat delete/update-not-found as a
+        // silent no-op, so we normalize 404 to "not found" rather than letting
+        // it surface as a 500.
+        const isNotFoundError = (error: unknown): boolean =>
+          error instanceof Error &&
+          'status' in error &&
+          (error as Error & { status: number }).status === 404
+
+        // Map a Better Auth field name to its Payload field name using the
+        // renames captured above (e.g. userId → user). The factory applies this
+        // to `where` but NOT to `sortBy`, so we do it here.
+        const mapSortField = (model: string, field: string): string =>
+          fieldRenameByModel.get(model)?.[field] ?? field
 
         // The CustomAdapter interface uses generics (T) for return types.
         // Payload returns concrete types (JsonObject & TypeWithID).
@@ -450,11 +481,21 @@ export function payloadAdapter({
               if (!result.docs[0]) return null
               return result.docs[0]
             } catch (error) {
+              // Do NOT log `where` values here: findOne on sessions is keyed by
+              // raw session token, verifications by OTP, apikeys by key hash —
+              // logging values would leak live credentials. Log field names only;
+              // full where is available under enableDebugLogs.
+              const whereFields = Array.isArray(where)
+                ? where.map((w) => (w as { field?: string }).field).filter(Boolean)
+                : undefined
               console.error('[payload-adapter] findOne failed:', {
                 model,
-                where,
+                whereFields,
                 error,
               })
+              if (enableDebugLogs) {
+                debugLog('findOne failed (full where)', { model, where })
+              }
               throw error
             }
           },
@@ -475,15 +516,36 @@ export function payloadAdapter({
             }
 
             const payloadWhere = where ? convertWhereToPayload(where) : {}
+            const effectiveLimit = limit ?? 100
+
+            // Payload paginates by `page`, not `offset`. Deriving a page as
+            // `floor(offset/limit)+1` is only correct when offset is an exact
+            // multiple of limit; Better Auth passes arbitrary offsets (e.g.
+            // admin listUsers). When offset is not aligned, over-fetch from
+            // page 1 and slice to the true offset.
+            const sort = sortBy
+              ? `${sortBy.direction === 'desc' ? '-' : ''}${mapSortField(model, sortBy.field)}`
+              : undefined
+
+            if (offset && offset % effectiveLimit !== 0) {
+              const result = await payload.find({
+                collection,
+                where: payloadWhere,
+                limit: offset + effectiveLimit,
+                page: 1,
+                sort,
+                depth: join ? 1 : 0,
+                overrideAccess: true,
+              })
+              return result.docs.slice(offset)
+            }
 
             const result = await payload.find({
               collection,
               where: payloadWhere,
-              limit: limit ?? 100,
-              page: offset ? Math.floor(offset / (limit ?? 100)) + 1 : 1,
-              sort: sortBy
-                ? `${sortBy.direction === 'desc' ? '-' : ''}${sortBy.field}`
-                : undefined,
+              limit: effectiveLimit,
+              page: offset ? offset / effectiveLimit + 1 : 1,
+              sort,
               depth: join ? 1 : 0,
               overrideAccess: true,
             })
@@ -502,14 +564,21 @@ export function payloadAdapter({
             // Optimize for single ID queries
             const id = extractSingleId(where)
             if (id !== null) {
-              const result = await payload.update({
-                collection,
-                id,
-                data: data as Record<string, unknown>,
-                depth: 0,
-                overrideAccess: true,
-              })
-              return { ...data, ...result } as typeof data
+              try {
+                const result = await payload.update({
+                  collection,
+                  id,
+                  data: data as Record<string, unknown>,
+                  depth: 0,
+                  overrideAccess: true,
+                })
+                return { ...data, ...result } as typeof data
+              } catch (error) {
+                // Row already gone (e.g. concurrent session revocation) — BA
+                // expects null, not a 500.
+                if (isNotFoundError(error)) return null
+                throw error
+              }
             }
 
             const payloadWhere = convertWhereToPayload(where)
@@ -543,6 +612,17 @@ export function payloadAdapter({
               overrideAccess: true,
             })
 
+            // Payload bulk ops are per-doc and can partially fail; `docs.length`
+            // alone would report those failures as successes to Better Auth.
+            const updateErrors = (result as { errors?: unknown[] }).errors
+            if (updateErrors && updateErrors.length > 0) {
+              console.error('[payload-adapter] updateMany partial failure:', {
+                model,
+                failed: updateErrors.length,
+                succeeded: result.docs.length,
+              })
+            }
+
             return result.docs.length
           },
 
@@ -557,11 +637,17 @@ export function payloadAdapter({
             // Optimize for single ID queries
             const id = extractSingleId(where)
             if (id !== null) {
-              await payload.delete({
-                collection,
-                id,
-                overrideAccess: true,
-              })
+              try {
+                await payload.delete({
+                  collection,
+                  id,
+                  overrideAccess: true,
+                })
+              } catch (error) {
+                // Delete-not-found is a silent no-op in BA's reference adapters
+                // (double sign-out, expired-verification cleanup, etc.).
+                if (!isNotFoundError(error)) throw error
+              }
               return
             }
 
@@ -584,6 +670,15 @@ export function payloadAdapter({
               where: payloadWhere,
               overrideAccess: true,
             })
+
+            const deleteErrors = (result as { errors?: unknown[] }).errors
+            if (deleteErrors && deleteErrors.length > 0) {
+              console.error('[payload-adapter] deleteMany partial failure:', {
+                model,
+                failed: deleteErrors.length,
+                succeeded: result.docs.length,
+              })
+            }
 
             return result.docs.length
           },

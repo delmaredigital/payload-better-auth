@@ -8,75 +8,76 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
       "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./adapter": {
-      "import": "./dist/adapter/index.js",
       "types": "./dist/adapter/index.d.ts",
+      "import": "./dist/adapter/index.js",
       "default": "./dist/adapter/index.js"
     },
     "./plugin": {
-      "import": "./dist/plugin/index.js",
       "types": "./dist/plugin/index.d.ts",
+      "import": "./dist/plugin/index.js",
       "default": "./dist/plugin/index.js"
     },
     "./client": {
-      "import": "./dist/exports/client.js",
       "types": "./dist/exports/client.d.ts",
+      "import": "./dist/exports/client.js",
       "default": "./dist/exports/client.js"
     },
     "./components": {
-      "import": "./dist/exports/components.js",
       "types": "./dist/exports/components.d.ts",
+      "import": "./dist/exports/components.js",
       "default": "./dist/exports/components.js"
     },
     "./components/auth": {
-      "import": "./dist/components/auth/index.js",
       "types": "./dist/components/auth/index.d.ts",
+      "import": "./dist/components/auth/index.js",
       "default": "./dist/components/auth/index.js"
     },
     "./components/twoFactor": {
-      "import": "./dist/components/twoFactor/index.js",
       "types": "./dist/components/twoFactor/index.d.ts",
+      "import": "./dist/components/twoFactor/index.js",
       "default": "./dist/components/twoFactor/index.js"
     },
     "./management": {
-      "import": "./dist/exports/management.js",
       "types": "./dist/exports/management.d.ts",
+      "import": "./dist/exports/management.js",
       "default": "./dist/exports/management.js"
     },
     "./components/management": {
-      "import": "./dist/components/management/index.js",
       "types": "./dist/components/management/index.d.ts",
+      "import": "./dist/components/management/index.js",
       "default": "./dist/components/management/index.js"
     },
     "./rsc": {
-      "import": "./dist/exports/rsc.js",
       "types": "./dist/exports/rsc.d.ts",
+      "import": "./dist/exports/rsc.js",
       "default": "./dist/exports/rsc.js"
     },
     "./rsc/passkey": {
-      "import": "./dist/exports/rsc-passkey.js",
       "types": "./dist/exports/rsc-passkey.d.ts",
+      "import": "./dist/exports/rsc-passkey.js",
       "default": "./dist/exports/rsc-passkey.js"
     },
     "./rsc/api-key": {
-      "import": "./dist/exports/rsc-api-key.js",
       "types": "./dist/exports/rsc-api-key.d.ts",
+      "import": "./dist/exports/rsc-api-key.js",
       "default": "./dist/exports/rsc-api-key.js"
     },
     "./components/passkey": {
-      "import": "./dist/components/passkey/index.js",
       "types": "./dist/components/passkey/index.d.ts",
+      "import": "./dist/components/passkey/index.js",
       "default": "./dist/components/passkey/index.js"
     },
     "./components/api-key": {
-      "import": "./dist/components/api-key/index.js",
       "types": "./dist/components/api-key/index.d.ts",
+      "import": "./dist/components/api-key/index.js",
       "default": "./dist/components/api-key/index.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
@@ -95,14 +96,14 @@
     "prepublishOnly": "pnpm build"
   },
   "peerDependencies": {
-    "@better-auth/api-key": ">=1.6.0",
-    "@better-auth/passkey": ">=1.6.0",
-    "@payloadcms/next": ">=3.69.0",
-    "@payloadcms/ui": ">=3.69.0",
-    "better-auth": ">=1.6.0",
-    "next": ">=15.5.16",
-    "payload": ">=3.69.0",
-    "react": ">=19.2.1"
+    "@better-auth/api-key": ">=1.6.0 <2",
+    "@better-auth/passkey": ">=1.6.0 <2",
+    "@payloadcms/next": ">=3.69.0 <4",
+    "@payloadcms/ui": ">=3.69.0 <4",
+    "better-auth": ">=1.6.0 <2",
+    "next": ">=15.5.16 <17",
+    "payload": ">=3.69.0 <4",
+    "react": ">=19.2.1 <20"
   },
   "peerDependenciesMeta": {
     "@better-auth/api-key": {
@@ -113,9 +114,9 @@
     }
   },
   "devDependencies": {
-    "@better-auth/api-key": "^1.6.18",
-    "@better-auth/oauth-provider": "^1.6.18",
-    "@better-auth/passkey": "^1.6.18",
+    "@better-auth/api-key": "^1.6.23",
+    "@better-auth/oauth-provider": "^1.6.23",
+    "@better-auth/passkey": "^1.6.23",
     "@payloadcms/next": "^3.85.0",
     "@payloadcms/ui": "^3.85.0",
     "@swc/cli": "^0.6.0",
@@ -127,7 +128,7 @@
     "@types/react": "^19.2.14",
     "@vitejs/plugin-react": "^5.2.0",
     "@vitest/coverage-v8": "^4.1.8",
-    "better-auth": "^1.6.18",
+    "better-auth": "^1.6.23",
     "jsdom": "^29.1.1",
     "next": "^16.2.5",
     "payload": "^3.85.0",
@@ -147,7 +148,7 @@
     "adapter"
   ],
   "engines": {
-    "node": "^18.20.2 || >=20.9.0"
+    "node": ">=20.9.0"
   },
   "author": "Delmare Digital",
   "repository": {
@@ -157,5 +158,8 @@
   "bugs": {
     "url": "https://github.com/delmaredigital/payload-better-auth/issues"
   },
-  "homepage": "https://delmaredigital.com/developers"
+  "homepage": "https://delmaredigital.com/developers",
+  "dependencies": {
+    "qrcode.react": "^4.2.0"
+  }
 }

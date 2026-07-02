@@ -792,7 +792,7 @@ details .details-body > :first-child { margin-top: 0; }
   <div class="header-brand">
     <span>payload</span>-better-auth
   </div>
-  <span class="header-badge">v0.7.8</span>
+  <span class="header-badge">v0.8.0</span>
 
   <div class="search-wrap">
     <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -881,6 +881,17 @@ details .details-body > :first-child { margin-top: 0; }
       </div>
     </div>
 
+    <!-- ═══════ UPGRADING TO 0.8 ═══════ -->
+    <div class="section" id="upgrading-0-8">
+      <div class="callout callout-warn">
+        <p><strong>Upgrading to 0.8?</strong> This is a security-hardening release with breaking changes. Highlights:</p>
+        <p><strong>1. Roles are now assigned server-side on sign-up.</strong> The admin login form no longer sends a <code>role</code>, and the first-user-admin hooks ignore any client-supplied role for non-first users. If you configured <code>role</code> as an input-writable Better Auth <code>additionalField</code>, set it to <code>input: false</code> and control the default self-sign-up role via <code>firstUserAdmin: { defaultRole }</code>. This closes a privilege-escalation path where a client could POST <code>{ role: 'admin' }</code> to the sign-up endpoint.</p>
+        <p><strong>2. API-key scope enforcement.</strong> Keys sent via the <code>x-api-key</code> header are now scope-checked (previously they could be treated as a full session under <code>allowSessionOrPermission</code> / <code>allowAuthenticatedUsers</code>).</p>
+        <p><strong>3. 2FA QR codes render locally.</strong> The TOTP secret is no longer sent to a third-party QR service — QR codes are generated in the browser. Requires the new <code>qrcode.react</code> dependency (installed automatically).</p>
+        <p><strong>4. Requires Node &ge; 20.9</strong> and caps peer ranges to the tested majors. See the <a href="https://github.com/delmaredigital/payload-better-auth/blob/main/CHANGELOG.md">CHANGELOG</a> for full migration instructions.</p>
+      </div>
+    </div>
+
     <!-- ═══════ INSTALLATION ═══════ -->
     <div class="section" id="installation">
       <h2>Installation</h2>
@@ -892,7 +903,7 @@ details .details-body > :first-child { margin-top: 0; }
           <tr><td><code>payload</code></td><td>&ge; 3.69.0</td></tr>
           <tr><td><code>@payloadcms/next</code></td><td>&ge; 3.69.0</td></tr>
           <tr><td><code>@payloadcms/ui</code></td><td>&ge; 3.69.0</td></tr>
-          <tr><td><code>better-auth</code></td><td>&ge; 1.6.0</td></tr>
+          <tr><td><code>better-auth</code></td><td>&ge; 1.6.0 (1.6.23+ recommended)</td></tr>
           <tr><td><code>next</code></td><td>&ge; 15.5.16</td></tr>
           <tr><td><code>react</code></td><td>&ge; 19.2.1</td></tr>
         </tbody>
@@ -950,7 +961,8 @@ GOOGLE_CLIENT_SECRET=...</code></pre>
 <span class="hl-keyword">export const</span> betterAuthOptions: <span class="hl-type">Partial</span>&lt;<span class="hl-type">BetterAuthOptions</span>&gt; = {
   user: {
     additionalFields: {
-      role: { type: <span class="hl-string">'string'</span>, defaultValue: <span class="hl-string">'user'</span> },
+      <span class="hl-comment">// input: false keeps `role` server-only — clients cannot set it at sign-up.</span>
+      role: { type: <span class="hl-string">'string'</span>, defaultValue: <span class="hl-string">'user'</span>, input: <span class="hl-const">false</span> },
     },
   },
   session: {

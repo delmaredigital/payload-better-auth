@@ -267,6 +267,8 @@ export type TwoFactorFields = {
   backupCodes: string
   userId: string
   verified?: boolean
+  failedVerificationCount?: number
+  lockedUntil?: Date
 }
 
 export type TwoFactor = TwoFactorFields

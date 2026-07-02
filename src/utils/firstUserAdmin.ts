@@ -109,11 +109,14 @@ export function firstUserAdminHooks(
       const adapter = context?.context?.adapter
 
       if (!adapter?.count) {
-        // Adapter not available, fall back to default role
+        // Adapter not available: assign the default role. Never honor an
+        // incoming role here — this runs on the sign-up path where `user` is
+        // client-controllable, so trusting `user[roleField]` would let a client
+        // POST `{ role: 'admin' }` and self-escalate.
         return {
           data: {
             ...user,
-            [roleField]: user[roleField] ?? defaultRole,
+            [roleField]: defaultRole,
           },
         }
       }
@@ -133,20 +136,24 @@ export function firstUserAdminHooks(
         }
       }
 
-      // Subsequent users get default role if not already set
+      // Subsequent users always get the default role. Role is a server-only
+      // decision on the sign-up path; a client-supplied role is ignored. If you
+      // need to assign specific roles to non-first users, do it from a trusted
+      // context (Payload admin UI, seed script, or your own gated hook).
       return {
         data: {
           ...user,
-          [roleField]: user[roleField] ?? defaultRole,
+          [roleField]: defaultRole,
         },
       }
     } catch (error) {
-      // On error, don't block user creation - just use provided or default role
+      // On error, don't block user creation - but fail closed on role: assign
+      // the default rather than trusting a client-supplied role.
       console.warn('[firstUserAdminHooks] Failed to check user count:', error)
       return {
         data: {
           ...user,
-          [roleField]: user[roleField] ?? defaultRole,
+          [roleField]: defaultRole,
         },
       }
     }

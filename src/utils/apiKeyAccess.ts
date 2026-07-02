@@ -53,9 +53,22 @@ export type PermissionCheck = {
 
 /**
  * Extract API key from request headers.
- * Supports Bearer token format: Authorization: Bearer <api-key>
+ *
+ * Supports BOTH transports the auth strategy authenticates keys on:
+ *   - `x-api-key: <api-key>`
+ *   - `Authorization: Bearer <api-key>` (or a bare `Authorization` value)
+ *
+ * The `x-api-key` case is security-critical: the strategy (plugin/index.ts)
+ * mints `req.user` for keys sent via `x-api-key`, so if this helper only read
+ * `Authorization`, a key sent via `x-api-key` would yield `apiKey === null`
+ * while `req.user` was set — and any `allowAuthenticatedUsers` guard would
+ * treat a scoped (or zero-scope) key as a full session, bypassing scope
+ * enforcement entirely.
  */
 export function extractApiKeyFromRequest(req: PayloadRequest): string | null {
+  const apiKeyHeader = req.headers?.get('x-api-key')
+  if (apiKeyHeader) return apiKeyHeader.trim()
+
   const authHeader = req.headers?.get('authorization')
   if (!authHeader) return null
 
@@ -64,6 +77,24 @@ export function extractApiKeyFromRequest(req: PayloadRequest): string | null {
   }
 
   return authHeader.trim()
+}
+
+/**
+ * Detect whether `req.user` was authenticated from an API key (vs an
+ * interactive session). The auth strategy attaches `apiKeyScopes` to the user
+ * only for API-key requests, so its presence is the signal.
+ *
+ * Used to keep API-key-derived users out of the `allowAuthenticatedUsers`
+ * short-circuit as defense-in-depth: even if a consumer supplies a custom
+ * `extractApiKey` that fails to see the key's header, an API-key user must
+ * never be treated as a full session.
+ */
+function isApiKeyUser(user: unknown): boolean {
+  return (
+    typeof user === 'object' &&
+    user !== null &&
+    (user as { apiKeyScopes?: unknown }).apiKeyScopes !== undefined
+  )
 }
 
 /**
@@ -173,7 +204,7 @@ export function requirePermission(
   return async ({ req }) => {
     const apiKey = extractApiKey(req)
 
-    if (allowAuthenticatedUsers && req.user && !apiKey) {
+    if (allowAuthenticatedUsers && req.user && !apiKey && !isApiKeyUser(req.user)) {
       return true
     }
 
@@ -212,7 +243,7 @@ export function requireAnyPermission(
   return async ({ req }) => {
     const apiKey = extractApiKey(req)
 
-    if (allowAuthenticatedUsers && req.user && !apiKey) {
+    if (allowAuthenticatedUsers && req.user && !apiKey && !isApiKeyUser(req.user)) {
       return true
     }
 
@@ -256,7 +287,7 @@ export function requireAllPermissions(
   return async ({ req }) => {
     const apiKey = extractApiKey(req)
 
-    if (allowAuthenticatedUsers && req.user && !apiKey) {
+    if (allowAuthenticatedUsers && req.user && !apiKey && !isApiKeyUser(req.user)) {
       return true
     }
 
@@ -321,7 +352,7 @@ export function requireApiKey(
   return async ({ req }) => {
     const apiKey = extractApiKey(req)
 
-    if (allowAuthenticatedUsers && req.user && !apiKey) {
+    if (allowAuthenticatedUsers && req.user && !apiKey && !isApiKeyUser(req.user)) {
       return true
     }
 

@@ -23,15 +23,14 @@ export function detectAuthConfig(config: Config): AuthDetectionResult {
   for (const collection of collections) {
     if (collection.auth) {
       const auth = collection.auth
-      // disableLocalStrategy can be `true` or an object with options
-      if (
-        auth === true ||
-        (typeof auth === 'object' && auth.disableLocalStrategy)
-      ) {
+      // In Payload, `auth: true` ENABLES the local strategy — it is NOT
+      // disableLocalStrategy. Only the object form carries `disableLocalStrategy`.
+      // (Treating `auth: true` as disableLocalStrategy hijacked working local
+      // logins and could lock out admins whose credentials live only in
+      // Payload's local strategy.)
+      if (typeof auth === 'object' && auth.disableLocalStrategy) {
         return {
-          hasDisableLocalStrategy:
-            auth === true ||
-            (typeof auth === 'object' && !!auth.disableLocalStrategy),
+          hasDisableLocalStrategy: true,
           authCollectionSlug: collection.slug,
           authCollectionConfig: collection,
         }

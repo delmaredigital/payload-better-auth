@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button, Banner } from '@payloadcms/ui'
 import { CopyIcon } from '@payloadcms/ui/icons/Copy'
+import { QRCodeSVG } from 'qrcode.react'
 import {
   createPayloadAuthClient,
 } from '../../exports/client.js'
@@ -251,12 +252,16 @@ export function TwoFactorManagementClient({
             Scan this QR code with your authenticator app:
           </p>
 
-          <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(totpUri)}`}
-            alt="QR Code"
+          {/*
+            QR rendered client-side as inline SVG. The TOTP URI contains the
+            shared secret and must never leave the browser.
+          */}
+          <QRCodeSVG
+            value={totpUri}
+            size={200}
+            marginSize={2}
+            title="QR code for authenticator app"
             style={{
-              width: '200px',
-              height: '200px',
               border: '1px solid var(--theme-border-color)',
               borderRadius: 'var(--style-radius-s)',
               marginBottom: 'var(--base)',

@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-07-02
+
+Security-hardening release from a full audit. Contains breaking changes; the minor bump signals them (pre-1.0). **Read the Migration section below before upgrading.**
+
+### Security
+
+- **API keys sent via `x-api-key` are now scope-enforced.** `extractApiKeyFromRequest` only read the `Authorization` header, but the auth strategy authenticates keys via **both** `x-api-key` and `Authorization: Bearer`. As a result, a key sent via `x-api-key` populated `req.user` while the access helpers saw no key — so any access function using `allowSessionOrPermission` / `allowSessionOrAnyPermission` / `allowAuthenticatedUsers: true` treated a scoped (or zero-scope) key as a **full session**, bypassing scope enforcement for write/delete. `extractApiKeyFromRequest` now reads `x-api-key`, and API-key-derived users (those carrying `apiKeyScopes`) are additionally excluded from the "authenticated user" short-circuit as defense-in-depth.
+- **2FA TOTP secrets no longer leave the browser.** The 2FA setup/management views rendered the QR code via `https://api.qrserver.com/...`, sending each user's full `otpauth://…?secret=…` provisioning URI (including the shared secret) to a third-party service. QR codes are now generated **client-side** as inline SVG via `qrcode.react`. Anyone who could read that third party's logs could previously generate valid TOTP codes.
+- **Roles are assigned authoritatively on the server at sign-up.** The admin login form no longer transmits a `role`, and both first-user-admin hooks now ignore a client-supplied role for non-first users (the Payload collection hook honors a role only when an already-authenticated admin performs the create). Previously a client could `POST { role: 'admin' }` to the sign-up endpoint and self-provision an admin when `role` was an input-writable field. See Migration.
+- **First-user-admin concurrent-signup race narrowed.** The auto-injected hook added an `afterChange` guard that resolves a concurrent first-signup race to a single canonical admin (only bootstrap-assigned admins are ever demoted; admins created deliberately by an existing admin are untouched). Note this remains a bootstrap convenience — enable first-user-admin before exposing public sign-up.
+- **`detectAuthConfig` no longer misreads `auth: true` as `disableLocalStrategy`.** A collection with `auth: true` (which *enables* Payload's local strategy) wrongly triggered admin-component injection, hijacking a working local login and potentially locking out admins whose credentials live only in Payload's local strategy. Only the object form with `disableLocalStrategy` now counts.
+- **Adapter no longer logs credential-bearing query values.** The `findOne` error path logged the full `where` clause unconditionally — which for sessions is the raw token, for verifications the OTP, for api-keys the key hash. It now logs field **names** only (full `where` remains under `enableDebugLogs`).
+- **Password-reset token is stripped from the URL** after capture (via `history.replaceState`), so it no longer lingers in browser history or analytics.
+
+### Changed
+
+- **BREAKING: `role` is server-assigned on sign-up.** See Migration for the `input: false` change and `firstUserAdmin.defaultRole`.
+- **BREAKING: Node.js `>= 20.9` required.** The prior `^18.20.2` clause was dropped — Node 18 is EOL and the tested toolchain (Next 16, Vite 7) requires ≥ 20.9.
+- **BREAKING: peer dependency ranges are capped to tested majors** (`better-auth >=1.6.0 <2`, `payload/@payloadcms/* >=3.69.0 <4`, `next >=15.5.16 <17`, `react >=19.2.1 <20`) to prevent silently installing an untested major.
+- **`LoginView` `defaultSignUpRole` prop is deprecated and ignored.** It was previously sent to the server as a client-writable role. Configure the default self-sign-up role via `firstUserAdmin: { defaultRole }` instead.
+- **Bumped Better Auth to 1.6.23** (from 1.6.18) across `better-auth` and `@better-auth/*`. Regenerated `generated-types` — the `twoFactor` schema gains `failedVerificationCount` and `lockedUntil` (BA's 2FA lockout hardening), which `betterAuthCollections()` now surfaces.
+- **`package.json` `exports` reordered to `types` → `import` → `default`** so the `types` condition resolves under `node16`/`nodenext` module resolution; added a `./package.json` subpath export.
+
+### Added
+
+- **`qrcode.react`** is now a runtime dependency (used to render 2FA QR codes locally).
+- **CI now runs `pnpm test` before publishing** (the tag-triggered publish workflow previously had no test gate).
+
+### Fixed
+
+- **Adapter pagination for non-aligned offsets.** `findMany` derived the Payload `page` as `floor(offset/limit)+1`, which is only correct when `offset` is a multiple of `limit`; arbitrary offsets (e.g. admin `listUsers`) returned duplicated/skipped rows. Non-aligned offsets now over-fetch from page 1 and slice to the true offset.
+- **Idempotent `delete`/`update` by id.** Id-targeted deletes/updates threw Payload's 404 `APIError` (surfacing as a 500) when the row was already gone; they now no-op / return `null`, matching Better Auth's reference adapters (fixes spurious errors on double sign-out and concurrent session revocation).
+- **`sortBy` on renamed reference fields.** `findMany({ sortBy: { field: 'userId' } })` sorted on a non-existent column (the factory maps `where` field names but not `sortBy`); the adapter now maps `sortBy` fields through the same `userId → user` rename, including under `usePlural: true`.
+- **Bulk `updateMany`/`deleteMany` partial failures are now surfaced** (previously `docs.length` reported partial failures as success).
+
+### Migration
+
+1. **Make `role` server-only.** In your Better Auth `user.additionalFields`, set the role field to `input: false`:
+   ```ts
+   user: { additionalFields: { role: { type: 'string', defaultValue: 'user', input: false } } }
+   ```
+   To change the default role assigned to self-sign-ups, use the collections option:
+   ```ts
+   betterAuthCollections({ firstUserAdmin: { defaultRole: 'user', adminRole: 'admin' } })
+   ```
+   Remove any reliance on the `LoginView` `defaultSignUpRole` prop (now ignored). If you need to assign specific roles to non-first users, do it from a trusted context (the Payload admin UI, a seed script, or your own access-gated hook) — not the public sign-up endpoint.
+2. **Node.js `>= 20.9`.** Upgrade your runtime/CI if you were on Node 18.
+3. **`qrcode.react`** installs automatically as a dependency; no action needed unless you vendor node_modules.
+4. **API-key access unchanged in usage** — if you relied on the (insecure) behavior where an `x-api-key` request bypassed scope checks under `allowSessionOrPermission`, note that keys are now scope-enforced on both header transports.
+5. **Regenerate collections/types** if you use `betterAuthCollections()` with the `twoFactor` plugin, to pick up the new `failedVerificationCount` / `lockedUntil` columns (a Better Auth 1.6 schema addition).
+
 ## [0.7.9] - 2026-06-27
 
 ### Security
