@@ -77,6 +77,11 @@
       "import": "./dist/components/api-key/index.js",
       "default": "./dist/components/api-key/index.js"
     },
+    "./components/login-passkey": {
+      "types": "./dist/exports/login-passkey.d.ts",
+      "import": "./dist/exports/login-passkey.js",
+      "default": "./dist/exports/login-passkey.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

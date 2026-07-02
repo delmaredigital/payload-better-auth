@@ -14,7 +14,7 @@ Better Auth adapter and plugins for Payload CMS. Enables seamless integration be
 
 > 🔧 **Upgrading to 0.9?** A second hardening pass (correctness + robustness) with a few breaking changes. Summary (full migration in the [CHANGELOG](./CHANGELOG.md#090---2026-07-02)):
 >
-> - **Passkey in the default `LoginView` now needs an injected `authClient`** — the component no longer statically imports the optional `@better-auth/passkey` peer (which broke builds for consumers who hadn't installed it). Pass `authClient={createAuthClient({ plugins: [...payloadAuthPlugins, passkeyClient()] })}`.
+> - **Passkey on the admin login** — the default `LoginView` no longer imports the optional `@better-auth/passkey` peer (it broke builds for consumers who hadn't installed it). To keep passkey sign-in on the admin login, point your login view at the passkey wrapper (added in 0.9.1): `admin.loginViewComponent: '@delmaredigital/payload-better-auth/components/login-passkey#LoginViewWrapperWithPasskey'`. Consumers who don't use passkey need no change.
 > - **`starts_with`/`ends_with` are now correctly anchored** (were over-broad via Payload's non-anchored `like`).
 > - **Roles: a comma string is one role** (`normalizeRoles` no longer splits) — use an array for multiple roles.
 > - **Password changes go through Better Auth's `changePassword`** — `canUpdateOwnFields` no longer verifies passwords (it was an unthrottled oracle).

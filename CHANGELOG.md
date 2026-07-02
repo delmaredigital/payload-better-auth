@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2026-07-02
+
+### Added
+
+- **Passkey-enabled admin login wrapper** (`components/login-passkey#LoginViewWrapperWithPasskey`). 0.9.0 stopped the default `LoginView` from importing the optional `@better-auth/passkey` peer (to fix builds for consumers who don't use passkey), which meant passkey sign-in on the **auto-injected** admin login no longer worked — there was no way to inject a passkey-capable client. This adds a drop-in wrapper that does the same server-side method detection as the default and injects a passkey client. Point your login view at it:
+  ```ts
+  createBetterAuthPlugin({
+    admin: {
+      loginViewComponent:
+        '@delmaredigital/payload-better-auth/components/login-passkey#LoginViewWrapperWithPasskey',
+    },
+  })
+  ```
+  It lives in a separate entry point, so consumers who don't use passkey never pull the peer into their bundle (the default login view stays passkey-free). No change needed unless you use passkey sign-in on the admin login.
+
+### Internal
+
+- `LoginViewWrapper`'s prop resolution extracted to a shared `resolveLoginViewProps()` so the default and passkey wrappers share one source of truth (no prop-forwarding drift).
+
 ## [0.9.0] - 2026-07-02
 
 Second hardening pass from the audit — correctness, robustness, and defensive fixes. Contains a few breaking changes (minor bump signals them, pre-1.0). See Migration.

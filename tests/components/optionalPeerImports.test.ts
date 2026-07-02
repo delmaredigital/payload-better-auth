@@ -34,3 +34,22 @@ describe('LoginView optional-peer imports (H9 regression guard)', () => {
     expect(src).toMatch(/emailOTPClient\(\)/)
   })
 })
+
+// The default server wrapper (used by /rsc, the auto-injected login) must also
+// stay passkey-free, so consumers importing /rsc never pull the peer.
+describe('LoginViewWrapper stays passkey-free (H9)', () => {
+  const read = (rel: string) =>
+    readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8')
+
+  it('LoginViewWrapper does not import the passkey peer', () => {
+    const src = read('../../src/components/LoginViewWrapper.tsx')
+    expect(/(from|import\s*\()\s*['"`]@better-auth\/passkey/.test(src)).toBe(false)
+  })
+
+  // The opt-in passkey wrapper IS the sanctioned home for the peer import.
+  it('PasskeyLoginView imports the passkey peer (opt-in path)', () => {
+    const src = read('../../src/components/PasskeyLoginView.tsx')
+    expect(/from\s+['"`]@better-auth\/passkey\/client['"`]/.test(src)).toBe(true)
+    expect(src).toMatch(/authClient=\{/)
+  })
+})
