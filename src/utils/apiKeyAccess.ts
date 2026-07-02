@@ -97,12 +97,66 @@ function isApiKeyUser(user: unknown): boolean {
   )
 }
 
+/** Minimal typed view of the api-key plugin endpoint we call. */
+interface VerifyApiKeyResult {
+  valid: boolean
+  key?: { permissions?: Record<string, string[]> | null } | null
+}
+interface ApiKeyApi {
+  verifyApiKey(args: {
+    body: { key: string; permissions?: Record<string, string[]> }
+  }): Promise<VerifyApiKeyResult>
+}
+
 /**
- * Verify an API key has the required permission using Better Auth's native verifyApiKey.
- * Returns true if the key is valid and has the permission, false otherwise.
+ * Does a flat scope list (`resource:action` strings, e.g. from
+ * `req.user.apiKeyScopes`) satisfy a requested permission? A `write` check is
+ * also satisfied by legacy CRUD actions (create/update/delete).
+ */
+function scopeSatisfies(scopes: string[], resource: string, action: string): boolean {
+  if (scopes.includes(`${resource}:${action}`)) return true
+  if (action === 'write') {
+    return ['create', 'update', 'delete'].some((a) => scopes.includes(`${resource}:${a}`))
+  }
+  return false
+}
+
+/**
+ * Verify a key ONCE per request and cache the result on `req`. `verifyApiKey` is
+ * not a read — it consumes the key's usage quota and a rate-limit slot and can
+ * delete the key — so calling it per-permission (requireAll/Any) would burn
+ * quota multiple times per request. Only used on the fallback path below.
+ */
+async function getVerifiedKey(
+  req: PayloadRequest,
+  apiKey: string
+): Promise<{ permissions?: Record<string, string[]> | null } | null> {
+  const auth = (req.payload as PayloadWithAuth).betterAuth
+  if (!auth) return null
+  const holder = req as unknown as {
+    __baVerifiedKeys?: Map<string, { permissions?: Record<string, string[]> | null } | null>
+  }
+  const cache = (holder.__baVerifiedKeys ??= new Map())
+  if (cache.has(apiKey)) return cache.get(apiKey) ?? null
+  let value: { permissions?: Record<string, string[]> | null } | null = null
+  try {
+    const result = await (auth.api as unknown as ApiKeyApi).verifyApiKey({ body: { key: apiKey } })
+    value = result.valid === true ? (result.key ?? null) : null
+  } catch {
+    value = null
+  }
+  cache.set(apiKey, value)
+  return value
+}
+
+/**
+ * Check whether an API key grants a permission.
  *
- * Includes backward compatibility: if the key was created with old CRUD actions
- * (create/update/delete), a 'write' check will fall back to checking for those.
+ * Fast path: the auth strategy already validated the key and resolved its scopes
+ * onto `req.user.apiKeyScopes` via a single side-effect-free row read. Prefer
+ * that — it avoids re-calling the quota-consuming `verifyApiKey` (once per
+ * permission checked). Fallback (no strategy-resolved scopes): verify once via
+ * Better Auth and match locally, including legacy CRUD-format keys.
  */
 async function verifyKeyPermission(
   req: PayloadRequest,
@@ -110,65 +164,30 @@ async function verifyKeyPermission(
   resource: string,
   action: string
 ): Promise<boolean> {
-  const auth = (req.payload as PayloadWithAuth).betterAuth
-  if (!auth) return false
-
-  try {
-    // Primary check: use BA's native permission verification
-    const result = await (auth.api as any).verifyApiKey({
-      body: {
-        key: apiKey,
-        permissions: { [resource]: [action] },
-      },
-    })
-
-    if (result.valid) return true
-
-    // Backward compat: old keys stored CRUD actions instead of 'read'/'write'
-    const fallbackResult = await (auth.api as any).verifyApiKey({
-      body: { key: apiKey },
-    })
-
-    if (!fallbackResult.valid || !fallbackResult.key?.permissions) return false
-
-    const perms = fallbackResult.key.permissions as Record<string, string[]>
-    const actions = perms[resource]
-    if (!Array.isArray(actions)) return false
-
-    if (action === 'write') {
-      // Old 'write' stored as ['read', 'create', 'update'] or ['delete']
-      return actions.some((a: string) => ['create', 'update', 'delete'].includes(a))
-    }
-
-    if (action === 'read') {
-      return actions.includes('read')
-    }
-
-    return false
-  } catch {
-    return false
+  const scopes = (req.user as { apiKeyScopes?: unknown } | undefined)?.apiKeyScopes
+  if (Array.isArray(scopes)) {
+    return scopeSatisfies(scopes as string[], resource, action)
   }
+
+  const key = await getVerifiedKey(req, apiKey)
+  const actions = key?.permissions?.[resource]
+  if (!Array.isArray(actions)) return false
+  if (action === 'write') {
+    return actions.some((a) => ['write', 'create', 'update', 'delete'].includes(a))
+  }
+  if (action === 'read') return actions.includes('read')
+  return false
 }
 
 /**
- * Verify an API key without checking specific permissions.
- * Returns true if the key is valid, false otherwise.
+ * Verify an API key is valid (no specific permission). Uses the same fast path:
+ * a strategy-resolved `apiKeyScopes` means the key was already validated.
  */
-async function verifyKeyOnly(
-  req: PayloadRequest,
-  apiKey: string
-): Promise<boolean> {
-  const auth = (req.payload as PayloadWithAuth).betterAuth
-  if (!auth) return false
-
-  try {
-    const result = await (auth.api as any).verifyApiKey({
-      body: { key: apiKey },
-    })
-    return result.valid === true
-  } catch {
-    return false
-  }
+async function verifyKeyOnly(req: PayloadRequest, apiKey: string): Promise<boolean> {
+  const scopes = (req.user as { apiKeyScopes?: unknown } | undefined)?.apiKeyScopes
+  if (Array.isArray(scopes)) return true
+  const key = await getVerifiedKey(req, apiKey)
+  return key !== null
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

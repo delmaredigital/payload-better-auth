@@ -71,8 +71,9 @@ export async function ApiKeysView({
 
   const visibleEntities = getVisibleEntities({ req })
 
-  // Build permission definitions from collections
-  const permissionsConfig = getApiKeyPermissionsConfig()
+  // Build permission definitions from collections. Pass the payload instance so
+  // the config resolves per-instance (not the last-initialized plugin's).
+  const permissionsConfig = getApiKeyPermissionsConfig(payload)
   const permissions = generateCollectionPermissions(
     payload.config.collections,
     permissionsConfig?.excludeCollections

@@ -75,13 +75,11 @@ export function normalizeRoles(role: unknown): string[] {
     return role.filter((r): r is string => typeof r === 'string')
   }
 
+  // A string is ONE role. We intentionally do NOT comma-split: splitting a value
+  // like "super,admin" into ["super", "admin"] let a fragment coincidentally
+  // match "admin" and grant access. Use an array for multiple roles (the
+  // documented form) rather than a CSV string.
   if (typeof role === 'string') {
-    if (role.includes(',')) {
-      return role
-        .split(',')
-        .map((r) => r.trim())
-        .filter(Boolean)
-    }
     return role ? [role] : []
   }
 
@@ -273,6 +271,8 @@ export function canUpdateOwnFields(config: FieldUpdateConfig = {}): Access {
   } = config
   const checkAdmin = hasAdminRoles({ adminRoles })
 
+  void userSlug // retained for backward-compatible config shape; no longer used
+
   return async ({ req, id, data }) => {
     // Admins can update everything
     if (checkAdmin({ req })) return true
@@ -280,43 +280,29 @@ export function canUpdateOwnFields(config: FieldUpdateConfig = {}): Access {
     // Must be authenticated
     if (!req.user) return false
 
-    // Must be updating own record
+    // Must be updating own record. Normalize types: ids may be numbers (SERIAL)
+    // or strings (UUID/text) and can arrive as either across the two idTypes, so
+    // a strict `!==` would wrongly deny (or, if coerced elsewhere, allow).
     const userId = req.user[idField]
-    if (userId !== id || !data) return false
-
-    const dataKeys = Object.keys(data)
-    const effectiveAllowed = [...allowedFields]
-
-    // Handle password changes specially
-    const hasCurrentPassword = dataKeys.includes('currentPassword')
-    const hasPassword = dataKeys.includes('password')
-
-    if (hasPassword || hasCurrentPassword) {
-      // Both must be provided for password change
-      if (!(hasCurrentPassword && hasPassword)) return false
-
-      try {
-        // Verify current password
-        if (!req.user.email) return false
-
-        const result = await req.payload.login({
-          collection: userSlug,
-          data: {
-            email: req.user.email as string,
-            password: data.currentPassword as string,
-          },
-        })
-
-        if (!result) return false
-
-        effectiveAllowed.push('password', 'currentPassword')
-      } catch {
-        return false
-      }
+    if (userId == null || id == null || String(userId) !== String(id) || !data) {
+      return false
     }
 
-    // Check all fields are allowed
-    const hasDisallowed = dataKeys.some((key) => !effectiveAllowed.includes(key))
+    const dataKeys = Object.keys(data)
+
+    // Password changes are NOT handled here. Verifying the current password in
+    // an access function meant calling `payload.login` on every check — an
+    // unauthenticated-at-this-layer, unthrottled brute-force oracle against the
+    // user's own password. Password changes must go through Better Auth's native
+    // change-password flow (`authClient.changePassword`), which requires the
+    // current password AND is rate-limited. So we deny any update that touches
+    // password fields and let Better Auth own that operation.
+    if (dataKeys.includes('password') || dataKeys.includes('currentPassword')) {
+      return false
+    }
+
+    // Check all fields are within the allowlist (top-level keys only).
+    const hasDisallowed = dataKeys.some((key) => !allowedFields.includes(key))
     return !hasDisallowed
   }
 }

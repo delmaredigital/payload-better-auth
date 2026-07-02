@@ -53,6 +53,41 @@ describe('extractApiKeyFromRequest', () => {
   })
 })
 
+describe('verifyKeyPermission fast path (H7/M11: use strategy-resolved scopes)', () => {
+  // req.user.apiKeyScopes is set by the strategy (single side-effect-free read).
+  // The access helpers must honor it WITHOUT calling the quota-consuming
+  // verifyApiKey. We assert no betterAuth.api access is needed by omitting it:
+  // if the code fell through to verifyApiKey it would throw / deny.
+  const reqWithScopes = (scopes: string[]) =>
+    mockReq({ 'x-api-key': 'sk_live' }, { id: 1, apiKeyScopes: scopes })
+
+  it('grants when a matching scope is present', async () => {
+    const access = requirePermission('posts', 'write')
+    expect(await access({ req: reqWithScopes(['posts:write']) } as any)).toBe(true)
+  })
+
+  it('denies when the scope is absent', async () => {
+    const access = requirePermission('posts', 'write')
+    expect(await access({ req: reqWithScopes(['posts:read']) } as any)).toBe(false)
+  })
+
+  it('write is satisfied by legacy CRUD scopes', async () => {
+    const access = requirePermission('posts', 'write')
+    expect(await access({ req: reqWithScopes(['posts:create']) } as any)).toBe(true)
+  })
+
+  it('read requires an explicit read scope', async () => {
+    const access = requirePermission('posts', 'read')
+    expect(await access({ req: reqWithScopes(['posts:write']) } as any)).toBe(false)
+    expect(await access({ req: reqWithScopes(['posts:read']) } as any)).toBe(true)
+  })
+
+  it('a zero-scope key grants nothing', async () => {
+    const access = requirePermission('posts', 'read')
+    expect(await access({ req: reqWithScopes([]) } as any)).toBe(false)
+  })
+})
+
 describe('allowAuthenticatedUsers short-circuit (C1 scope-bypass guard)', () => {
   // An API-key-derived user carries `apiKeyScopes` (set by the auth strategy).
   // It must NEVER be treated as a full session by the allowAuthenticatedUsers

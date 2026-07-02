@@ -44,6 +44,11 @@ export type LoginViewProps = {
    * - true: Always show passkey button
    * - false: Never show passkey button
    * - 'auto' (default): Auto-detect if passkey plugin is available
+   *
+   * Passkey requires an injected `authClient` built with `passkeyClient()` —
+   * the optional `@better-auth/passkey` peer is not (and cannot be) bundled into
+   * this component. Without such a client, the passkey button surfaces a
+   * guidance message instead of signing in.
    */
   enablePasskey?: boolean | 'auto'
   /**
@@ -228,19 +233,29 @@ export function LoginView({
   const getClient = async () => {
     if (providedClient) return providedClient
     if (clientRef.current) return clientRef.current
-    const { passkeyClient } = await import('@better-auth/passkey/client')
+    // Core plugins only. Optional peers (passkey, api-key) are NOT imported
+    // here: bundlers resolve the import specifier at build time, so importing
+    // `@better-auth/passkey/client` would break the build of every consumer who
+    // hasn't installed it — even those not using passkey. (This module's sibling
+    // `exports/client.ts` documents the same rule.) To enable passkey sign-in in
+    // the admin login, pass an `authClient` built with `passkeyClient()`.
     clientRef.current = createAuthClient({
-      plugins: [twoFactorClient(), magicLinkClient(), emailOTPClient(), passkeyClient()],
+      plugins: [twoFactorClient(), magicLinkClient(), emailOTPClient()],
     })
     return clientRef.current
   }
 
   // Check if user is already logged in on mount
   useEffect(() => {
+    let ignore = false
     async function checkSession() {
       try {
         const client = await getClient()
         const result = await client.getSession()
+        // Bail if the component unmounted while the request was in flight —
+        // otherwise a stale router.push()/setState fires after navigation away
+        // (and runs twice under React StrictMode).
+        if (ignore) return
 
         if (result.data?.user) {
           const user = result.data.user as { role?: unknown }
@@ -255,9 +270,12 @@ export function LoginView({
       } catch {
         // No session, show login form
       }
-      setCheckingSession(false)
+      if (!ignore) setCheckingSession(false)
     }
     checkSession()
+    return () => {
+      ignore = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [afterLoginPath, requiredRole, requireAllRoles, router])
 
@@ -491,6 +509,16 @@ export function LoginView({
 
     try {
       const client = await getClient()
+      // The default client is core-only (passkey is an optional peer that can't
+      // be auto-bundled). If passkey isn't on the client, guide the integrator
+      // instead of throwing a cryptic "signIn.passkey is not a function".
+      if (typeof client?.signIn?.passkey !== 'function') {
+        setError(
+          'Passkey sign-in requires a configured auth client. Pass an `authClient` built with passkeyClient() to LoginView.'
+        )
+        setPasskeyLoading(false)
+        return
+      }
       const result = await client.signIn.passkey()
 
       if (result.error) {

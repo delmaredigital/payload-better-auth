@@ -183,17 +183,25 @@ export function ApiKeysManagementClient({
   }
 
   useEffect(() => {
-    fetchApiKeys()
+    let ignore = false
+    fetchApiKeys(() => !ignore)
+    return () => {
+      ignore = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function fetchApiKeys() {
+  // `isActive` guards against setState after unmount and StrictMode double-fetch.
+  // Defaults to always-active for the post-mutation re-fetches, which run while
+  // the component is mounted.
+  async function fetchApiKeys(isActive: () => boolean = () => true) {
     setLoading(true)
     setError(null)
 
     try {
       const client = await getClient()
       const result = await client.apiKey.list()
+      if (!isActive()) return
 
       if (result.error) {
         setError(result.error.message ?? 'Failed to load API keys')
@@ -202,9 +210,9 @@ export function ApiKeysManagementClient({
         setApiKeys(Array.isArray(data) ? data : data.apiKeys ?? [])
       }
     } catch {
-      setError('Failed to load API keys')
+      if (isActive()) setError('Failed to load API keys')
     } finally {
-      setLoading(false)
+      if (isActive()) setLoading(false)
     }
   }
 

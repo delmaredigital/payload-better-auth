@@ -12,6 +12,17 @@ Better Auth adapter and plugins for Payload CMS. Enables seamless integration be
   <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fdelmaredigital%2Fdd-starter&project-name=my-payload-site&build-command=pnpm%20run%20ci&env=PAYLOAD_SECRET,BETTER_AUTH_SECRET&stores=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22productSlug%22%3A%22neon%22%2C%22integrationSlug%22%3A%22neon%22%7D%2C%7B%22type%22%3A%22blob%22%7D%5D"><img src="https://vercel.com/button" alt="Deploy with Vercel" height="32"></a>
 </p>
 
+> 🔧 **Upgrading to 0.9?** A second hardening pass (correctness + robustness) with a few breaking changes. Summary (full migration in the [CHANGELOG](./CHANGELOG.md#090---2026-07-02)):
+>
+> - **Passkey in the default `LoginView` now needs an injected `authClient`** — the component no longer statically imports the optional `@better-auth/passkey` peer (which broke builds for consumers who hadn't installed it). Pass `authClient={createAuthClient({ plugins: [...payloadAuthPlugins, passkeyClient()] })}`.
+> - **`starts_with`/`ends_with` are now correctly anchored** (were over-broad via Payload's non-anchored `like`).
+> - **Roles: a comma string is one role** (`normalizeRoles` no longer splits) — use an array for multiple roles.
+> - **Password changes go through Better Auth's `changePassword`** — `canUpdateOwnFields` no longer verifies passwords (it was an unthrottled oracle).
+>
+> Also: multi-instance safety, per-request API-key scope checks (no quota burn), and adapter correctness fixes. See the [CHANGELOG](./CHANGELOG.md#090---2026-07-02).
+
+---
+
 > 🔒 **Upgrading to 0.8?** This is a **security-hardening release** with breaking changes. Summary (full migration in the [CHANGELOG](./CHANGELOG.md#080---2026-07-02)):
 >
 > - **Roles are assigned server-side on sign-up.** The admin login form no longer sends a `role`, and the first-user-admin hooks ignore any client-supplied role for non-first users. **Action:** if `role` is a Better Auth `additionalField`, set `input: false`; set the default self-sign-up role via `firstUserAdmin: { defaultRole }`. Closes a privilege-escalation path (`POST { role: 'admin' }`).

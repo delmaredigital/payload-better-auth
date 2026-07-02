@@ -53,17 +53,23 @@ export function PasskeysManagementClient({
   }
 
   useEffect(() => {
-    fetchPasskeys()
+    let ignore = false
+    fetchPasskeys(() => !ignore)
+    return () => {
+      ignore = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function fetchPasskeys() {
+  // `isActive` guards against setState after unmount and StrictMode double-fetch.
+  async function fetchPasskeys(isActive: () => boolean = () => true) {
     setLoading(true)
     setError(null)
 
     try {
       const client = await getClient()
       const result = await client.passkey.listUserPasskeys()
+      if (!isActive()) return
 
       if (result.error) {
         setError(result.error.message ?? 'Failed to load passkeys')
@@ -71,9 +77,9 @@ export function PasskeysManagementClient({
         setPasskeys((result.data as PasskeyItem[]) ?? [])
       }
     } catch {
-      setError('Failed to load passkeys')
+      if (isActive()) setError('Failed to load passkeys')
     } finally {
-      setLoading(false)
+      if (isActive()) setLoading(false)
     }
   }
 

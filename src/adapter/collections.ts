@@ -265,12 +265,15 @@ function injectFirstUserAdminHook(
  * Session-critical fields are included, large data fields are excluded.
  */
 function getSaveToJWT(modelKey: string, fieldName: string): boolean | undefined {
-  // Session fields - include core session data
+  // Session fields - include core session data.
+  // Use an EXACT allowlist, not suffix matching: a suffix match on 'token' etc.
+  // would auto-include any future session field ending in 'Token' (e.g. a
+  // plugin's `refreshToken`/`oneTimeToken`), leaking secrets into every JWT.
   if (modelKey === 'session') {
     const includeFields = ['token', 'expiresAt', 'user', 'userId', 'ipAddress', 'userAgent', 'activeOrganizationId', 'activeTeamId']
     const excludeFields = ['createdAt', 'updatedAt']
 
-    if (includeFields.some(f => fieldName === f || fieldName.endsWith(f.charAt(0).toUpperCase() + f.slice(1)))) {
+    if (includeFields.includes(fieldName)) {
       return true
     }
     if (excludeFields.includes(fieldName)) {
@@ -458,23 +461,43 @@ function generateCollection(
 }
 
 /**
- * Get existing field names from a collection, handling nested field structures.
+ * Get existing field names from a collection, recursing into presentational
+ * containers whose children live at the parent data level (`row`, `collapsible`,
+ * and unnamed `tabs`). Named containers (`group`, named tabs) namespace their
+ * children, so those are NOT collected as top-level names (only the container's
+ * own name is). Without this recursion, a users collection that organizes
+ * `email`/`role` inside tabs/rows would have those fields re-added by
+ * augmentation, producing duplicate-field config errors.
  */
-function getExistingFieldNames(fields: Field[]): Set<string> {
+export function getExistingFieldNames(fields: Field[]): Set<string> {
   const names = new Set<string>()
+  collectFieldNames(fields, names)
+  return names
+}
+
+function collectFieldNames(fields: Field[], names: Set<string>): void {
   for (const field of fields) {
     if ('name' in field && field.name) {
       names.add(field.name)
     }
+    if (field.type === 'row' || field.type === 'collapsible') {
+      collectFieldNames(field.fields, names)
+    } else if (field.type === 'tabs') {
+      for (const tab of field.tabs) {
+        // Only unnamed tabs keep their fields at the parent (top) level.
+        if (!('name' in tab) || !tab.name) {
+          collectFieldNames(tab.fields as Field[], names)
+        }
+      }
+    }
   }
-  return names
 }
 
 /**
  * Augment an existing collection with missing fields from Better Auth schema.
  * This ensures user-defined collections (like 'users') get plugin fields automatically.
  */
-function augmentCollectionWithMissingFields(
+export function augmentCollectionWithMissingFields(
   collection: CollectionConfig,
   table: ReturnType<typeof getAuthTables>[string],
   usePlural: boolean,
@@ -491,7 +514,12 @@ function augmentCollectionWithMissingFields(
     }
 
     const fieldName = fieldDef.fieldName ?? fieldKey
-    const hasReferences = fieldDef.references !== undefined
+    // Only treat references to a primary key ('id') as relationships. Non-PK
+    // references (e.g. oauthRefreshToken.clientId → oauthClient.clientId) stay
+    // plain fields keeping their original name — matching generateCollection()
+    // and what the adapter writes (it does not rename non-PK references).
+    const hasReferences = fieldDef.references !== undefined &&
+      (!fieldDef.references.field || fieldDef.references.field === 'id')
 
     // For reference fields, check the name without Id suffix
     const payloadFieldName = hasReferences

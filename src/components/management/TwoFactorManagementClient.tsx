@@ -42,15 +42,21 @@ export function TwoFactorManagementClient({
   const getClient = () => providedClient ?? createPayloadAuthClient()
 
   useEffect(() => {
-    checkStatus()
+    let ignore = false
+    checkStatus(() => !ignore)
+    return () => {
+      ignore = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function checkStatus() {
+  // `isActive` guards against setState after unmount and StrictMode double-run.
+  async function checkStatus(isActive: () => boolean = () => true) {
     setLoading(true)
     try {
       const client = getClient()
       const result = await client.getSession()
+      if (!isActive()) return
 
       if (result.data?.user) {
         setIsEnabled((result.data.user as { twoFactorEnabled?: boolean }).twoFactorEnabled ?? false)
@@ -58,9 +64,9 @@ export function TwoFactorManagementClient({
         setIsEnabled(false)
       }
     } catch {
-      setError('Failed to check 2FA status')
+      if (isActive()) setError('Failed to check 2FA status')
     } finally {
-      setLoading(false)
+      if (isActive()) setLoading(false)
     }
   }
 

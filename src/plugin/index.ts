@@ -216,9 +216,17 @@ let apiKeyPermissionsConfig: ApiKeyPermissionsConfig | undefined = undefined
 /**
  * Get the stored API key permissions config.
  * Used by the ApiKeysView server component to generate permission definitions.
+ *
+ * Prefer the config attached to the given Payload instance (correct under
+ * multiple plugin instances in one process); falls back to the module-level
+ * value for backward compatibility when no payload is provided.
  */
-export function getApiKeyPermissionsConfig(): ApiKeyPermissionsConfig | undefined {
-  return apiKeyPermissionsConfig
+export function getApiKeyPermissionsConfig(
+  payload?: unknown
+): ApiKeyPermissionsConfig | undefined {
+  const scoped = (payload as { __betterAuthApiKeyConfig?: ApiKeyPermissionsConfig } | undefined)
+    ?.__betterAuthApiKeyConfig
+  return scoped ?? apiKeyPermissionsConfig
 }
 
 // Type for auth api methods we need
@@ -374,9 +382,51 @@ function createAuthEndpointHandler(adminOptions?: BetterAuthPluginAdminOptions):
     try {
       // Construct the full URL for Better Auth
       // PayloadRequest provides these properties
-      const protocol = req.headers.get('x-forwarded-proto') || 'http'
-      const host = req.headers.get('host') || 'localhost'
-      const pathname = (req as unknown as { pathname?: string }).pathname || ''
+      // Prefer the configured Better Auth baseURL origin over client-supplied
+      // headers. A spoofed `x-forwarded-proto`/`host` could otherwise influence
+      // the URL Better Auth signs/validates against — affecting cookie
+      // secure/domain decisions and OAuth callback/reset-link origins. Fall back
+      // to headers only when no baseURL is configured (e.g. local dev).
+      let protocol = req.headers.get('x-forwarded-proto') || 'http'
+      let host = req.headers.get('host') || 'localhost'
+      const baseUrlOption = (auth.options as { baseURL?: unknown } | undefined)?.baseURL
+      const baseUrlStr =
+        typeof baseUrlOption === 'string'
+          ? baseUrlOption
+          : (baseUrlOption as { fallback?: string } | undefined)?.fallback
+      if (baseUrlStr) {
+        try {
+          const u = new URL(baseUrlStr)
+          protocol = u.protocol.replace(/:$/, '')
+          host = u.host
+        } catch {
+          // Malformed baseURL — keep the header-derived values.
+        }
+      }
+      let pathname = (req as unknown as { pathname?: string }).pathname || ''
+      if (!pathname) {
+        // Fall back to parsing the path from the full URL when Payload didn't
+        // populate `pathname` directly.
+        const rawUrl = (req as unknown as { url?: string }).url
+        if (rawUrl) {
+          try {
+            pathname = new URL(rawUrl, `${protocol}://${host}`).pathname
+          } catch {
+            // leave pathname empty; handled by the fail-closed guard below
+          }
+        }
+      }
+      // Fail closed on an unresolvable path. Proceeding with an empty pathname
+      // would build `new URL('', base)` (the base origin — a wrong route) AND
+      // make every `endsWith('/api-key/…')` guard below evaluate false, silently
+      // disabling the api-key authorization gate while still forwarding to
+      // auth.handler.
+      if (!pathname || pathname === '/') {
+        return new Response(
+          JSON.stringify({ error: 'Bad request: could not resolve request path' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
       const search =
         (req as unknown as { search?: string }).search ||
         (req as unknown as { url?: string }).url?.split('?')[1] ||
@@ -436,9 +486,11 @@ function createAuthEndpointHandler(adminOptions?: BetterAuthPluginAdminOptions):
           )
         }
 
-        // Resolve required role: apiKey config > login config > default 'admin'
+        // Resolve required role: apiKey config > login config > default 'admin'.
+        // Read the config from THIS request's payload instance (falls back to
+        // the module value) so a second plugin instance can't relax the guard.
         const requiredRole =
-          apiKeyPermissionsConfig?.requiredRole ??
+          getApiKeyPermissionsConfig(req.payload)?.requiredRole ??
           adminOptions?.login?.requiredRole ??
           'admin'
 
@@ -798,39 +850,53 @@ export function createBetterAuthPlugin(
           return
         }
 
-        // Reuse or create auth instance
-        if (!authInstance) {
-          try {
-            authInstance = createAuth(payload)
-          } catch (error) {
-            console.error('[better-auth] Failed to create auth:', error)
-            throw error
-          }
+        // Create an auth instance bound to THIS payload. Do NOT reuse a
+        // module-level singleton across instances: a second Payload instance
+        // (monorepo dev server, multi-tenant, parallel tests) would otherwise be
+        // handed the first instance's auth — bound to the wrong DB adapter, so
+        // sessions validate against the wrong data store.
+        let auth: Auth
+        try {
+          auth = createAuth(payload)
+        } catch (error) {
+          console.error('[better-auth] Failed to create auth:', error)
+          throw error
+        }
+        authInstance = auth // retained only as an HMR/back-compat reference
 
-          // Warn if nextCookies() plugin is detected — it's incompatible with Payload CMS.
-          // Check via betterAuthOptions (if provided) or the auth instance's options.
-          const pluginsToCheck =
-            options.admin?.betterAuthOptions?.plugins ??
-            (authInstance as unknown as { options?: { plugins?: Array<{ id?: string }> } }).options?.plugins
-          if (pluginsToCheck?.some((p: { id?: string }) => p.id === 'next-cookies')) {
-            console.warn(
-              '\n⚠️  [payload-better-auth] The nextCookies() plugin was detected in your Better Auth config.\n' +
-              '   This plugin is INCOMPATIBLE with Payload CMS and will cause infinite form-state\n' +
-              '   submissions and input resets in the admin panel.\n\n' +
-              '   The nextCookies() plugin is designed for Server Actions, but payload-better-auth\n' +
-              '   handles cookie passthrough automatically via its endpoint proxy.\n\n' +
-              '   → Remove nextCookies() from your Better Auth plugins to fix this issue.\n' +
-              '   → See: https://github.com/delmaredigital/payload-better-auth/issues/15\n'
-            )
-          }
+        // Warn if nextCookies() plugin is detected — it's incompatible with Payload CMS.
+        // Check via betterAuthOptions (if provided) or the auth instance's options.
+        const pluginsToCheck =
+          options.admin?.betterAuthOptions?.plugins ??
+          (auth as unknown as { options?: { plugins?: Array<{ id?: string }> } }).options?.plugins
+        if (pluginsToCheck?.some((p: { id?: string }) => p.id === 'next-cookies')) {
+          console.warn(
+            '\n⚠️  [payload-better-auth] The nextCookies() plugin was detected in your Better Auth config.\n' +
+            '   This plugin is INCOMPATIBLE with Payload CMS and will cause infinite form-state\n' +
+            '   submissions and input resets in the admin panel.\n\n' +
+            '   The nextCookies() plugin is designed for Server Actions, but payload-better-auth\n' +
+            '   handles cookie passthrough automatically via its endpoint proxy.\n\n' +
+            '   → Remove nextCookies() from your Better Auth plugins to fix this issue.\n' +
+            '   → See: https://github.com/delmaredigital/payload-better-auth/issues/15\n'
+          )
         }
 
         // Attach to payload for global access
         Object.defineProperty(payload, 'betterAuth', {
-          value: authInstance,
+          value: auth,
           writable: false,
           enumerable: false,
           configurable: false,
+        })
+
+        // Store the api-key permissions config on the payload instance (not just
+        // the module singleton) so the endpoint guard and management view resolve
+        // THIS instance's config rather than the last plugin's to initialize.
+        Object.defineProperty(payload, '__betterAuthApiKeyConfig', {
+          value: options.admin?.apiKey,
+          writable: false,
+          enumerable: false,
+          configurable: true,
         })
       },
     }

@@ -296,6 +296,22 @@ describe('payloadAdapter', () => {
       )
     })
 
+    // M7: create returns the raw Payload result (not input merged over it). The
+    // factory must map Payload field names back to Better Auth names on output,
+    // so a session's reference field comes back as `userId`, not `user`.
+    it('returns Better Auth field names for reference fields on create', async () => {
+      const factory = payloadAdapter({ payloadClient: mockPayload })
+      const adapter = factory(betterAuthOptions)
+
+      const result = await adapter.create({
+        model: 'session',
+        data: { userId: '1', token: 'tok', expiresAt: new Date() },
+      })
+
+      expect((result as Record<string, unknown>).userId).toBeDefined()
+      expect((result as Record<string, unknown>).user).toBeUndefined()
+    })
+
     it('should use custom collection name from BetterAuthOptions', async () => {
       const factory = payloadAdapter({
         payloadClient: mockPayload,
@@ -459,6 +475,53 @@ describe('payloadAdapter', () => {
       expect(mockPayload.find).toHaveBeenCalledWith(
         expect.objectContaining({ sort: 'user' })
       )
+    })
+
+    // H5: starts_with/ends_with narrow with `contains` at the DB, then anchor
+    // exactly in a post-filter — so a substring-anywhere match is excluded.
+    it('starts_with anchors the match (excludes mid-string substring matches)', async () => {
+      const docs = [
+        { id: '1', email: 'ali@test.com' }, // prefix match
+        { id: '2', email: 'test@ali.com' }, // contains 'ali' but not a prefix
+      ]
+      const mp = createMockPayload({ documents: { users: docs } })
+      const adapter = payloadAdapter({ payloadClient: mp })(betterAuthOptions)
+
+      const res = await adapter.findMany({
+        model: 'user',
+        where: [{ field: 'email', value: 'ali', operator: 'starts_with' }],
+      })
+      expect((res as Array<{ id: string }>).map((d) => d.id)).toEqual(['1'])
+    })
+
+    it('ends_with anchors the match', async () => {
+      const docs = [
+        { id: '1', email: 'x@test.com' }, // ends with 'com'
+        { id: '2', email: 'com@test.org' }, // contains 'com' but does not end with it
+      ]
+      const mp = createMockPayload({ documents: { users: docs } })
+      const adapter = payloadAdapter({ payloadClient: mp })(betterAuthOptions)
+
+      const res = await adapter.findMany({
+        model: 'user',
+        where: [{ field: 'email', value: 'com', operator: 'ends_with' }],
+      })
+      expect((res as Array<{ id: string }>).map((d) => d.id)).toEqual(['1'])
+    })
+
+    it('findOne with starts_with returns an actually-prefixed row, not a substring match', async () => {
+      const docs = [
+        { id: '1', email: 'test@ali.com' }, // contains but not prefix — must be skipped
+        { id: '2', email: 'ali@test.com' }, // real prefix match
+      ]
+      const mp = createMockPayload({ documents: { users: docs } })
+      const adapter = payloadAdapter({ payloadClient: mp })(betterAuthOptions)
+
+      const res = await adapter.findOne({
+        model: 'user',
+        where: [{ field: 'email', value: 'ali', operator: 'starts_with' }],
+      })
+      expect((res as { id: string } | null)?.id).toBe('2')
     })
 
     // H4: page = floor(offset/limit)+1 is wrong unless offset is a multiple of

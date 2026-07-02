@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-07-02
+
+Second hardening pass from the audit — correctness, robustness, and defensive fixes. Contains a few breaking changes (minor bump signals them, pre-1.0). See Migration.
+
+### Security
+
+- **`normalizeRoles` no longer comma-splits a role string.** A value like `"super,admin"` was split into `["super", "admin"]`, letting a fragment coincidentally match `admin` and grant access. A string is now treated as a single role; use an array for multiple roles.
+- **`canUpdateOwnFields` no longer verifies the current password via `payload.login`.** That made every access check a full, unthrottled login attempt — a brute-force oracle against the user's own password. Password changes must now go through Better Auth's native, rate-limited change-password flow; the access function denies updates that touch password fields.
+- **Endpoint proxy prefers the configured Better Auth `baseURL` over client `x-forwarded-proto`/`host` headers** when building the URL Better Auth signs/validates, reducing host-header influence on cookie/redirect/OAuth origins (falls back to headers only when no baseURL is set).
+- **Session JWT field inclusion is now an exact allowlist**, not a suffix match — a future session field ending in `Token` (e.g. a plugin's `refreshToken`) can no longer be auto-embedded in issued JWTs.
+- **API-key permission checks prefer the strategy-resolved `req.user.apiKeyScopes`** (a single side-effect-free read) over calling `verifyApiKey` — which consumes the key's usage quota and a rate-limit slot. Multi-permission checks (`requireAllPermissions`/`requireAnyPermission`) no longer burn quota once per permission; the fallback path verifies at most once per request.
+
+### Changed
+
+- **BREAKING: passkey sign-in in the default `LoginView` now requires an injected `authClient`.** The component no longer statically imports the optional `@better-auth/passkey` peer — doing so broke the build of every consumer who hadn't installed it, even those not using passkey. Pass an `authClient` built with `passkeyClient()` to enable passkey; without it, the passkey button shows a guidance message. (The passkey/api-key-specific components still import their peers, which is correct — using those features implies installing the peer.)
+- **BREAKING: `starts_with`/`ends_with` are now correctly anchored.** They previously mapped to Payload's `like`, which is not anchored (it matches words/substrings anywhere), so they returned over-broad results. They now narrow with `contains` at the database and anchor the match precisely in a post-filter. Note: deep pagination combined with these operators is best-effort (post-filtering can't use DB-level pagination); they scan a bounded window.
+- **BREAKING: `normalizeRoles` / `canUpdateOwnFields` behavior** — see Security and Migration.
+- **Adapter `create`/`update` return the raw Payload result** instead of merging input over it. Merging re-injected fields Payload silently dropped (a missing column), making Better Auth believe a field persisted when it did not. The factory maps field names back on output, so return values are unchanged for correctly-configured collections; genuinely dropped fields now emit a warning instead of vanishing silently.
+
+### Fixed
+
+- **Collection augmentation no longer turns non-PK references into relationships.** A non-PK reference (e.g. `oauthRefreshToken.clientId` → `oauthClient.clientId`) added to a pre-existing collection wrongly became a stripped relationship field, mismatching what the adapter writes. It now stays a plain field with its original name, matching `generateCollection`.
+- **`getExistingFieldNames` recurses into presentational containers** (`row`, `collapsible`, unnamed `tabs`). A users collection that organizes `email`/`role` inside tabs/rows no longer has those fields re-added by augmentation (which caused duplicate-field config errors).
+- **Endpoint proxy fails closed on an unresolvable request path** (falling back to parsing `req.url`) rather than proceeding with an empty pathname — which would target the wrong route and silently disable the api-key authorization guard.
+- **Multi-instance safety:** the auth instance and the api-key permissions config are now resolved per Payload instance (stored on the instance, read via `req.payload`) rather than a module-level singleton, so a second plugin instance in one process (monorepo dev, multi-tenant, parallel tests) can't be handed another instance's auth or relax its api-key role guard.
+- **Shared plugin-id detection.** `detectEnabledPlugins` and `detectEnabledMethods` now derive from one helper (robust to a non-array `plugins`), fixing drift between them.
+- **Mount-effect cleanup.** `LoginView`'s session check and the management clients' initial fetches now bail on unmount (no stale `router.push`/setState, no StrictMode double-apply).
+
+### Notes
+
+- **API-key security parameters (expiry, rate limit, key length) remain the consumer's responsibility**, matching a native Better Auth setup — this package stays a thin adapter and does not impose opinionated key defaults.
+
+### Migration
+
+1. **Passkey in the admin login:** if you use passkey sign-in on the default `LoginView`, pass an `authClient`:
+   ```ts
+   import { createAuthClient, payloadAuthPlugins } from '@delmaredigital/payload-better-auth/client'
+   import { passkeyClient } from '@better-auth/passkey/client'
+   const authClient = createAuthClient({ plugins: [...payloadAuthPlugins, passkeyClient()] })
+   // <LoginView authClient={authClient} ... />
+   ```
+2. **Roles:** if you stored multiple roles as a comma-separated string (`"admin,editor"`), switch the field to an array. A comma string is now a single role.
+3. **Password changes:** move any "change password" UI from a Payload update on the user collection to Better Auth's `authClient.changePassword({ currentPassword, newPassword })` flow.
+4. **`starts_with`/`ends_with`:** if you relied on the old (over-broad) behavior, note these are now correctly anchored.
+
 ## [0.8.0] - 2026-07-02
 
 Security-hardening release from a full audit. Contains breaking changes; the minor bump signals them (pre-1.0). **Read the Migration section below before upgrading.**

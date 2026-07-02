@@ -3,6 +3,8 @@
  * Kept DOM-free so they can be unit-tested under the project's node-env vitest setup.
  */
 
+import { getPluginIds, PLUGIN_IDS } from './pluginIds.js'
+
 /** A method-enable setting: explicit boolean, or 'auto' to defer to an endpoint probe. */
 export type MethodSetting = boolean | 'auto'
 
@@ -76,18 +78,14 @@ export interface AuthOptionsLike {
 export function detectEnabledMethods(options: AuthOptionsLike | null | undefined): DetectedMethods {
   const ep = options?.emailAndPassword
   const password = !!ep?.enabled
-  const pluginIds = new Set(
-    (options?.plugins ?? [])
-      .map((p) => p?.id)
-      .filter((id): id is string => typeof id === 'string'),
-  )
+  const pluginIds = getPluginIds(options)
   return {
     password,
     signup: password && !ep?.disableSignUp,
     forgotPassword: password && !!ep?.sendResetPassword,
-    passkey: pluginIds.has('passkey'),
-    magicLink: pluginIds.has('magic-link'),
-    emailOtp: pluginIds.has('email-otp'),
+    passkey: pluginIds.has(PLUGIN_IDS.passkey),
+    magicLink: pluginIds.has(PLUGIN_IDS.magicLink),
+    emailOtp: pluginIds.has(PLUGIN_IDS.emailOtp),
   }
 }
 

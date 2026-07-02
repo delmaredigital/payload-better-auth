@@ -3,6 +3,7 @@
  */
 
 import type { BetterAuthOptions } from 'better-auth'
+import { getPluginIds, PLUGIN_IDS } from './pluginIds.js'
 
 export type EnabledPluginsResult = {
   hasAdmin: boolean
@@ -25,50 +26,16 @@ export type EnabledPluginsResult = {
 export function detectEnabledPlugins(
   options?: Partial<BetterAuthOptions>
 ): EnabledPluginsResult {
-  const plugins = options?.plugins ?? []
+  const ids = getPluginIds(options)
 
-  const result: EnabledPluginsResult = {
-    hasAdmin: false,
-    hasApiKey: false,
-    hasTwoFactor: false,
-    hasPasskey: false,
-    hasMagicLink: false,
-    hasMultiSession: false,
-    hasOrganization: false,
-    hasNextCookies: false,
+  return {
+    hasAdmin: ids.has(PLUGIN_IDS.admin),
+    hasApiKey: ids.has(PLUGIN_IDS.apiKey),
+    hasTwoFactor: ids.has(PLUGIN_IDS.twoFactor),
+    hasPasskey: ids.has(PLUGIN_IDS.passkey),
+    hasMagicLink: ids.has(PLUGIN_IDS.magicLink),
+    hasMultiSession: ids.has(PLUGIN_IDS.multiSession),
+    hasOrganization: ids.has(PLUGIN_IDS.organization),
+    hasNextCookies: ids.has(PLUGIN_IDS.nextCookies),
   }
-
-  for (const plugin of plugins) {
-    // Better Auth plugins have an id property
-    const id = (plugin as { id?: string }).id
-
-    switch (id) {
-      case 'admin':
-        result.hasAdmin = true
-        break
-      case 'api-key':
-        result.hasApiKey = true
-        break
-      case 'two-factor':
-        result.hasTwoFactor = true
-        break
-      case 'passkey':
-        result.hasPasskey = true
-        break
-      case 'magic-link':
-        result.hasMagicLink = true
-        break
-      case 'multi-session':
-        result.hasMultiSession = true
-        break
-      case 'organization':
-        result.hasOrganization = true
-        break
-      case 'next-cookies':
-        result.hasNextCookies = true
-        break
-    }
-  }
-
-  return result
 }

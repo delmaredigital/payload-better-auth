@@ -156,11 +156,13 @@ export function payloadAdapter({
       case 'contains':
         return { contains: value }
       case 'starts_with':
-        if (dbType === 'mongodb') return { contains: value }
-        return { like: `${value}%` }
       case 'ends_with':
-        if (dbType === 'mongodb') return { contains: value }
-        return { like: `%${value}` }
+        // Payload's `like`/`contains` are NOT anchored — they match words/
+        // substrings anywhere and are case-insensitive, so `${value}%` is not a
+        // prefix anchor. There is no anchored operator in Payload's where DSL.
+        // We narrow at the DB with `contains` and then anchor the match exactly
+        // in a post-filter (see applyAnchorFilter in findOne/findMany).
+        return { contains: value }
       default:
         return { equals: value }
     }
@@ -383,6 +385,58 @@ export function payloadAdapter({
         const mapSortField = (model: string, field: string): string =>
           fieldRenameByModel.get(model)?.[field] ?? field
 
+        // starts_with/ends_with are narrowed to `contains` at the DB (Payload has
+        // no anchored operator). Anchor them precisely here on the fetched rows.
+        // `where` field names are already mapped to Payload names by the factory,
+        // so `field` matches the doc keys. Matching is case-insensitive to mirror
+        // Payload's like/contains behavior.
+        type WhereClause = { field: string; value: unknown; operator: string }
+        const getAnchorClauses = (where?: WhereClause[]): WhereClause[] =>
+          (where ?? []).filter(
+            (w) => w.operator === 'starts_with' || w.operator === 'ends_with'
+          )
+        const matchesAnchors = (
+          doc: Record<string, unknown>,
+          anchors: WhereClause[]
+        ): boolean =>
+          anchors.every((a) => {
+            const v = doc[a.field]
+            if (typeof v !== 'string' || typeof a.value !== 'string') return false
+            const hay = v.toLowerCase()
+            const needle = a.value.toLowerCase()
+            return a.operator === 'starts_with'
+              ? hay.startsWith(needle)
+              : hay.endsWith(needle)
+          })
+
+        // Warn when input fields don't survive the write — i.e. Payload silently
+        // stripped a column that doesn't exist on the collection (usually a
+        // plugin field added without regenerating collections). Rename-aware so
+        // reference fields (userId → user) aren't flagged. We return the raw
+        // Payload result (the factory maps field names back to Better Auth), so
+        // these fields would otherwise vanish with no signal.
+        const warnDroppedKeys = (
+          op: string,
+          model: string,
+          collection: string,
+          data: Record<string, unknown>,
+          result: Record<string, unknown>
+        ): void => {
+          const renames = fieldRenameByModel.get(model) ?? {}
+          const resultKeys = new Set(Object.keys(result))
+          const dropped = Object.keys(data).filter((k) => {
+            if (k === 'id' || k === 'createdAt' || k === 'updatedAt') return false
+            const payloadKey = renames[k] ?? k
+            return !resultKeys.has(payloadKey) && !resultKeys.has(k)
+          })
+          if (dropped.length > 0) {
+            console.warn(
+              `[payload-adapter] ${op} on '${collection}': input field(s) not stored ` +
+                `(missing column — regenerate collections?): ${dropped.join(', ')}`
+            )
+          }
+        }
+
         // The CustomAdapter interface uses generics (T) for return types.
         // Payload returns concrete types (JsonObject & TypeWithID).
         // We cast at the interface boundary - this is standard practice
@@ -405,13 +459,16 @@ export function payloadAdapter({
                 // Bypass access control - Better Auth handles its own auth
                 overrideAccess: true,
               })
-              // Merge with input data for Better Auth
-              // Database result takes precedence (handles hooks that modify data like firstUserAdmin)
-              const merged = { ...data, ...result }
+              // Return the raw Payload result (the DB truth) rather than merging
+              // input over it. The factory maps Payload field names back to
+              // Better Auth names on output; merging input back would re-inject
+              // keys Payload stripped, making BA believe a field persisted when
+              // it did not (silent data loss). Surface any such drops instead.
+              warnDroppedKeys('create', model, collection, data as Record<string, unknown>, result as Record<string, unknown>)
               if (enableDebugLogs) {
-                debugLog('create result', { collection, resultId: (result as Record<string, unknown>).id, mergedKeys: Object.keys(merged as Record<string, unknown>) })
+                debugLog('create result', { collection, resultId: (result as Record<string, unknown>).id, resultKeys: Object.keys(result as Record<string, unknown>) })
               }
-              return merged as typeof data
+              return result as unknown as typeof data
             } catch (error) {
               console.error('[payload-adapter] create failed:', {
                 collection,
@@ -466,10 +523,15 @@ export function payloadAdapter({
                 debugLog('findOne query', { collection, payloadWhere: JSON.stringify(payloadWhere), resolvedDbType, idType })
               }
 
+              // With anchored operators, over-fetch and post-filter: a plain
+              // limit:1 on the `contains` narrowing could return a substring
+              // match that doesn't actually start/end with the value (false
+              // negative for findOne).
+              const anchors = getAnchorClauses(where as WhereClause[] | undefined)
               const result = await payload.find({
                 collection,
                 where: payloadWhere,
-                limit: 1,
+                limit: anchors.length > 0 ? 100 : 1,
                 depth: join ? 1 : 0,
                 overrideAccess: true,
               })
@@ -478,8 +540,12 @@ export function payloadAdapter({
                 debugLog('findOne result', { collection, totalDocs: result.totalDocs, found: result.docs.length > 0 })
               }
 
-              if (!result.docs[0]) return null
-              return result.docs[0]
+              const docs =
+                anchors.length > 0
+                  ? result.docs.filter((d) => matchesAnchors(d as Record<string, unknown>, anchors))
+                  : result.docs
+              if (!docs[0]) return null
+              return docs[0]
             } catch (error) {
               // Do NOT log `where` values here: findOne on sessions is keyed by
               // raw session token, verifications by OTP, apikeys by key hash —
@@ -527,6 +593,29 @@ export function payloadAdapter({
               ? `${sortBy.direction === 'desc' ? '-' : ''}${mapSortField(model, sortBy.field)}`
               : undefined
 
+            // Anchored operators (starts_with/ends_with) require post-filtering,
+            // which can't be combined with DB-level pagination. Scan a bounded
+            // window from page 1, anchor-filter, then apply offset/limit in
+            // memory. `contains` narrows the scan first, so 1000 covers realistic
+            // result sets; deeper pagination on anchored operators is best-effort.
+            const anchors = getAnchorClauses(where as WhereClause[] | undefined)
+            if (anchors.length > 0) {
+              const scan = await payload.find({
+                collection,
+                where: payloadWhere,
+                limit: 1000,
+                page: 1,
+                sort,
+                depth: join ? 1 : 0,
+                overrideAccess: true,
+              })
+              const filtered = scan.docs.filter((d) =>
+                matchesAnchors(d as Record<string, unknown>, anchors)
+              )
+              const start = offset ?? 0
+              return filtered.slice(start, start + effectiveLimit)
+            }
+
             if (offset && offset % effectiveLimit !== 0) {
               const result = await payload.find({
                 collection,
@@ -572,7 +661,8 @@ export function payloadAdapter({
                   depth: 0,
                   overrideAccess: true,
                 })
-                return { ...data, ...result } as typeof data
+                warnDroppedKeys('update', model, collection, data as Record<string, unknown>, result as Record<string, unknown>)
+                return result as unknown as typeof data
               } catch (error) {
                 // Row already gone (e.g. concurrent session revocation) — BA
                 // expects null, not a 500.
@@ -591,7 +681,8 @@ export function payloadAdapter({
             })
 
             if (!result.docs[0]) return null
-            return { ...data, ...result.docs[0] } as typeof data
+            warnDroppedKeys('update', model, collection, data as Record<string, unknown>, result.docs[0] as Record<string, unknown>)
+            return result.docs[0] as unknown as typeof data
           },
 
           updateMany: async ({ model, where, update: data }) => {
