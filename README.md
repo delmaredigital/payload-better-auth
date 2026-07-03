@@ -3,8 +3,6 @@
 Better Auth adapter and plugins for Payload CMS. Enables seamless integration between Better Auth and Payload.
 
 <p align="center">
-  <a href="https://demo.delmaredigital.com"><img src="https://img.shields.io/badge/Live_Demo-Try_It_Now-2ea44f?style=for-the-badge&logo=vercel&logoColor=white" alt="Live Demo - Try It Now"></a>
-  &nbsp;&nbsp;
   <a href="https://github.com/delmaredigital/dd-starter"><img src="https://img.shields.io/badge/Starter_Template-Use_This-blue?style=for-the-badge&logo=github&logoColor=white" alt="Starter Template - Use This"></a>
 </p>
 
