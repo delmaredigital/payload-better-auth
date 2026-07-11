@@ -677,6 +677,21 @@ export function betterAuthCollections(
       ? pluralize(userTable?.modelName ?? 'user')
       : (userTable?.modelName ?? 'user')
 
+    // Security reminder: with firstUserAdmin disabled, the plugin's role-forcing
+    // guard is NOT injected into the user collection, so the consumer must
+    // constrain create access themselves. Otherwise Payload's auto-REST exposes
+    // an anonymous POST /api/<users> that can seed a row with a privileged role.
+    // (Fires once at config-build time — Payload builds the config once.)
+    if (firstUserAdmin === false) {
+      console.warn(
+        `[betterAuthCollections] firstUserAdmin is disabled — the plugin's role-forcing ` +
+          `guard is OFF for the "${usersSlug}" collection. You are responsible for preventing ` +
+          `privilege escalation: ensure the collection's \`access.create\` AND the role field's ` +
+          `\`access.create\` reject anonymous/non-admin callers. Otherwise Payload auto-REST ` +
+          `(POST /api/${usersSlug}) may let anyone create a user with an arbitrary role.`
+      )
+    }
+
     for (const [modelKey, table] of Object.entries(tables)) {
       // Calculate slug
       const baseName = table.modelName ?? modelKey

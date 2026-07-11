@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
-import { createFirstUserAdminHooks } from '../../src/adapter/collections.js'
+import type { Config } from 'payload'
+import { createFirstUserAdminHooks, betterAuthCollections } from '../../src/adapter/collections.js'
 
 type Args = Parameters<ReturnType<typeof createFirstUserAdminHooks>['before']>[0]
 
@@ -104,5 +105,28 @@ describe('collections firstUserAdmin after (H2 race convergence)', () => {
     const doc = { id: 1, role: 'admin' }
     await after({ doc, operation: 'create', req, context: { ...marked } } as never)
     expect(update).not.toHaveBeenCalled()
+  })
+})
+
+describe('betterAuthCollections: firstUserAdmin-disabled security warning', () => {
+  const baseConfig = (): Config =>
+    ({ collections: [{ slug: 'users', fields: [] }] }) as unknown as Config
+
+  it('warns that the role guard is off when firstUserAdmin is disabled', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    betterAuthCollections({ firstUserAdmin: false })(baseConfig())
+    expect(
+      warn.mock.calls.some((c) => String(c[0]).includes('firstUserAdmin is disabled')),
+    ).toBe(true)
+    warn.mockRestore()
+  })
+
+  it('does NOT emit that warning when firstUserAdmin is left at its default', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    betterAuthCollections({})(baseConfig())
+    expect(
+      warn.mock.calls.some((c) => String(c[0]).includes('firstUserAdmin is disabled')),
+    ).toBe(false)
+    warn.mockRestore()
   })
 })
