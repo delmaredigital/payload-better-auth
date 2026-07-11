@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] - 2026-07-10
+
+### Added
+
+- **Startup warning when `firstUserAdmin` is disabled.** Setting `firstUserAdmin: false` removes the plugin's role-forcing guard from the users collection, making the consumer solely responsible for constraining create access. `betterAuthCollections()` now emits a one-time `console.warn` at config-build time reminding you to reject anonymous/non-admin callers on **both** the collection's `access.create` and the role field's `access.create` — otherwise Payload's auto-REST (`POST /api/<users>`) can let anyone seed a user with a privileged role. Guard behavior is unchanged; this is purely a diagnostic.
+
 ## [0.9.1] - 2026-07-02
 
 ### Added
