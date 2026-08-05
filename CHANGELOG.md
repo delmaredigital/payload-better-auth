@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`requireTwoFactor()` plugin — deny document access until a second factor is enrolled.** Wraps every collection's and global's access control so authenticated users with `twoFactorEnabled !== true` are denied all operations (create/read/update/delete/readVersions/unlock), while anonymous requests and the `admin` access key are untouched — public reads keep working, and users can still reach the admin panel to enrol (pair with `admin.routes.unauthorized` pointing at your 2FA setup view). Operations with undefined access are gated through Payload's default-equivalent ("any authenticated user"), so nothing slips through ungated. Options: `enabled` (env toggle), `fieldName`, `excludeCollections`/`excludeGlobals`, `exemptMachineCredentials` (default `true` — API-key/OAuth-bearer requests bypass the gate; machines can't enter a TOTP code and are already scope-constrained), a custom `exempt(req)` escape hatch, and `betterAuthOptions` for a config-time warning when the `twoFactor()` plugin isn't actually enabled. **Place it LAST in your `plugins` array** — it wraps the access functions present when it runs, so a later plugin that redefines access (e.g. RBAC) would silently discard the gate; this ordering constraint is also why it is a standalone plugin rather than a `createBetterAuthPlugin` option.
+
 ## [0.9.2] - 2026-07-10
 
 ### Added

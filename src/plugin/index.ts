@@ -1295,3 +1295,7 @@ export function betterAuthStrategy(
 export function resetAuthInstance(): void {
   authInstance = null
 }
+
+// Require-2FA access gate plugin (place LAST in your plugins array)
+export { requireTwoFactor } from './requireTwoFactor.js'
+export type { RequireTwoFactorOptions } from './requireTwoFactor.js'

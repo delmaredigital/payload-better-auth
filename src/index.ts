@@ -126,3 +126,7 @@ export type { FirstUserAdminOptions } from './utils/firstUserAdmin.js'
 
 // Better Auth defaults utility
 export { withBetterAuthDefaults } from './utils/betterAuthDefaults.js'
+
+// Require-2FA access gate plugin (place LAST in your plugins array)
+export { requireTwoFactor } from './plugin/requireTwoFactor.js'
+export type { RequireTwoFactorOptions } from './plugin/requireTwoFactor.js'
