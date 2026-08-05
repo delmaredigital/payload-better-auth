@@ -1238,6 +1238,7 @@ strategies: [<span class="hl-func">betterAuthStrategy</span>({ idType: <span cla
           <tr><td><code>usePlural</code></td><td><code>boolean</code></td><td>Pluralize slugs (default: <code>true</code>)</td></tr>
           <tr><td><code>configureSaveToJWT</code></td><td><code>boolean</code></td><td>Auto-configure saveToJWT (default: <code>true</code>)</td></tr>
           <tr><td><code>firstUserAdmin</code></td><td><code>boolean | object</code></td><td>Make first user admin (default: <code>true</code>)</td></tr>
+          <tr><td><code>secureSecretFields</code></td><td><code>boolean | object</code></td><td>Deny API/admin access to secret fields — session tokens, TOTP secrets, stored OAuth tokens, etc. (default: <code>true</code>)</td></tr>
           <tr><td><code>customizeCollection</code></td><td><code>(key, config) =&gt; config</code></td><td>Customize generated collections</td></tr>
         </tbody>
       </table>
