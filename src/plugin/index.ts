@@ -21,6 +21,10 @@ import {
 } from '../utils/detectEnabledPlugins.js'
 import type { ApiKeyPermissionsConfig } from '../types/apiKey.js'
 import { hasAnyRole, normalizeRoles } from '../utils/access.js'
+import {
+  applyRequireTwoFactorGate,
+  type RequireTwoFactorOptions,
+} from './requireTwoFactor.js'
 
 export type Auth = ReturnType<typeof betterAuth>
 // PayloadWithAuth from types
@@ -205,6 +209,26 @@ export type BetterAuthPluginOptions = {
    * Admin UI customization options.
    */
   admin?: BetterAuthPluginAdminOptions
+
+  /**
+   * Deny document access to authenticated users who haven't enrolled a second
+   * factor (`twoFactorEnabled !== true`). Pass `true` for the defaults, or an
+   * options object (`{ enabled, fieldName, excludeCollections, excludeGlobals,
+   * exemptMachineCredentials, exempt }`).
+   *
+   * Applied during `onInit` against the fully-built, sanitized config — after
+   * every plugin has finished shaping access control — so it wraps whatever
+   * access functions your other plugins (RBAC, etc.) ultimately produced,
+   * regardless of plugin registration order.
+   *
+   * Not gated: anonymous requests (public reads keep working), the `admin`
+   * access key and Payload's internal collections (users must reach the admin
+   * panel to enrol — pair with `admin.routes.unauthorized` pointing at your
+   * 2FA setup view), and machine credentials by default.
+   *
+   * @default undefined (disabled)
+   */
+  requireTwoFactor?: boolean | RequireTwoFactorOptions
 }
 
 // Track auth instance for HMR
@@ -898,6 +922,29 @@ export function createBetterAuthPlugin(
           enumerable: false,
           configurable: true,
         })
+
+        // Apply the require-2FA gate against the fully-built, sanitized config.
+        // Running here (not at config-build time) means plugin registration
+        // order doesn't matter: it wraps whatever access control every plugin
+        // ultimately produced. The HMR early-return above keeps this from
+        // double-wrapping an already-gated instance.
+        const requireTwoFactorOptions =
+          options.requireTwoFactor === true ? {} : options.requireTwoFactor
+        if (requireTwoFactorOptions && requireTwoFactorOptions.enabled !== false) {
+          const authPlugins = (
+            auth as unknown as { options?: { plugins?: Array<{ id?: string }> } }
+          ).options?.plugins
+          if (!authPlugins?.some((p) => p.id === 'two-factor')) {
+            console.warn(
+              '[payload-better-auth] requireTwoFactor is enabled but the Better Auth ' +
+                'twoFactor() plugin was not detected. Users have no way to enrol a ' +
+                'second factor, so every authenticated user will be denied gated ' +
+                'operations. Add twoFactor() to your Better Auth plugins, or disable ' +
+                'requireTwoFactor.'
+            )
+          }
+          applyRequireTwoFactorGate(payload, requireTwoFactorOptions)
+        }
       },
     }
   }
@@ -1296,6 +1343,7 @@ export function resetAuthInstance(): void {
   authInstance = null
 }
 
-// Require-2FA access gate plugin (place LAST in your plugins array)
-export { requireTwoFactor } from './requireTwoFactor.js'
+// Require-2FA access gate (enabled via the `requireTwoFactor` plugin option;
+// exported for advanced use, e.g. applying to a payload instance manually)
+export { applyRequireTwoFactorGate } from './requireTwoFactor.js'
 export type { RequireTwoFactorOptions } from './requireTwoFactor.js'

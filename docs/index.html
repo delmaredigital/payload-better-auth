@@ -1293,6 +1293,7 @@ strategies: [<span class="hl-func">betterAuthStrategy</span>({ idType: <span cla
           <tr><td><code>authBasePath</code></td><td><code>string</code></td><td><code>'/auth'</code></td><td>Base path for auth endpoints</td></tr>
           <tr><td><code>autoRegisterEndpoints</code></td><td><code>boolean</code></td><td><code>true</code></td><td>Auto-register auth API endpoints</td></tr>
           <tr><td><code>autoInjectAdminComponents</code></td><td><code>boolean</code></td><td><code>true</code></td><td>Auto-inject admin components</td></tr>
+          <tr><td><code>requireTwoFactor</code></td><td><code>boolean | object</code></td><td>—</td><td>Deny document access until a second factor is enrolled (see below)</td></tr>
         </tbody>
       </table>
 
@@ -1349,8 +1350,8 @@ admin: {
 
     <!-- requireTwoFactor -->
     <div class="section" id="require-two-factor">
-      <h3><code>requireTwoFactor(options?)</code></h3>
-      <p>Payload plugin that denies collection and global operations to authenticated users who have not enrolled a second factor (<code>twoFactorEnabled !== true</code>). Anonymous requests are untouched — public reads keep working — and the <code>admin</code> access key is never gated, so users can still reach the admin panel to complete enrolment (pair with <code>admin.routes.unauthorized</code> pointing at your 2FA setup view).</p>
+      <h3><code>requireTwoFactor</code> option</h3>
+      <p>Set <code>requireTwoFactor: true</code> (or an options object) on <code>createBetterAuthPlugin</code> to deny collection and global operations to authenticated users who have not enrolled a second factor (<code>twoFactorEnabled !== true</code>). Anonymous requests are untouched — public reads keep working — and the <code>admin</code> access key and Payload's internal collections are never gated, so users can still reach the admin panel to complete enrolment (pair with <code>admin.routes.unauthorized</code> pointing at your 2FA setup view).</p>
 
       <table>
         <thead><tr><th>Option</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
@@ -1361,28 +1362,21 @@ admin: {
           <tr><td><code>excludeGlobals</code></td><td><code>string[]</code></td><td><code>[]</code></td><td>Global slugs to leave ungated</td></tr>
           <tr><td><code>exemptMachineCredentials</code></td><td><code>boolean</code></td><td><code>true</code></td><td>Skip the gate for API-key / OAuth bearer requests</td></tr>
           <tr><td><code>exempt</code></td><td><code>(req) =&gt; boolean</code></td><td>—</td><td>Custom per-request bypass</td></tr>
-          <tr><td><code>betterAuthOptions</code></td><td><code>BetterAuthOptions</code></td><td>—</td><td>Used to warn when the <code>twoFactor()</code> plugin isn't enabled</td></tr>
         </tbody>
       </table>
 
-      <div class="callout callout-warn">
-        <p><strong>Order matters:</strong> place <code>requireTwoFactor()</code> <strong>last</strong> in your <code>plugins</code> array. It works by wrapping the access functions present when it runs — a later plugin that redefines access (e.g. RBAC) would silently discard the gate. This is also why it isn't an inline option of <code>createBetterAuthPlugin</code>, which typically runs early.</p>
+      <div class="callout">
+        <p><strong>Plugin order doesn't matter.</strong> The gate is applied during <code>onInit</code>, against the fully-built, sanitized config — after every plugin has finished shaping access control. An RBAC plugin registered after <code>createBetterAuthPlugin</code> is still wrapped. A warning is logged at init if the Better Auth <code>twoFactor()</code> plugin isn't detected (the gate would otherwise lock out every user with no way to enrol).</p>
       </div>
 
-      <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import</span> { requireTwoFactor } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth'</span>
-
-<span class="hl-keyword">export default</span> <span class="hl-func">buildConfig</span>({
-  plugins: [
-    <span class="hl-func">createBetterAuthPlugin</span>({ <span class="hl-comment">/* ... */</span> }),
-    <span class="hl-comment">// ...your other plugins (RBAC, etc.)</span>
-    <span class="hl-func">requireTwoFactor</span>({
-      enabled: process.env.NODE_ENV === <span class="hl-string">'production'</span>,
-      betterAuthOptions,
-    }),
-  ],
+      <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-func">createBetterAuthPlugin</span>({
+  createAuth: (payload) =&gt; <span class="hl-func">betterAuth</span>({ <span class="hl-comment">/* ... */</span> }),
+  requireTwoFactor: {
+    enabled: process.env.NODE_ENV === <span class="hl-string">'production'</span>,
+  },
 })</code></pre>
 
-      <p>Operations with <em>undefined</em> access don't fall back to Payload's permissive default ("any authenticated user") — the gate wraps the default-equivalent, so nothing slips through ungated.</p>
+      <p>Operations with <em>undefined</em> access don't fall back to Payload's permissive default ("any authenticated user") ungated — the gate wraps the default-equivalent, so nothing slips through. For advanced use, the underlying <code>applyRequireTwoFactorGate(payload, options)</code> is exported.</p>
     </div>
 
     <!-- betterAuthStrategy -->

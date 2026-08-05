@@ -1,16 +1,20 @@
 /**
  * Require a second factor before granting document access.
  *
+ * Enabled via the `requireTwoFactor` option of `createBetterAuthPlugin` and
+ * applied during Payload's `onInit` — i.e. against the final, sanitized config,
+ * after every plugin has finished shaping access control. That makes the gate
+ * independent of plugin order: an RBAC plugin registered after
+ * `createBetterAuthPlugin` is still wrapped.
+ *
  * @packageDocumentation
  */
 
-import type { Access, Config, PayloadRequest, Plugin } from 'payload'
-import type { BetterAuthOptions } from 'better-auth'
-import { detectEnabledPlugins } from '../utils/detectEnabledPlugins.js'
+import type { Access, BasePayload, PayloadRequest } from 'payload'
 
 export type RequireTwoFactorOptions = {
   /**
-   * Toggle the gate without conditionally spreading the plugins array —
+   * Toggle the gate without conditionally building options —
    * e.g. `enabled: process.env.NODE_ENV === 'production'`.
    * @default true
    */
@@ -40,14 +44,6 @@ export type RequireTwoFactorOptions = {
 
   /** Custom escape hatch: return true to bypass the gate for this request. */
   exempt?: (req: PayloadRequest) => boolean
-
-  /**
-   * When provided, used to verify the Better Auth `twoFactor()` plugin is
-   * actually enabled. Without it, a user can never enrol, so the gate would
-   * lock every authenticated user out of gated operations — the plugin warns
-   * at config-build time instead of failing silently at runtime.
-   */
-  betterAuthOptions?: Partial<BetterAuthOptions>
 }
 
 /** Mirrors Payload's default access: any authenticated user. */
@@ -65,8 +61,8 @@ const collectionAccessKeys = [
 const globalAccessKeys = ['read', 'update', 'readVersions'] as const
 
 /**
- * Payload plugin that denies collection and global operations to
- * authenticated users who have not enrolled a second factor.
+ * Wrap the access control of every collection and global on an initialized
+ * Payload instance so authenticated users without a second factor are denied.
  *
  * What it deliberately does NOT gate:
  * - **Anonymous requests** — public reads (your website) keep working; the
@@ -74,129 +70,80 @@ const globalAccessKeys = ['read', 'update', 'readVersions'] as const
  * - **The `admin` access key** — a user must be able to reach the admin panel
  *   to complete enrolment. Pair this with an unauthorized redirect to your
  *   2FA setup view (`admin.routes.unauthorized`) for a guided flow.
+ * - **Payload's internal collections** (`payload-preferences`, ...) — the
+ *   admin UI reads and writes these while an un-enrolled user is completing
+ *   setup.
  *
  * Operations whose access is undefined don't inherit Payload's permissive
- * default ("any authenticated user") — the gate fails closed by wrapping the
- * default-equivalent, so an ungated operation can't slip through.
- *
- * ORDER MATTERS: access gating works by wrapping the access functions present
- * in the config when this plugin runs, so it must be the LAST plugin in your
- * `plugins` array — after anything that defines or replaces access control
- * (e.g. an RBAC plugin). A later plugin that overwrites `collection.access`
- * would silently discard the gate. This is also why it can't be an inline
- * option of `createBetterAuthPlugin`, which typically runs early.
- *
- * @example
- * ```ts
- * import { requireTwoFactor } from '@delmaredigital/payload-better-auth'
- *
- * export default buildConfig({
- *   plugins: [
- *     createBetterAuthPlugin({ ... }),
- *     rbacPlugin({ ... }),
- *     // Last, so it wraps every other plugin's access control.
- *     requireTwoFactor({
- *       enabled: process.env.NODE_ENV === 'production',
- *       betterAuthOptions,
- *     }),
- *   ],
- * })
- * ```
+ * default ("any authenticated user") ungated — the gate wraps the
+ * default-equivalent, so nothing slips through.
  */
-export function requireTwoFactor(
+export function applyRequireTwoFactorGate(
+  payload: BasePayload,
   options: RequireTwoFactorOptions = {}
-): Plugin {
+): void {
   const {
-    enabled = true,
     fieldName = 'twoFactorEnabled',
     excludeCollections = [],
     excludeGlobals = [],
     exemptMachineCredentials = true,
     exempt,
-    betterAuthOptions,
   } = options
 
-  return (config: Config): Config => {
-    if (!enabled) return config
+  const lacksSecondFactor = (req: PayloadRequest): boolean => {
+    const user = req.user as
+      | (PayloadRequest['user'] & Record<string, unknown>)
+      | null
 
-    if (betterAuthOptions && !detectEnabledPlugins(betterAuthOptions).hasTwoFactor) {
-      console.warn(
-        '[requireTwoFactor] The gate is enabled but the Better Auth twoFactor() ' +
-          'plugin was not detected in betterAuthOptions. Users have no way to ' +
-          'enrol a second factor, so every authenticated user will be denied ' +
-          'gated operations. Add twoFactor() to your Better Auth plugins, or ' +
-          'disable this plugin.'
-      )
+    if (!user) return false // anonymous access is governed by existing access control
+
+    if (
+      exemptMachineCredentials &&
+      (user.apiKeyScopes !== undefined || user.oauthScopes !== undefined)
+    ) {
+      return false
     }
 
-    const lacksSecondFactor = (req: PayloadRequest): boolean => {
-      const user = req.user as
-        | (PayloadRequest['user'] & Record<string, unknown>)
-        | null
+    if (exempt?.(req)) return false
 
-      if (!user) return false // anonymous access is governed by existing access control
+    return user[fieldName] !== true
+  }
 
-      if (
-        exemptMachineCredentials &&
-        (user.apiKeyScopes !== undefined || user.oauthScopes !== undefined)
-      ) {
-        return false
-      }
+  const gate =
+    (original: Access | undefined): Access =>
+    (args) =>
+      lacksSecondFactor(args.req) ? false : (original ?? defaultAccess)(args)
 
-      if (exempt?.(req)) return false
+  const gateAll = <T>(access: T, keys: readonly string[]): T => {
+    const existing = (access ?? {}) as Record<string, unknown>
+    const gated: Record<string, unknown> = { ...existing }
 
-      return user[fieldName] !== true
+    for (const key of keys) {
+      gated[key] = gate(existing[key] as Access | undefined)
     }
 
-    const gate =
-      (original: Access | undefined): Access =>
-      (args) =>
-        lacksSecondFactor(args.req) ? false : (original ?? defaultAccess)(args)
-
-    const gateAll = <T extends Record<string, unknown> | undefined>(
-      access: T,
-      keys: readonly string[]
-    ): Record<string, unknown> => {
-      const gated: Record<string, unknown> = { ...access }
-
-      for (const key of keys) {
-        gated[key] = gate(access?.[key] as Access | undefined)
-      }
-
-      // Wrap anything else that's defined too (except 'admin' — users must
-      // reach the admin panel to enrol their second factor).
-      for (const [key, fn] of Object.entries(access ?? {})) {
-        if (key === 'admin' || keys.includes(key)) continue
-        if (typeof fn === 'function') gated[key] = gate(fn as Access)
-      }
-
-      return gated
+    // Wrap anything else that's defined too (except 'admin' — users must
+    // reach the admin panel to enrol their second factor).
+    for (const [key, fn] of Object.entries(existing)) {
+      if (key === 'admin' || keys.includes(key)) continue
+      if (typeof fn === 'function') gated[key] = gate(fn as Access)
     }
 
-    return {
-      ...config,
-      collections: config.collections?.map((collection) =>
-        excludeCollections.includes(collection.slug)
-          ? collection
-          : {
-              ...collection,
-              access: gateAll(
-                collection.access as Record<string, unknown> | undefined,
-                collectionAccessKeys
-              ),
-            }
-      ),
-      globals: config.globals?.map((global) =>
-        excludeGlobals.includes(global.slug)
-          ? global
-          : {
-              ...global,
-              access: gateAll(
-                global.access as Record<string, unknown> | undefined,
-                globalAccessKeys
-              ),
-            }
-      ),
-    }
+    return gated as T
+  }
+
+  for (const collection of payload.config.collections ?? []) {
+    // Internal collections appear in the sanitized config; the admin UI needs
+    // them (e.g. preferences) while an un-enrolled user completes setup.
+    if (collection.slug.startsWith('payload-')) continue
+    if (excludeCollections.includes(collection.slug)) continue
+
+    collection.access = gateAll(collection.access, collectionAccessKeys)
+  }
+
+  for (const global of payload.config.globals ?? []) {
+    if (excludeGlobals.includes(global.slug)) continue
+
+    global.access = gateAll(global.access, globalAccessKeys)
   }
 }
