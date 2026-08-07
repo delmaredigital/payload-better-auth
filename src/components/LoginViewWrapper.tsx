@@ -32,6 +32,10 @@ export function resolveLoginViewProps(
   payload: LoginViewWrapperProps['initPageResult']['req']['payload']
 ): ResolvedLoginViewProps {
   const loginConfig = (payload.config.custom?.betterAuth?.login ?? {}) as LoginConfig
+  // Plugin's mount segment under routes.api — the login page renders with the
+  // unauthenticated client config (no `admin.custom`), so hand it across the
+  // RSC boundary explicitly for the client to build correct auth URLs.
+  const authBasePath = payload.config.custom?.betterAuth?.authBasePath as string | undefined
   const authOptions = (payload as PayloadWithAuth).betterAuth?.options
   const detected = authOptions ? detectEnabledMethods(authOptions) : FALLBACK_DETECTED
   const detectedSocial = authOptions ? detectSocialProviders(authOptions) : []
@@ -56,6 +60,7 @@ export function resolveLoginViewProps(
     socialProviders,
     socialCallbackURL: loginConfig.socialCallbackURL,
     title: loginConfig.title,
+    authBasePath,
   }
 }
 

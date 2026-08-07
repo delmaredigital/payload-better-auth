@@ -6,6 +6,11 @@
  */
 
 export { LogoutButton } from '../components/LogoutButton.js'
+export {
+  useAuthMountPath,
+  useAuthClientBaseURL,
+  DEFAULT_AUTH_BASE_PATH,
+} from '../components/useAuthMountPath.js'
 export type { BeforeLoginProps } from '../components/BeforeLogin.js'
 export { BeforeLogin } from '../components/BeforeLogin.js'
 export type { LoginViewProps } from '../components/LoginView.js'

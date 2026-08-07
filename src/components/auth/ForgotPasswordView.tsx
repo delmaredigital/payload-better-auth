@@ -2,6 +2,7 @@
 
 import { useConfig } from '@payloadcms/ui'
 import { useState, type FormEvent } from 'react'
+import { useAuthMountPath } from '../useAuthMountPath.js'
 
 export type ForgotPasswordViewProps = {
   /** Custom logo element */
@@ -26,7 +27,8 @@ export function ForgotPasswordView({
 }: ForgotPasswordViewProps) {
 
   // Payload Config
-  const {config: {routes: {admin:adminRoute, api:apiRoute}}} = useConfig()
+  const {config: {routes: {admin:adminRoute}}} = useConfig()
+  const authMountPath = useAuthMountPath()
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -38,7 +40,7 @@ export function ForgotPasswordView({
     setError(null)
 
     try {
-      const response = await fetch(`${apiRoute}/auth/forget-password`, {
+      const response = await fetch(`${authMountPath}/forget-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

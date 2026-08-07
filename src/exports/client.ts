@@ -40,7 +40,14 @@ export const payloadAuthPlugins: BetterAuthClientPlugin[] = [
 ]
 
 export interface PayloadAuthClientOptions {
-  /** Base URL for auth endpoints (defaults to window.location.origin) */
+  /**
+   * Base URL for auth endpoints. Defaults to `window.location.origin`, which
+   * Better Auth expands to `<origin>/api/auth` — correct only while Payload's
+   * `routes.api` is the default `/api`. With a non-default API route, pass the
+   * full mount instead, e.g. `${window.location.origin}/api/payload/auth`
+   * (inside admin components, `useAuthClientBaseURL()` from
+   * `@delmaredigital/payload-better-auth/components` derives this for you).
+   */
   baseURL?: string
 }
 

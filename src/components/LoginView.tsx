@@ -7,6 +7,7 @@ import { twoFactorClient, magicLinkClient, emailOTPClient } from 'better-auth/cl
 import { hasAnyRole, hasAllRoles, normalizeRoles } from '../utils/access.js'
 import { resolveAvailability, pickPrimaryMethod } from '../utils/loginMethods.js'
 import { useConfig } from '@payloadcms/ui'
+import { useAuthClientBaseURL } from './useAuthMountPath.js'
 import { LoadingScreen } from './login/LoadingScreen.js'
 import { AccessDeniedScreen } from './login/AccessDeniedScreen.js'
 import { EmailSentScreen } from './login/EmailSentScreen.js'
@@ -108,6 +109,15 @@ export type LoginViewProps = {
    * built-in session check + role gate run. Errors always return to the login page.
    */
   socialCallbackURL?: string
+  /**
+   * The plugin's `authBasePath` (mount segment under `routes.api`). Combined with
+   * `routes.api` from the live Payload config to point the auth client at the
+   * mounted endpoints — Better Auth's client otherwise defaults to `/api/auth`,
+   * which is wrong whenever `routes.api` isn't `/api`. Resolved server-side by
+   * LoginViewWrapper (the unauthenticated login page's client config carries no
+   * `admin.custom`). Default: '/auth'.
+   */
+  authBasePath?: string
 }
 
 /** Map a Better Auth social `?error=` code to a friendly message. */
@@ -184,11 +194,13 @@ export function LoginView({
   magicLinkCallbackURL,
   socialProviders = [],
   socialCallbackURL,
+  authBasePath,
 }: LoginViewProps) {
   const router = useRouter()
 
   // Payload Config
   const {config: {routes: {admin:adminRoute}}} = useConfig()
+  const authBaseURL = useAuthClientBaseURL(authBasePath)
   // View state
   const [viewMode, setViewMode] = useState<ViewMode>('login')
 
@@ -239,7 +251,11 @@ export function LoginView({
     // hasn't installed it — even those not using passkey. (This module's sibling
     // `exports/client.ts` documents the same rule.) To enable passkey sign-in in
     // the admin login, pass an `authClient` built with `passkeyClient()`.
+    // Point the client at the mounted endpoints (routes.api + authBasePath).
+    // Without a baseURL, Better Auth's client falls back to `/api/auth`, which
+    // only matches the mount when Payload's `routes.api` is the default '/api'.
     clientRef.current = createAuthClient({
+      ...(authBaseURL ? { baseURL: authBaseURL } : {}),
       plugins: [twoFactorClient(), magicLinkClient(), emailOTPClient()],
     })
     return clientRef.current

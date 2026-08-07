@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation.js'
 import { useConfig } from '@payloadcms/ui'
+import { useAuthMountPath } from '../useAuthMountPath.js'
 
 export type TwoFactorVerifyViewProps = {
   /** Custom logo element */
@@ -29,9 +30,10 @@ export function TwoFactorVerifyView({
   const router = useRouter()
   const {
     config: {
-      routes: { admin: adminRoute, api: apiRoute },
+      routes: { admin: adminRoute },
     },
   } = useConfig()
+  const authMountPath = useAuthMountPath()
   const resolvedAfterVerifyPath = afterVerifyPath ?? adminRoute
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -45,8 +47,8 @@ export function TwoFactorVerifyView({
 
     try {
       const endpoint = useBackupCode
-        ? `${apiRoute}/auth/two-factor/verify-backup-code`
-        : `${apiRoute}/auth/two-factor/verify-totp`
+        ? `${authMountPath}/two-factor/verify-backup-code`
+        : `${authMountPath}/two-factor/verify-totp`
 
       const response = await fetch(endpoint, {
         method: 'POST',
