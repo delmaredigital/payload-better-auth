@@ -1,10 +1,14 @@
 'use client'
 
 import { useConfig } from '@payloadcms/ui'
-import { useState, type FormEvent } from 'react'
-import { useAuthMountPath } from '../useAuthMountPath.js'
+import { useState, useRef, type FormEvent } from 'react'
+import { createAuthClient } from 'better-auth/react'
+import { useAuthClientBaseURL } from '../useAuthMountPath.js'
 
 export type ForgotPasswordViewProps = {
+  /** Optional pre-configured auth client */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  authClient?: any
   /** Custom logo element */
   logo?: React.ReactNode
   /** Page title. Default: 'Forgot Password' */
@@ -17,9 +21,12 @@ export type ForgotPasswordViewProps = {
 
 /**
  * Forgot password page component for requesting a password reset email.
- * Uses Better Auth's forgetPassword endpoint.
+ * Uses the Better Auth client's `requestPasswordReset` (the raw
+ * `/forget-password` endpoint was renamed to `/request-password-reset` in
+ * Better Auth 1.6; the client tracks such renames across versions).
  */
 export function ForgotPasswordView({
+  authClient: providedClient,
   logo,
   title = 'Forgot Password',
   loginPath = '/admin/login',
@@ -28,11 +35,22 @@ export function ForgotPasswordView({
 
   // Payload Config
   const {config: {routes: {admin:adminRoute}}} = useConfig()
-  const authMountPath = useAuthMountPath()
+  const authBaseURL = useAuthClientBaseURL()
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const clientRef = useRef<any>(null)
+  const getClient = () => {
+    if (providedClient) return providedClient
+    if (clientRef.current) return clientRef.current
+    clientRef.current = createAuthClient({
+      ...(authBaseURL ? { baseURL: authBaseURL } : {}),
+    })
+    return clientRef.current
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -40,20 +58,19 @@ export function ForgotPasswordView({
     setError(null)
 
     try {
-      const response = await fetch(`${authMountPath}/forget-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          email,
-          redirectTo: `${window.location.origin}${adminRoute}/reset-password`,
-        }),
+      const client = getClient()
+      const result = await client.requestPasswordReset({
+        email,
+        redirectTo: `${window.location.origin}${adminRoute}/reset-password`,
       })
 
-      if (response.ok) {
-        setSuccess(true)
+      // Better Auth already answers unknown emails with a success (that's the
+      // anti-enumeration boundary), so a returned error here is a genuine
+      // failure (rate limit, misconfiguration, 5xx) — surface it instead of
+      // claiming an email was sent when nothing was.
+      if (result.error) {
+        setError(result.error.message ?? 'Failed to send reset email. Please try again.')
       } else {
-        // Always show success message to prevent email enumeration
         setSuccess(true)
       }
     } catch {
