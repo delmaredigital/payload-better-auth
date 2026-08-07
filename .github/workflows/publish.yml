@@ -23,6 +23,45 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Everything that can fail runs BEFORE `npm publish` — that step is the
+      # point of no return, since a published version number can never be
+      # reused. Failing here costs only `git tag -d` and a re-tag. The GitHub
+      # release created afterwards is freely editable, so validating its
+      # inputs up front is free insurance.
+      - name: Validate release
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+
+          # A hand-cut tag that doesn't match package.json would publish the
+          # wrong version under the right tag name — silent and unfixable.
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "::error::Tag $TAG does not match package.json version $VERSION."
+            exit 1
+          fi
+
+          # Release notes: this version's CHANGELOG prose. `--notes-file` is
+          # PREPENDED to `--generate-notes`, so the release reads as the
+          # hand-written "what changed and why", then GitHub's auto-generated
+          # "What's Changed" / "New Contributors" — the latter is what credits
+          # contributors by @handle and PR number, kept automatic.
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" {flag=1; next}
+            flag && /^## \[/ {exit}
+            flag {print}
+          ' CHANGELOG.md > release-notes.md
+
+          # Fail closed: a missing section means the CHANGELOG step was skipped.
+          # Better to catch that now than to publish and notice afterwards.
+          if [ ! -s release-notes.md ]; then
+            echo "::error::No CHANGELOG section found for [$VERSION]. Add one before tagging."
+            exit 1
+          fi
+
+          echo "Release notes for $VERSION ($(wc -l < release-notes.md) lines):"
+          cat release-notes.md
+        env:
+          TAG: ${{ github.ref_name }}
+
       - uses: pnpm/action-setup@v4
         with:
           version: 10
@@ -38,10 +77,11 @@ jobs:
       # Tests and typecheck already ran in the `ci` job above, on this commit.
       - run: pnpm build
 
+      # ─── point of no return: everything below is irreversible ───
       - run: npm publish --access public
 
       - name: Create GitHub Release
-        run: gh release create "$TAG" --generate-notes
+        run: gh release create "$TAG" --notes-file release-notes.md --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
