@@ -3,6 +3,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { useConfig } from '@payloadcms/ui'
 import { QRCodeSVG } from 'qrcode.react'
+import { useAuthMountPath } from '../useAuthMountPath.js'
 
 export type TwoFactorSetupViewProps = {
   /** Custom logo element */
@@ -28,9 +29,10 @@ export function TwoFactorSetupView({
 }: TwoFactorSetupViewProps) {
   const {
     config: {
-      routes: { admin: adminRoute, api: apiRoute },
+      routes: { admin: adminRoute },
     },
   } = useConfig()
+  const authMountPath = useAuthMountPath()
   const resolvedAfterSetupPath = afterSetupPath ?? adminRoute
   const [step, setStep] = useState<'loading' | 'qr' | 'verify' | 'backup' | 'complete'>('loading')
   const [totpUri, setTotpUri] = useState<string | null>(null)
@@ -43,7 +45,7 @@ export function TwoFactorSetupView({
   useEffect(() => {
     async function enableTwoFactor() {
       try {
-        const response = await fetch(`${apiRoute}/auth/two-factor/enable`, {
+        const response = await fetch(`${authMountPath}/two-factor/enable`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -67,7 +69,7 @@ export function TwoFactorSetupView({
       }
     }
     enableTwoFactor()
-  }, [apiRoute])
+  }, [authMountPath])
 
   async function handleVerify(e: FormEvent) {
     e.preventDefault()
@@ -75,7 +77,7 @@ export function TwoFactorSetupView({
     setError(null)
 
     try {
-      const response = await fetch(`${apiRoute}/auth/two-factor/verify-totp`, {
+      const response = await fetch(`${authMountPath}/two-factor/verify-totp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

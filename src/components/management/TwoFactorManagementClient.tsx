@@ -7,6 +7,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import {
   createPayloadAuthClient,
 } from '../../exports/client.js'
+import { useAuthClientBaseURL } from '../useAuthMountPath.js'
 
 export type TwoFactorManagementClientProps = {
   /** Optional pre-configured auth client */
@@ -39,7 +40,12 @@ export function TwoFactorManagementClient({
   const [passwordAction, setPasswordAction] = useState<'enable' | 'disable'>('enable')
   const [actionLoading, setActionLoading] = useState(false)
 
-  const getClient = () => providedClient ?? createPayloadAuthClient()
+  // Full mount URL (origin + routes.api + authBasePath) so the client works
+  // when Payload's API route isn't '/api'. createPayloadAuthClient keeps its
+  // documented default (origin → '/api/auth') when this is undefined (SSR).
+  const authBaseURL = useAuthClientBaseURL()
+  const getClient = () =>
+    providedClient ?? createPayloadAuthClient(authBaseURL ? { baseURL: authBaseURL } : undefined)
 
   useEffect(() => {
     let ignore = false

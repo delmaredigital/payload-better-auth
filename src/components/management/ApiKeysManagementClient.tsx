@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
 import { createAuthClient } from 'better-auth/react'
+import { useAuthClientBaseURL } from '../useAuthMountPath.js'
 import type { PermissionDefinition } from '../../types/apiKey.js'
 
 type ApiKey = {
@@ -66,13 +67,17 @@ export function ApiKeysManagementClient({
   const hasPermissions = permissions.length > 0
   const hasOrganizations = organizations.length > 0
 
+  const authBaseURL = useAuthClientBaseURL()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const clientRef = useRef<any>(null)
   const getClient = async () => {
     if (providedClient) return providedClient
     if (clientRef.current) return clientRef.current
     const { apiKeyClient } = await import('@better-auth/api-key/client')
-    clientRef.current = createAuthClient({ plugins: [apiKeyClient()] })
+    clientRef.current = createAuthClient({
+      ...(authBaseURL ? { baseURL: authBaseURL } : {}),
+      plugins: [apiKeyClient()],
+    })
     return clientRef.current
   }
 

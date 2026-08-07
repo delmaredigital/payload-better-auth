@@ -3,6 +3,7 @@
 import { useState, useRef, type ButtonHTMLAttributes } from 'react'
 import { createAuthClient } from 'better-auth/react'
 import { twoFactorClient } from 'better-auth/client/plugins'
+import { useAuthClientBaseURL } from './useAuthMountPath.js'
 
 export type PasskeySignInButtonProps = Omit<
   ButtonHTMLAttributes<HTMLButtonElement>,
@@ -54,6 +55,7 @@ export function PasskeySignInButton({
   ...buttonProps
 }: PasskeySignInButtonProps) {
   const [loading, setLoading] = useState(false)
+  const authBaseURL = useAuthClientBaseURL()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const clientRef = useRef<any>(null)
 
@@ -62,6 +64,7 @@ export function PasskeySignInButton({
     if (clientRef.current) return clientRef.current
     const { passkeyClient } = await import('@better-auth/passkey/client')
     clientRef.current = createAuthClient({
+      ...(authBaseURL ? { baseURL: authBaseURL } : {}),
       plugins: [twoFactorClient(), passkeyClient()],
     })
     return clientRef.current

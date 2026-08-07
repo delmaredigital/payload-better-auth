@@ -5,6 +5,7 @@ import { createAuthClient } from 'better-auth/react'
 import { twoFactorClient, magicLinkClient, emailOTPClient } from 'better-auth/client/plugins'
 import { passkeyClient } from '@better-auth/passkey/client'
 import { LoginView } from './LoginView.js'
+import { useAuthClientBaseURL } from './useAuthMountPath.js'
 import type { ResolvedLoginViewProps } from './LoginViewWrapper.js'
 
 /**
@@ -18,9 +19,14 @@ import type { ResolvedLoginViewProps } from './LoginViewWrapper.js'
  * consumers who don't use passkey never hit a missing-module build error.
  */
 export function PasskeyLoginView(props: ResolvedLoginViewProps) {
+  const authBaseURL = useAuthClientBaseURL(props.authBasePath)
   const clientRef = useRef<ReturnType<typeof createAuthClient> | null>(null)
   if (!clientRef.current) {
+    // baseURL targets the mount (routes.api + authBasePath) instead of Better
+    // Auth's `/api/auth` default. It's undefined during SSR (no window); the
+    // ref re-initializes on the hydration render, where it's set.
     clientRef.current = createAuthClient({
+      ...(authBaseURL ? { baseURL: authBaseURL } : {}),
       plugins: [twoFactorClient(), magicLinkClient(), emailOTPClient(), passkeyClient()],
     })
   }

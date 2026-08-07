@@ -3,6 +3,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation.js'
 import { useConfig } from '@payloadcms/ui'
+import { useAuthMountPath } from '../useAuthMountPath.js'
 
 export type ResetPasswordViewProps = {
   /** Custom logo element */
@@ -30,9 +31,10 @@ export function ResetPasswordView({
   const searchParams = useSearchParams()
   const {
     config: {
-      routes: { admin: adminRoute, api: apiRoute },
+      routes: { admin: adminRoute },
     },
   } = useConfig()
+  const authMountPath = useAuthMountPath()
   const resolvedAfterResetPath = afterResetPath ?? `${adminRoute}/login`
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -82,7 +84,7 @@ export function ResetPasswordView({
     setLoading(true)
 
     try {
-      const response = await fetch(`${apiRoute}/auth/reset-password`, {
+      const response = await fetch(`${authMountPath}/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

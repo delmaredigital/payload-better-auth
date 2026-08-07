@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation.js'
 import { useConfig } from '@payloadcms/ui'
+import { useAuthMountPath } from './useAuthMountPath.js'
 
 /**
  * Logout button component styled to match Payload's admin nav.
@@ -15,6 +16,7 @@ export function LogoutButton() {
   const router = useRouter()
   // Payload Config
   const {config: {routes: {admin:adminRoute, api:apiRoute}}} = useConfig()
+  const authMountPath = useAuthMountPath()
   const [isLoading, setIsLoading] = useState(false)
 
   async function handleLogout() {
@@ -26,7 +28,7 @@ export function LogoutButton() {
       // - Better Auth: clears BA session cookie
       // - Payload: clears JWT cookie (payload-token) so useAuth() resets
       await Promise.allSettled([
-        fetch(`${apiRoute}/auth/sign-out`, {
+        fetch(`${authMountPath}/sign-out`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },

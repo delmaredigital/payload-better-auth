@@ -182,6 +182,14 @@ export type BetterAuthPluginOptions = {
 
   /**
    * Base path for auth API endpoints (registered via Payload endpoints).
+   * Payload serves them under `routes.api`, so the full mount is
+   * `${routes.api}${authBasePath}` (default: `/api/auth`).
+   *
+   * Better Auth's own `basePath` must match that full mount — its router 404s
+   * anything outside it. With the defaults they agree; if you change
+   * `routes.api` (or this option), pass `basePath: '<routes.api><authBasePath>'`
+   * to `betterAuth()` in your `createAuth`. The plugin verifies this at init
+   * and logs the exact value to set when they diverge.
    * @default '/auth'
    */
   authBasePath?: string
@@ -826,6 +834,31 @@ export function createBetterAuthPlugin(
     // Inject management UI components
     config = injectManagementComponents(config, options)
 
+    // Expose the auth mount segment to components so they can build URLs that
+    // respect a non-default `routes.api`: `config.custom` for server components
+    // (the RSC login wrappers) and `admin.custom` for client components —
+    // root-level `custom` is server-only and never reaches the browser.
+    config = {
+      ...config,
+      custom: {
+        ...config.custom,
+        betterAuth: {
+          ...(config.custom?.betterAuth as Record<string, unknown> | undefined),
+          authBasePath,
+        },
+      },
+      admin: {
+        ...config.admin,
+        custom: {
+          ...config.admin?.custom,
+          betterAuth: {
+            ...(config.admin?.custom?.betterAuth as Record<string, unknown> | undefined),
+            authBasePath,
+          },
+        },
+      },
+    }
+
     // Generate auth endpoints if enabled
     const authEndpoints = autoRegisterEndpoints
       ? generateAuthEndpoints(authBasePath, options.admin)
@@ -879,6 +912,33 @@ export function createBetterAuthPlugin(
             '   → Remove nextCookies() from your Better Auth plugins to fix this issue.\n' +
             '   → See: https://github.com/delmaredigital/payload-better-auth/issues/15\n'
           )
+        }
+
+        // Better Auth's router 404s any request whose pathname doesn't start
+        // with its own `basePath` (default '/api/auth'), while this plugin
+        // mounts the endpoints at `routes.api` + `authBasePath`. With a
+        // non-default `routes.api` the two silently diverge and every auth
+        // request dies as a bodyless 404 — so compare them here and name the
+        // exact value to set. `basePath` also decides the path Better Auth
+        // embeds in emailed links (password reset, magic links), so a mismatch
+        // produces dead links even where requests happen to route.
+        if (autoRegisterEndpoints) {
+          const expectedBasePath = `${payload.config.routes?.api ?? '/api'}${authBasePath}`
+          const configuredBasePath =
+            (auth as { options?: { basePath?: string } }).options?.basePath ?? '/api/auth'
+          const normalize = (p: string) => p.replace(/\/+$/, '') || '/'
+          if (normalize(configuredBasePath) !== normalize(expectedBasePath)) {
+            console.error(
+              '\n❌ [payload-better-auth] Better Auth basePath mismatch — auth requests will 404.\n' +
+              `   This plugin serves Better Auth at "${expectedBasePath}/*" (Payload's routes.api +\n` +
+              `   the plugin's authBasePath), but Better Auth's basePath resolves to\n` +
+              `   "${configuredBasePath}" and its router rejects every request outside that path\n` +
+              '   with an empty 404 — the admin login cannot sign in. Emailed links (password\n' +
+              '   reset, magic links) are also built from basePath, so they would point at the\n' +
+              '   wrong path even when requests get through.\n\n' +
+              `   → Fix: pass basePath: '${expectedBasePath}' to betterAuth() inside your createAuth.\n`
+            )
+          }
         }
 
         // Attach to payload for global access

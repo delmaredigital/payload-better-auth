@@ -199,6 +199,18 @@ export default async function Dashboard() {
 
 **That's it!** The plugin automatically registers auth API endpoints at `/api/auth/*`, injects admin UI components, and handles session management.
 
+> **Using a non-default API route?** The plugin mounts Better Auth at `routes.api` + `authBasePath`, and Better Auth's own router 404s any request outside its `basePath` (default `/api/auth`). If your Payload config sets `routes: { api: '/api/payload' }`, tell Better Auth where it lives:
+>
+> ```ts
+> // inside createAuth
+> betterAuth({
+>   basePath: '/api/payload/auth', // <routes.api> + <authBasePath>
+>   // ...
+> })
+> ```
+>
+> The plugin's admin components pick up `routes.api` automatically, and the plugin logs an error at startup (naming the exact value to set) if `basePath` doesn't match the mount.
+
 ---
 
 For MongoDB setup, API reference, customization, access control helpers, API key scopes, plugin compatibility, UI components (2FA, passkeys, password reset, passwordless login via magic-link & email-OTP), recipes, and types — see the **[full documentation](https://delmaredigital.github.io/payload-better-auth/)**.
