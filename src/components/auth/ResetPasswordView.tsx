@@ -41,26 +41,29 @@ export function ResetPasswordView({
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [token, setToken] = useState<string | null>(null)
+  // Capture the token ONCE, before the URL is touched. Next's App Router
+  // mirrors `history.replaceState` into its own router state and re-derives
+  // `useSearchParams()` from it, so anything keyed on searchParams re-runs
+  // after the strip below with an empty query — re-deriving the token there
+  // finds nothing and flags a valid link as invalid.
+  const [token] = useState<string | null>(() => searchParams.get('token'))
 
   useEffect(() => {
-    const tokenParam = searchParams.get('token')
-    if (!tokenParam) {
+    if (!token) {
       setError('Invalid or missing reset token. Please request a new password reset link.')
-    } else {
-      setToken(tokenParam)
-      // Strip the token from the URL so it doesn't linger in browser history,
-      // synced history, or any analytics that records URLs. Remove only the
-      // `token` param, preserving the rest of the query string.
-      if (typeof window !== 'undefined') {
-        const url = new URL(window.location.href)
-        if (url.searchParams.has('token')) {
-          url.searchParams.delete('token')
-          window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
-        }
-      }
+      return
     }
-  }, [searchParams])
+    // Strip the token from the URL so it doesn't linger in browser history,
+    // synced history, or any analytics that records URLs. Remove only the
+    // `token` param, preserving the rest of the query string. Runs once on
+    // mount — deliberately NOT keyed on searchParams (see token capture above).
+    const url = new URL(window.location.href)
+    if (url.searchParams.has('token')) {
+      url.searchParams.delete('token')
+      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
