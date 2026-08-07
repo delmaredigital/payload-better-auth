@@ -10,35 +10,16 @@ Better Auth adapter and plugins for Payload CMS. Enables seamless integration be
   <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fdelmaredigital%2Fdd-starter&project-name=my-payload-site&build-command=pnpm%20run%20ci&env=PAYLOAD_SECRET,BETTER_AUTH_SECRET&stores=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22productSlug%22%3A%22neon%22%2C%22integrationSlug%22%3A%22neon%22%7D%2C%7B%22type%22%3A%22blob%22%7D%5D"><img src="https://vercel.com/button" alt="Deploy with Vercel" height="32"></a>
 </p>
 
-> 🔧 **Upgrading to 0.9?** A second hardening pass (correctness + robustness) with a few breaking changes. Summary (full migration in the [CHANGELOG](./CHANGELOG.md#090---2026-07-02)):
+> 🔒 **Upgrading to 0.10?** One behavioral change to be aware of:
 >
-> - **Passkey on the admin login** — the default `LoginView` no longer imports the optional `@better-auth/passkey` peer (it broke builds for consumers who hadn't installed it). To keep passkey sign-in on the admin login, point your login view at the passkey wrapper (added in 0.9.1): `admin.loginViewComponent: '@delmaredigital/payload-better-auth/components/login-passkey#LoginViewWrapperWithPasskey'`. Consumers who don't use passkey need no change.
-> - **`starts_with`/`ends_with` are now correctly anchored** (were over-broad via Payload's non-anchored `like`).
-> - **Roles: a comma string is one role** (`normalizeRoles` no longer splits) — use an array for multiple roles.
-> - **Password changes go through Better Auth's `changePassword`** — `canUpdateOwnFields` no longer verifies passwords (it was an unthrottled oracle).
+> - **Secret fields on the plugin's managed collections are now locked by default** (`secureSecretFields` on `betterAuthCollections()`, default `true`). Session tokens, TOTP secrets and backup codes, verification identifiers/values, stored OAuth access/refresh/ID tokens, hashed passwords and API keys, JWKS private keys and OAuth client secrets are no longer readable via Payload's REST/GraphQL API, and are hidden in the admin UI. Better Auth itself is unaffected — the adapter operates with `overrideAccess: true`, as do Local API calls by default.
+> - **Action:** only needed if you read those fields through REST/GraphQL or a Local API call that passes `overrideAccess: false`. Opt out entirely with `secureSecretFields: false`, or unlock per model (e.g. `{ session: [] }`). Note that locked fields are *silently dropped* from non-override writes rather than raising an error.
 >
-> Also: multi-instance safety, per-request API-key scope checks (no quota burn), and adapter correctness fixes. See the [CHANGELOG](./CHANGELOG.md#090---2026-07-02).
+> Also fixed in 0.10: password reset through the bundled `ForgotPasswordView` (it posted to `/forget-password`, removed in Better Auth 1.6, while always reporting success to the user), `ResetPasswordView` invalidating its own token, and auth failing entirely when Payload's `routes.api` isn't `/api`. See the [CHANGELOG](./CHANGELOG.md#0100---2026-08-07).
 
 ---
 
-> 🔒 **Upgrading to 0.8?** This is a **security-hardening release** with breaking changes. Summary (full migration in the [CHANGELOG](./CHANGELOG.md#080---2026-07-02)):
->
-> - **Roles are assigned server-side on sign-up.** The admin login form no longer sends a `role`, and the first-user-admin hooks ignore any client-supplied role for non-first users. **Action:** if `role` is a Better Auth `additionalField`, set `input: false`; set the default self-sign-up role via `firstUserAdmin: { defaultRole }`. Closes a privilege-escalation path (`POST { role: 'admin' }`).
-> - **API-key scope enforcement for `x-api-key`.** Keys sent via `x-api-key` are now scope-checked instead of being treated as a full session under `allowSessionOrPermission` / `allowAuthenticatedUsers`.
-> - **2FA QR codes render locally** (new `qrcode.react` dependency, auto-installed) — the TOTP secret is no longer sent to a third-party QR service.
-> - **Node >= 20.9 required**; peer ranges capped to tested majors; `defaultSignUpRole` (LoginView prop) is deprecated and ignored.
->
-> See the [CHANGELOG](./CHANGELOG.md#080---2026-07-02) for full details and migration steps.
-
----
-
-> ⚠️ **Upgrading to 0.7?** This release requires **Better Auth 1.6** and includes several breaking changes:
->
-> - **Schema migration required** for projects using the `twoFactor` plugin — Better Auth 1.6.2 added a `verified` column to the `twoFactor` table.
-> - **`oidcProvider` → `@better-auth/oauth-provider`** — generated OAuth types now reflect the `oauth-provider` schema. Consumers using `oidcProvider()` at runtime will keep working, but `OauthApplication` / `PluginId` / `ModelKey` type exports have changed shape. Migrating to `@better-auth/oauth-provider` is recommended.
-> - **Client helper type widening** — `createPayloadAuthClient()` and `payloadAuthPlugins` are typed more conservatively to keep `.d.ts` portable. For typed plugin methods (e.g. `client.twoFactor.verifyTotp`), list plugins explicitly in `createAuthClient({ plugins: [...] })` (see [Client-Side Auth](#4-client-side-auth) below).
->
-> See the [CHANGELOG](./CHANGELOG.md#070---2026-04-21) for full migration instructions.
+> 📦 **Upgrading from pre-0.9?** Every release from 0.7 to 0.9 carried breaking changes — Better Auth 1.6 as a hard requirement plus a `twoFactor` schema migration (0.7), server-side role assignment and API-key scope enforcement (0.8), and the passkey/admin-login split along with `normalizeRoles` and query-anchoring changes (0.9). Read the [CHANGELOG](./CHANGELOG.md) carefully and apply the migration steps for each version between yours and the current one.
 
 ---
 
