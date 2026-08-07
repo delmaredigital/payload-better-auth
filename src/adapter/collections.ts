@@ -86,6 +86,31 @@ export type BetterAuthCollectionsOptions = {
   firstUserAdmin?: boolean | FirstUserAdminOptions
 
   /**
+   * Deny API/admin access to sensitive credential fields on the collections this
+   * plugin manages — session tokens, TOTP secrets and backup codes, verification
+   * identifiers/values, stored OAuth tokens, hashed passwords and API keys.
+   *
+   * Better Auth itself is unaffected (the adapter operates with
+   * `overrideAccess: true`); this only closes the Payload REST/GraphQL and
+   * admin-UI read path. Without it, anyone the collection's `access.read`
+   * admits (admins, by default) can lift live session tokens or TOTP secrets —
+   * enough to hijack a session or clone a second factor.
+   *
+   * - `true` (default): lock the built-in field list per model (see
+   *   `defaultSecretFieldsByModel`)
+   * - `false`: disable
+   * - object: merged over the built-in map (`modelKey -> field names`;
+   *   an empty array unlocks that model)
+   *
+   * Applies to generated collections and to secret fields *added by
+   * augmentation* to your pre-existing collections. Fields you defined
+   * yourself are never touched.
+   *
+   * @default true
+   */
+  secureSecretFields?: boolean | Record<string, string[]>
+
+  /**
    * Customize a generated collection before it's added to config.
    * Use this to add hooks, modify fields, or adjust any collection setting.
    *
@@ -108,6 +133,75 @@ export type BetterAuthCollectionsOptions = {
     modelKey: string,
     collection: CollectionConfig
   ) => CollectionConfig
+}
+
+/**
+ * Secret-bearing fields per Better Auth model key, locked by default via the
+ * `secureSecretFields` option. Models a consumer hasn't enabled simply don't
+ * exist in `getAuthTables`, so unused entries are inert.
+ */
+export const defaultSecretFieldsByModel: Record<string, string[]> = {
+  account: ['password', 'accessToken', 'refreshToken', 'idToken'],
+  apikey: ['key'],
+  jwks: ['privateKey'],
+  oauthAccessToken: ['accessToken', 'refreshToken'],
+  oauthApplication: ['clientSecret'],
+  session: ['token'],
+  twoFactor: ['secret', 'backupCodes'],
+  verification: ['identifier', 'value'],
+}
+
+/** Resolve the `secureSecretFields` option to a per-model field map (null = off). */
+function resolveSecretFields(
+  option: BetterAuthCollectionsOptions['secureSecretFields']
+): Record<string, string[]> | null {
+  if (option === false) return null
+  if (option === undefined || option === true) return defaultSecretFieldsByModel
+  return { ...defaultSecretFieldsByModel, ...option }
+}
+
+const denyFieldAccess = () => false
+
+/** Deny create/read/update on a field and hide it in the admin UI. */
+function lockField<T extends Field>(field: T): T {
+  return {
+    ...field,
+    access: {
+      create: denyFieldAccess,
+      read: denyFieldAccess,
+      update: denyFieldAccess,
+    },
+    admin: {
+      ...('admin' in field ? field.admin : undefined),
+      hidden: true,
+    },
+  } as T
+}
+
+/**
+ * Lock the named secret fields on a generated collection. When the
+ * collection's `useAsTitle` points at a locked field (e.g. `verification`'s
+ * `identifier`), fall back to `id` — a locked field would render every row
+ * label blank.
+ */
+function lockSecretFields(
+  collection: CollectionConfig,
+  secretFields: string[]
+): CollectionConfig {
+  const useAsTitle = collection.admin?.useAsTitle
+
+  return {
+    ...collection,
+    admin: {
+      ...collection.admin,
+      ...(useAsTitle && secretFields.includes(useAsTitle) && { useAsTitle: 'id' }),
+    },
+    fields: collection.fields.map((field) =>
+      'name' in field && field.name && secretFields.includes(field.name)
+        ? lockField(field)
+        : field
+    ),
+  }
 }
 
 /** req.context key marking a create that was auto-assigned admin as "first user". */
@@ -502,7 +596,8 @@ export function augmentCollectionWithMissingFields(
   table: ReturnType<typeof getAuthTables>[string],
   usePlural: boolean,
   modelKey: string,
-  configureSaveToJWT = true
+  configureSaveToJWT = true,
+  secretFields?: string[]
 ): CollectionConfig {
   const existingFieldNames = getExistingFieldNames(collection.fields)
   const missingFields: Field[] = []
@@ -600,10 +695,20 @@ export function augmentCollectionWithMissingFields(
     return collection
   }
 
+  // Lock secret fields among the ones WE are adding. Fields already defined on
+  // the consumer's collection are theirs and are never modified.
+  const addedFields = secretFields?.length
+    ? missingFields.map((field) =>
+        'name' in field && field.name && secretFields.includes(field.name)
+          ? lockField(field)
+          : field
+      )
+    : missingFields
+
   // Return augmented collection
   return {
     ...collection,
-    fields: [...collection.fields, ...missingFields],
+    fields: [...collection.fields, ...addedFields],
   }
 }
 
@@ -651,8 +756,11 @@ export function betterAuthCollections(
     usePlural = true,
     configureSaveToJWT = true,
     firstUserAdmin,
+    secureSecretFields,
     customizeCollection,
   } = options
+
+  const secretFieldsByModel = resolveSecretFields(secureSecretFields)
 
   // Parse firstUserAdmin option (defaults to true)
   const firstUserAdminOptions: FirstUserAdminOptions | null =
@@ -707,7 +815,8 @@ export function betterAuthCollections(
           table,
           usePlural,
           modelKey,
-          configureSaveToJWT
+          configureSaveToJWT,
+          secretFieldsByModel?.[modelKey]
         )
 
         // Inject first-user-admin hook for user collection
@@ -735,6 +844,13 @@ export function betterAuthCollections(
         access,
         configureSaveToJWT
       )
+
+      // Lock secret fields before customizeCollection, so the callback stays
+      // the final word on the collection's shape.
+      const secretFields = secretFieldsByModel?.[modelKey]
+      if (secretFields?.length) {
+        collection = lockSecretFields(collection, secretFields)
+      }
 
       // Inject first-user-admin hook for user collection
       if (modelKey === 'user' && firstUserAdminOptions) {

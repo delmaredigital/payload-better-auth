@@ -12,7 +12,10 @@ export { payloadAdapter, detectDbType, resolveIdType } from './adapter/index.js'
 export type { PayloadAdapterConfig, DbType } from './adapter/index.js'
 
 // Collection generator plugin
-export { betterAuthCollections } from './adapter/collections.js'
+export {
+  betterAuthCollections,
+  defaultSecretFieldsByModel,
+} from './adapter/collections.js'
 export type { BetterAuthCollectionsOptions } from './adapter/collections.js'
 
 // Payload plugin and strategy

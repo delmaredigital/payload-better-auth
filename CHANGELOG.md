@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+
+- **Secret fields on managed collections are now locked by default** (`secureSecretFields` option on `betterAuthCollections()`, default `true`). Session tokens, TOTP secrets and backup codes, verification identifiers/values, stored OAuth access/refresh/ID tokens, hashed passwords and API keys, JWKS private keys, and OAuth client secrets get `access: { create/read/update: () => false }` and are hidden in the admin UI. Better Auth's own operation is unaffected — the adapter runs with `overrideAccess: true`; this closes the Payload REST/GraphQL and admin-UI read path, where anyone the collection's `access.read` admits (admins, by default) could previously lift a live session token or TOTP secret — enough to hijack a session or clone a second factor. When a locked field was the collection's `useAsTitle` (e.g. `verification.identifier`), the title falls back to `id` so row labels don't render blank. Locking also applies to secret fields *added by augmentation* to your pre-existing collections; fields you defined yourself are never modified. Opt out with `secureSecretFields: false`, or pass a partial map (merged over the defaults, exported as `defaultSecretFieldsByModel`) to customize per model — e.g. `{ session: [] }` to unlock sessions only.
+
 ## [0.9.2] - 2026-07-10
 
 ### Added
