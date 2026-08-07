@@ -10,7 +10,14 @@ permissions:
   contents: write
 
 jobs:
+  # Hard gate: a tag publishes nothing unless the full CI matrix passes on the
+  # exact commit the tag points at. Reuses .github/workflows/ci.yml so the
+  # release checks can never drift from the pull-request checks.
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   publish:
+    needs: ci
     runs-on: ubuntu-latest
     environment: npm
     steps:
@@ -18,7 +25,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
 
       - uses: actions/setup-node@v4
         with:
@@ -28,13 +35,13 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm test
-
+      # Tests and typecheck already ran in the `ci` job above, on this commit.
       - run: pnpm build
 
       - run: npm publish --access public
 
       - name: Create GitHub Release
-        run: gh release create ${{ github.ref_name }} --generate-notes
+        run: gh release create "$TAG" --generate-notes
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}

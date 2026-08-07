@@ -95,6 +95,7 @@
     "dev-publish": "pnpm build && pnpm version prerelease --preid=dev --no-git-tag-version && pnpm publish --registry http://localhost:4873 --no-git-checks",
     "clean": "rm -rf dist",
     "generate:types": "tsx src/scripts/generate-types.ts",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
