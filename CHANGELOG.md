@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **`LogoutButton` now actually logs the user out when the local strategy is disabled.** The button fired Better Auth `sign-out` and Payload `POST /api/users/logout` in parallel, then `router.push`-ed to the login page. On a users collection with `disableLocalStrategy` — the setup this README recommends — the Payload call answers `400` (there is no local JWT to invalidate) and `Promise.allSettled` swallowed it. The Better Auth cookies were cleared, but the soft navigation kept Payload's client-side `useAuth()` state alive, so the admin went on treating the user as logged in until a hard reload. The button now calls Better Auth `sign-out` only and performs a full navigation (`window.location.assign`) to the login page, which discards every piece of client auth state.
+
 ## [0.10.0] - 2026-08-07
 
 ### Fixed

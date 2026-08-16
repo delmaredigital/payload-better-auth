@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation.js'
 import { useConfig } from '@payloadcms/ui'
 import { useAuthMountPath } from './useAuthMountPath.js'
 
@@ -9,13 +8,13 @@ import { useAuthMountPath } from './useAuthMountPath.js'
  * Logout button component styled to match Payload's admin nav.
  * Uses Payload's CSS classes and variables for native theme integration.
  *
- * Clears both Better Auth session and Payload's JWT cookie to ensure
- * clean state when switching between users.
+ * Signs out of Better Auth, then performs a full navigation to the login
+ * page so every piece of client-side auth state (Payload's `useAuth()`,
+ * the router cache) is discarded along with the session cookie.
  */
 export function LogoutButton() {
-  const router = useRouter()
   // Payload Config
-  const {config: {routes: {admin:adminRoute, api:apiRoute}}} = useConfig()
+  const {config: {routes: {admin:adminRoute}}} = useConfig()
   const authMountPath = useAuthMountPath()
   const [isLoading, setIsLoading] = useState(false)
 
@@ -24,27 +23,25 @@ export function LogoutButton() {
     setIsLoading(true)
 
     try {
-      // Clear both sessions simultaneously while cookies are still valid.
-      // - Better Auth: clears BA session cookie
-      // - Payload: clears JWT cookie (payload-token) so useAuth() resets
-      await Promise.allSettled([
-        fetch(`${authMountPath}/sign-out`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({}),
-        }),
-        fetch(`${apiRoute}/users/logout`, {
-          method: 'POST',
-          credentials: 'include',
-        }),
-      ])
-
-      router.push(`${adminRoute}/login`)
+      // Better Auth is the only session when the local strategy is disabled
+      // (the recommended setup). Payload's `/users/logout` answers 400 there —
+      // there is no local JWT to invalidate — so it is not called.
+      await fetch(`${authMountPath}/sign-out`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
     } catch (error) {
+      // Best effort: the hard navigation below still resets the client, and
+      // the login view re-checks the session server-side.
       console.error('[better-auth] Logout error:', error)
-      setIsLoading(false)
     }
+
+    // A full navigation, not `router.push`. A soft navigation keeps Payload's
+    // client auth state alive, so the admin still treats the user as logged in
+    // even though the cookie is gone.
+    window.location.assign(`${adminRoute}/login`)
   }
 
   return (
