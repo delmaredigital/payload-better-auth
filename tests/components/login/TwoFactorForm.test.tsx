@@ -73,4 +73,67 @@ describe('TwoFactorForm', () => {
     const button = screen.getByRole('button', { name: 'Verifying...' })
     expect(button).toBeDisabled()
   })
+
+  it('offers no alternate methods by default', () => {
+    render(<TwoFactorForm {...defaultProps} />)
+    expect(screen.queryByText('Use a backup code')).not.toBeInTheDocument()
+    expect(screen.queryByText('Email me a code')).not.toBeInTheDocument()
+  })
+
+  it('offers enabled alternates and reports the picked method', async () => {
+    const onMethodChange = vi.fn()
+    render(
+      <TwoFactorForm
+        {...defaultProps}
+        enableBackupCode
+        enableEmailOtp
+        onMethodChange={onMethodChange}
+      />,
+    )
+    const user = userEvent.setup()
+    await user.click(screen.getByText('Use a backup code'))
+    expect(onMethodChange).toHaveBeenCalledWith('backup')
+    await user.click(screen.getByText('Email me a code'))
+    expect(onMethodChange).toHaveBeenCalledWith('emailOtp')
+  })
+
+  it('backup mode accepts free text and offers the way back to TOTP', async () => {
+    const onMethodChange = vi.fn()
+    render(
+      <TwoFactorForm
+        {...defaultProps}
+        method="backup"
+        code="A1B2C-D3E4F"
+        enableBackupCode
+        onMethodChange={onMethodChange}
+      />,
+    )
+    // 11-char backup code enables submit (a 6-digit rule would block it).
+    expect(screen.getByRole('button', { name: 'Verify' })).not.toBeDisabled()
+    expect(screen.getByText(/backup codes you saved/i)).toBeInTheDocument()
+    const user = userEvent.setup()
+    await user.click(screen.getByText('Use your authenticator app'))
+    expect(onMethodChange).toHaveBeenCalledWith('totp')
+  })
+
+  it('backup mode submit is disabled on an empty code', () => {
+    render(<TwoFactorForm {...defaultProps} method="backup" code="  " enableBackupCode />)
+    expect(screen.getByRole('button', { name: 'Verify' })).toBeDisabled()
+  })
+
+  it('emailOtp mode shows the resend action', async () => {
+    const onResendEmailOtp = vi.fn()
+    render(
+      <TwoFactorForm
+        {...defaultProps}
+        method="emailOtp"
+        enableEmailOtp
+        onResendEmailOtp={onResendEmailOtp}
+      />,
+    )
+    expect(screen.getByText(/emailed you a verification code/i)).toBeInTheDocument()
+    const user = userEvent.setup()
+    await user.click(screen.getByText('Resend the code'))
+    expect(onResendEmailOtp).toHaveBeenCalledTimes(1)
+  })
 })

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **The login form's two-factor step now accepts backup codes and emailed codes**, not just TOTP. A user with a lost authenticator was previously locked out entirely — backup codes were issued by setup and redeemable by nothing, and the emailed second factor (`otpOptions`) was unreachable. The 2FA step now offers "use a backup code" (free-text input, `verifyBackupCode`) whenever the twoFactor plugin is active, and "email me a code" (`sendOtp`/`verifyOtp`, with a resend action) when `otpOptions.sendOTP` is configured — auto-detected server-side by the login wrappers, overridable via `admin.login.enableTwoFactorBackupCode` / `enableTwoFactorEmailOtp`.
+- **`TwoFactorSetupView` can now actually enable 2FA for password accounts.** It fired a passwordless `/two-factor/enable` on mount, which Better Auth rejects for any account with a password ("Invalid password", no way to supply one). The view now starts with a password confirmation step, with a "my account has no password" path for passwordless accounts (`allowPasswordless`).
+- **`BeforeLogin` is no longer injected where it can't render.** Payload renders `beforeLogin` inside its *own* login view, which this plugin replaces by default — so the injected component (and any `beforeLoginComponent` a consumer passed) silently never rendered. It is now injected only when `disableLoginView: true` keeps Payload's login view alive.
+
 ## [0.10.0] - 2026-08-07
 
 ### Fixed

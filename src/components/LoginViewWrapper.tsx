@@ -55,6 +55,14 @@ export function resolveLoginViewProps(
     enablePasskey: resolve(loginConfig.enablePasskey, detected.passkey),
     enableMagicLink: resolve(loginConfig.enableMagicLink, detected.magicLink),
     enableEmailOtp: resolve(loginConfig.enableEmailOtp, detected.emailOtp),
+    enableTwoFactorBackupCode: resolve(
+      loginConfig.enableTwoFactorBackupCode,
+      detected.twoFactorBackupCode
+    ),
+    enableTwoFactorEmailOtp: resolve(
+      loginConfig.enableTwoFactorEmailOtp,
+      detected.twoFactorEmailOtp
+    ),
     resetPasswordUrl: loginConfig.resetPasswordUrl,
     magicLinkCallbackURL: loginConfig.magicLinkCallbackURL,
     socialProviders,
@@ -76,6 +84,10 @@ const FALLBACK_DETECTED: DetectedMethods = {
   passkey: false,
   magicLink: false,
   emailOtp: false,
+  // The 2FA step only renders when the server demanded a second factor, so the
+  // backup-code escape hatch is safe to keep; the emailed code needs otpOptions.
+  twoFactorBackupCode: true,
+  twoFactorEmailOtp: false,
 }
 
 /**

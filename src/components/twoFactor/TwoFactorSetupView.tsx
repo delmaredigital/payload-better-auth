@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useConfig } from '@payloadcms/ui'
 import { QRCodeSVG } from 'qrcode.react'
 import { useAuthMountPath } from '../useAuthMountPath.js'
@@ -34,7 +34,8 @@ export function TwoFactorSetupView({
   } = useConfig()
   const authMountPath = useAuthMountPath()
   const resolvedAfterSetupPath = afterSetupPath ?? adminRoute
-  const [step, setStep] = useState<'loading' | 'qr' | 'verify' | 'backup' | 'complete'>('loading')
+  const [step, setStep] = useState<'password' | 'qr' | 'verify' | 'backup' | 'complete'>('password')
+  const [password, setPassword] = useState('')
   const [totpUri, setTotpUri] = useState<string | null>(null)
   const [secret, setSecret] = useState<string | null>(null)
   const [backupCodes, setBackupCodes] = useState<string[]>([])
@@ -42,34 +43,42 @@ export function TwoFactorSetupView({
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    async function enableTwoFactor() {
-      try {
-        const response = await fetch(`${authMountPath}/two-factor/enable`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({}),
-        })
+  // Better Auth's /two-factor/enable requires the account password (unless the
+  // account is passwordless and `allowPasswordless` is set), so the flow starts
+  // by asking for it instead of firing a doomed passwordless request on mount.
+  async function enableTwoFactor(body: { password?: string }) {
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await fetch(`${authMountPath}/two-factor/enable`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      })
 
-        if (response.ok) {
-          const data = await response.json()
-          setTotpUri(data.totpURI)
-          setSecret(data.secret)
-          setBackupCodes(data.backupCodes || [])
-          setStep('qr')
-        } else {
-          const data = await response.json().catch(() => ({}))
-          setError(data.message || 'Failed to enable two-factor authentication.')
-          setStep('qr')
-        }
-      } catch {
-        setError('An error occurred. Please try again.')
+      if (response.ok) {
+        const data = await response.json()
+        setTotpUri(data.totpURI)
+        setSecret(data.secret)
+        setBackupCodes(data.backupCodes || [])
+        setPassword('')
         setStep('qr')
+      } else {
+        const data = await response.json().catch(() => ({}))
+        setError(data.message || 'Failed to enable two-factor authentication.')
       }
+    } catch {
+      setError('An error occurred. Please try again.')
+    } finally {
+      setLoading(false)
     }
-    enableTwoFactor()
-  }, [authMountPath])
+  }
+
+  function handlePasswordSubmit(e: FormEvent) {
+    e.preventDefault()
+    void enableTwoFactor({ password })
+  }
 
   async function handleVerify(e: FormEvent) {
     e.preventDefault()
@@ -107,8 +116,8 @@ export function TwoFactorSetupView({
     onSetupComplete?.()
   }
 
-  // Loading state
-  if (step === 'loading') {
+  // Password confirmation state
+  if (step === 'password') {
     return (
       <div
         style={{
@@ -117,10 +126,141 @@ export function TwoFactorSetupView({
           alignItems: 'center',
           justifyContent: 'center',
           background: 'var(--theme-bg)',
+          padding: 'var(--base)',
         }}
       >
-        <div style={{ color: 'var(--theme-text)', opacity: 0.7 }}>
-          Setting up two-factor authentication...
+        <div
+          style={{
+            background: 'var(--theme-elevation-50)',
+            padding: 'calc(var(--base) * 2)',
+            borderRadius: 'var(--style-radius-m)',
+            boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
+            width: '100%',
+            maxWidth: '400px',
+          }}
+        >
+          {logo && (
+            <div style={{ textAlign: 'center', marginBottom: 'calc(var(--base) * 1.5)' }}>
+              {logo}
+            </div>
+          )}
+
+          <h1
+            style={{
+              color: 'var(--theme-text)',
+              fontSize: 'var(--font-size-h3)',
+              fontWeight: 600,
+              margin: '0 0 calc(var(--base) * 0.5) 0',
+              textAlign: 'center',
+            }}
+          >
+            {title}
+          </h1>
+
+          <p
+            style={{
+              color: 'var(--theme-text)',
+              opacity: 0.7,
+              fontSize: 'var(--font-size-small)',
+              textAlign: 'center',
+              marginBottom: 'calc(var(--base) * 1.5)',
+            }}
+          >
+            Confirm your password to start setting up two-factor authentication.
+          </p>
+
+          <form onSubmit={handlePasswordSubmit}>
+            <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
+              <label
+                htmlFor="password"
+                style={{
+                  display: 'block',
+                  color: 'var(--theme-text)',
+                  marginBottom: 'calc(var(--base) * 0.5)',
+                  fontSize: 'var(--font-size-small)',
+                  fontWeight: 500,
+                }}
+              >
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoFocus
+                style={{
+                  width: '100%',
+                  padding: 'calc(var(--base) * 0.75)',
+                  background: 'var(--theme-input-bg)',
+                  border: '1px solid var(--theme-elevation-150)',
+                  borderRadius: 'var(--style-radius-s)',
+                  color: 'var(--theme-text)',
+                  fontSize: 'var(--font-size-base)',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {error && (
+              <div
+                style={{
+                  color: 'var(--theme-error-500)',
+                  marginBottom: 'var(--base)',
+                  fontSize: 'var(--font-size-small)',
+                  padding: 'calc(var(--base) * 0.5)',
+                  background: 'var(--theme-error-50)',
+                  borderRadius: 'var(--style-radius-s)',
+                  border: '1px solid var(--theme-error-200)',
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading || password.length === 0}
+              style={{
+                width: '100%',
+                padding: 'calc(var(--base) * 0.75)',
+                background: 'var(--theme-elevation-800)',
+                border: 'none',
+                borderRadius: 'var(--style-radius-s)',
+                color: 'var(--theme-elevation-50)',
+                fontSize: 'var(--font-size-base)',
+                fontWeight: 500,
+                cursor: loading || password.length === 0 ? 'not-allowed' : 'pointer',
+                opacity: loading || password.length === 0 ? 0.7 : 1,
+                transition: 'opacity 150ms ease',
+              }}
+            >
+              {loading ? 'Checking...' : 'Continue'}
+            </button>
+          </form>
+
+          <button
+            type="button"
+            onClick={() => void enableTwoFactor({})}
+            disabled={loading}
+            style={{
+              width: '100%',
+              marginTop: 'var(--base)',
+              padding: 'calc(var(--base) * 0.5)',
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--theme-text)',
+              opacity: 0.7,
+              fontSize: 'var(--font-size-small)',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+            }}
+          >
+            My account has no password
+          </button>
         </div>
       </div>
     )

@@ -62,6 +62,8 @@ describe('detectEnabledMethods', () => {
       passkey: false,
       magicLink: true,
       emailOtp: true,
+      twoFactorBackupCode: false,
+      twoFactorEmailOtp: false,
     })
   })
 
@@ -73,8 +75,22 @@ describe('detectEnabledMethods', () => {
       passkey: true,
       magicLink: false,
       emailOtp: false,
+      twoFactorBackupCode: false,
+      twoFactorEmailOtp: false,
     })
     expect(detectEnabledMethods({ emailAndPassword: { enabled: false } }).password).toBe(false)
+  })
+
+  it('detects two-factor backup codes and the emailed second factor', () => {
+    const withOtp = detectEnabledMethods({
+      plugins: [{ id: 'two-factor', options: { otpOptions: { sendOTP: async () => {} } } }],
+    })
+    expect(withOtp.twoFactorBackupCode).toBe(true)
+    expect(withOtp.twoFactorEmailOtp).toBe(true)
+
+    const withoutOtp = detectEnabledMethods({ plugins: [{ id: 'two-factor' }] })
+    expect(withoutOtp.twoFactorBackupCode).toBe(true)
+    expect(withoutOtp.twoFactorEmailOtp).toBe(false)
   })
 
   it('respects disableSignUp and requires sendResetPassword for forgot-password', () => {
@@ -95,6 +111,8 @@ describe('detectEnabledMethods', () => {
       passkey: false,
       magicLink: false,
       emailOtp: false,
+      twoFactorBackupCode: false,
+      twoFactorEmailOtp: false,
     }
     expect(detectEnabledMethods(undefined)).toEqual(allFalse)
     expect(detectEnabledMethods({})).toEqual(allFalse)

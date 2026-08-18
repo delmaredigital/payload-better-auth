@@ -11,7 +11,7 @@ import { useAuthClientBaseURL } from './useAuthMountPath.js'
 import { LoadingScreen } from './login/LoadingScreen.js'
 import { AccessDeniedScreen } from './login/AccessDeniedScreen.js'
 import { EmailSentScreen } from './login/EmailSentScreen.js'
-import { TwoFactorForm } from './login/TwoFactorForm.js'
+import { TwoFactorForm, type TwoFactorMethod } from './login/TwoFactorForm.js'
 import { EmailOtpForm } from './login/EmailOtpForm.js'
 import { ForgotPasswordForm } from './login/ForgotPasswordForm.js'
 import { RegisterForm } from './login/RegisterForm.js'
@@ -118,6 +118,21 @@ export type LoginViewProps = {
    * `admin.custom`). Default: '/auth'.
    */
   authBasePath?: string
+  /**
+   * Offer "use a backup code" on the two-factor step.
+   * - 'auto': available iff the twoFactor plugin is detected (backup codes are
+   *   issued on enable). Standalone use without the wrapper resolves to true —
+   *   the 2FA step only renders when a second factor exists.
+   * Default: 'auto'.
+   */
+  enableTwoFactorBackupCode?: boolean | 'auto'
+  /**
+   * Offer "email me a code" on the two-factor step (`sendOtp`/`verifyOtp`).
+   * - 'auto': available iff the twoFactor plugin is configured with
+   *   `otpOptions.sendOTP`. Standalone use without the wrapper resolves to false.
+   * Default: 'auto'.
+   */
+  enableTwoFactorEmailOtp?: boolean | 'auto'
 }
 
 /** Map a Better Auth social `?error=` code to a friendly message. */
@@ -195,6 +210,8 @@ export function LoginView({
   socialProviders = [],
   socialCallbackURL,
   authBasePath,
+  enableTwoFactorBackupCode = 'auto',
+  enableTwoFactorEmailOtp = 'auto',
 }: LoginViewProps) {
   const router = useRouter()
 
@@ -231,14 +248,20 @@ export function LoginView({
   const forgotPasswordAvailable = resolveAvailability(enableForgotPassword, false)
   const magicLinkAvailable = resolveAvailability(enableMagicLink, false)
   const emailOtpAvailable = resolveAvailability(enableEmailOtp, false)
+  // The 2FA step only renders after the server demanded a second factor, so the
+  // backup-code escape hatch is safe to offer even unresolved.
+  const twoFactorBackupCodeAvailable = enableTwoFactorBackupCode !== false
+  const twoFactorEmailOtpAvailable = resolveAvailability(enableTwoFactorEmailOtp, false)
 
   // Email-OTP code entry state
   const [otp, setOtp] = useState('')
   const [otpLoading, setOtpLoading] = useState(false)
 
-  // Two-factor authentication state
+  // Two-factor authentication state. `totpCode` holds whichever second factor
+  // is being entered (TOTP, backup code, or emailed code) for the active method.
   const [totpCode, setTotpCode] = useState('')
   const [totpLoading, setTotpLoading] = useState(false)
+  const [twoFactorMethod, setTwoFactorMethod] = useState<TwoFactorMethod>('totp')
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const clientRef = useRef<any>(null)
@@ -465,14 +488,19 @@ export function LoginView({
     }
   }
 
-  async function handleTotpVerify(e: FormEvent) {
+  async function handleTwoFactorVerify(e: FormEvent) {
     e.preventDefault()
     setTotpLoading(true)
     setError(null)
 
     try {
       const client = await getClient()
-      const result = await client.twoFactor.verifyTotp({ code: totpCode })
+      const result =
+        twoFactorMethod === 'backup'
+          ? await client.twoFactor.verifyBackupCode({ code: totpCode.trim() })
+          : twoFactorMethod === 'emailOtp'
+            ? await client.twoFactor.verifyOtp({ code: totpCode })
+            : await client.twoFactor.verifyTotp({ code: totpCode })
 
       if (result.error) {
         setError(result.error.message ?? 'Invalid verification code')
@@ -480,7 +508,7 @@ export function LoginView({
         return
       }
 
-      // verify-totp may not return all user fields (e.g. custom 'role');
+      // verification may not return all user fields (e.g. custom 'role');
       // completeSignIn re-fetches the session for the role gate.
       const outcome = await completeSignIn(client)
       if (outcome === 'noSession') {
@@ -495,6 +523,29 @@ export function LoginView({
     }
   }
 
+  /** Ask the server to email the second-factor code (twoFactor `otpOptions`). */
+  async function sendTwoFactorOtp() {
+    setError(null)
+    try {
+      const client = await getClient()
+      const result = await client.twoFactor.sendOtp()
+      if (result.error) {
+        setError(result.error.message ?? 'Could not send the code. Please try again.')
+      }
+    } catch {
+      setError('Could not send the code. Please try again.')
+    }
+  }
+
+  function selectTwoFactorMethod(method: TwoFactorMethod) {
+    setTwoFactorMethod(method)
+    setTotpCode('')
+    setError(null)
+    if (method === 'emailOtp') {
+      void sendTwoFactorOtp()
+    }
+  }
+
   function switchView(newView: ViewMode) {
     setViewMode(newView)
     setError(null)
@@ -502,6 +553,7 @@ export function LoginView({
     // Reset form fields based on context
     if (newView === 'login') {
       setTotpCode('')
+      setTwoFactorMethod('totp')
       setConfirmPassword('')
       setOtp('')
     } else if (newView === 'register') {
@@ -698,7 +750,22 @@ export function LoginView({
 
   // Two-factor verification view
   if (viewMode === 'twoFactor') {
-    return <TwoFactorForm code={totpCode} onCodeChange={setTotpCode} onSubmit={handleTotpVerify} onBack={handleBackToLogin} loading={totpLoading} error={error} logo={logo} />
+    return (
+      <TwoFactorForm
+        code={totpCode}
+        onCodeChange={setTotpCode}
+        onSubmit={handleTwoFactorVerify}
+        onBack={handleBackToLogin}
+        loading={totpLoading}
+        error={error}
+        logo={logo}
+        method={twoFactorMethod}
+        onMethodChange={selectTwoFactorMethod}
+        enableBackupCode={twoFactorBackupCodeAvailable}
+        enableEmailOtp={twoFactorEmailOtpAvailable}
+        onResendEmailOtp={sendTwoFactorOtp}
+      />
+    )
   }
 
   // Email-OTP code entry view
