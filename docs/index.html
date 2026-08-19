@@ -1652,7 +1652,11 @@ read: <span class="hl-func">requireApiKey</span>()</code></pre>
           <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import</span> { <span class="hl-type">TwoFactorSetupView</span>, <span class="hl-type">TwoFactorVerifyView</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/components/twoFactor'</span>
 
 &lt;<span class="hl-type">TwoFactorSetupView</span> logo={&lt;MyLogo /&gt;} afterSetupPath=<span class="hl-string">"/admin"</span> /&gt;
-&lt;<span class="hl-type">TwoFactorVerifyView</span> logo={&lt;MyLogo /&gt;} afterVerifyPath=<span class="hl-string">"/admin"</span> /&gt;</code></pre>
+&lt;<span class="hl-type">TwoFactorVerifyView</span> logo={&lt;MyLogo /&gt;} afterVerifyPath=<span class="hl-string">"/admin"</span> /&gt;
+
+<span class="hl-comment">// As an admin view, prefer the server wrapper — it detects whether the</span>
+<span class="hl-comment">// account has a password and skips the confirmation step when it doesn't:</span>
+<span class="hl-keyword">import</span> { <span class="hl-type">TwoFactorSetupViewWrapper</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/rsc'</span></code></pre>
         </div>
       </details>
 

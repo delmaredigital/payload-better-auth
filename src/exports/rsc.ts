@@ -10,3 +10,7 @@
 
 export { LoginViewWrapper } from '../components/LoginViewWrapper.js'
 export { TwoFactorView } from '../components/management/views/TwoFactorView.js'
+export {
+  TwoFactorSetupViewWrapper,
+  type TwoFactorSetupViewWrapperProps,
+} from '../components/twoFactor/TwoFactorSetupViewWrapper.js'

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { AuthCard } from './AuthCard.js'
 import { OtpInput } from './OtpInput.js'
 import { AuthBanner } from './AuthBanner.js'
@@ -6,6 +6,8 @@ import { AuthButton } from './AuthButton.js'
 
 /** Second-factor entry modes the form can render. */
 export type TwoFactorMethod = 'totp' | 'backup' | 'emailOtp'
+
+const RESEND_COOLDOWN_SECONDS = 30
 
 const copyByMethod: Record<TwoFactorMethod, { hint: string; label: string }> = {
   totp: {
@@ -68,6 +70,19 @@ export function TwoFactorForm({
   const { hint, label } = copyByMethod[method]
   const submitDisabled =
     loading || (method === 'backup' ? code.trim().length === 0 : code.length !== 6)
+
+  // A code is emailed when the method is selected and on every resend, so gate
+  // resends behind a countdown — the server rate-limits anyway, but a ticking
+  // link beats an opaque rate-limit error.
+  const [resendCooldown, setResendCooldown] = useState(0)
+  useEffect(() => {
+    if (method === 'emailOtp') setResendCooldown(RESEND_COOLDOWN_SECONDS)
+  }, [method])
+  useEffect(() => {
+    if (resendCooldown === 0) return
+    const timer = setTimeout(() => setResendCooldown((s) => Math.max(0, s - 1)), 1000)
+    return () => clearTimeout(timer)
+  }, [resendCooldown])
 
   const alternates: Array<{ label: string; method: TwoFactorMethod }> = []
   if (method !== 'totp') {
@@ -165,8 +180,22 @@ export function TwoFactorForm({
             }}
           >
             {method === 'emailOtp' && onResendEmailOtp && (
-              <button type="button" onClick={onResendEmailOtp} style={linkStyle} disabled={loading}>
-                Resend the code
+              <button
+                type="button"
+                onClick={() => {
+                  onResendEmailOtp()
+                  setResendCooldown(RESEND_COOLDOWN_SECONDS)
+                }}
+                style={{
+                  ...linkStyle,
+                  cursor: resendCooldown > 0 ? 'default' : linkStyle.cursor,
+                  textDecoration: resendCooldown > 0 ? 'none' : linkStyle.textDecoration,
+                }}
+                disabled={loading || resendCooldown > 0}
+              >
+                {resendCooldown > 0
+                  ? `Resend the code (${resendCooldown}s)`
+                  : 'Resend the code'}
               </button>
             )}
             {alternates.map((alternate) => (

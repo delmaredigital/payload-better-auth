@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TwoFactorForm } from '../../../src/components/login/TwoFactorForm.js'
 
@@ -121,7 +121,8 @@ describe('TwoFactorForm', () => {
     expect(screen.getByRole('button', { name: 'Verify' })).toBeDisabled()
   })
 
-  it('emailOtp mode shows the resend action', async () => {
+  it('emailOtp mode gates the resend action behind a cooldown', async () => {
+    vi.useFakeTimers()
     const onResendEmailOtp = vi.fn()
     render(
       <TwoFactorForm
@@ -132,8 +133,27 @@ describe('TwoFactorForm', () => {
       />,
     )
     expect(screen.getByText(/emailed you a verification code/i)).toBeInTheDocument()
-    const user = userEvent.setup()
-    await user.click(screen.getByText('Resend the code'))
+
+    // The code was just sent (selecting the method sends it) — resend is on cooldown.
+    const resend = screen.getByRole('button', { name: /Resend the code/ })
+    expect(resend).toBeDisabled()
+
+    // Step second by second — each tick re-renders and schedules the next timer.
+    for (let i = 0; i < 30; i++) {
+      act(() => {
+        vi.advanceTimersByTime(1000)
+      })
+    }
+    expect(resend).not.toBeDisabled()
+
+    // fireEvent, not userEvent: userEvent's async event loop stalls under fake timers.
+    fireEvent.click(resend)
     expect(onResendEmailOtp).toHaveBeenCalledTimes(1)
+    // Resending restarts the cooldown.
+    expect(resend).toBeDisabled()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 })
