@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.1] - 2026-08-21
+
+Documentation fix. No code change — but if you followed 0.11.0's migration guidance and use Google, Facebook, Apple, LINE, Cognito, Paybin or Microsoft Entra ID sign-in, **your `account.issuer` backfill is wrong and needs repairing.** See Migration under 0.11.0, now corrected.
+
+### Fixed
+
+- **Corrected the `account.issuer` backfill values.** 0.11.0 stated that built-in social providers use the synthetic `local:oauth:<providerId>` form. That is the **fallback**, applied only where a provider declares no issuer of its own — and in Better Auth 1.7.1 seven built-ins declare one: `google` (`https://accounts.google.com`), `facebook` (`https://www.facebook.com`), `apple` (`https://appleid.apple.com`), `line`, `cognito`, `paybin` and `microsoft` (per-tenant).
+
+  The claim came from grepping `better-auth/dist/social-providers/`, which is a two-line re-export of `@better-auth/core/social-providers`. Zero matches read as "no provider declares one". The docs now name the affected providers, and give a one-liner that reads the value off the provider rather than restating it:
+
+  ```sh
+  node -e "import('better-auth/social-providers').then(m => console.log(m.google({clientId:'x',clientSecret:'y'}).accountIssuer))"
+  ```
+
+- **Documented that Microsoft Entra ID's `accountId` moves as well.** 1.7 keys the subject on the `oid` claim where 1.6 stored `sub`, so an Entra row needs both halves rewritten, per-row, from the `id_token` already on it. 0.11.0 mentioned the issuer change but not this.
+
+- **Documented that Facebook's `accountId` does *not* move**, despite an `accountSubject` that reads like it changed — both the Limited Login (`sub`) and Graph (`id`) branches match what 1.6 stored.
+
+  **Why this matters:** a wrong issuer fails silently. The row is filed under a key Better Auth never queries, so the next sign-in does not match it, takes the new-identity path and writes a *second* account row — which the unique index permits, because the pair differs. Nothing throws. It surfaces later as an unexpected account-link prompt, or `account_not_linked` where policy forbids linking. Confirmed in the wild: one Google user with the same `sub` across two rows, one `local:oauth:google` and one `https://accounts.google.com`.
+
+  To check an existing database: `SELECT provider_id, issuer, count(*) FROM accounts GROUP BY 1,2;`. Two issuer forms for one provider means rows have already re-linked, and a repair has to drop the unique index, refuse where a repaired identity spans two users (that is a merge for a human), collapse the duplicates, then recreate the index.
+
 ## [0.11.0] - 2026-08-19
 
 Better Auth 1.7 support. 1.7 is a large release with a wide breaking-change surface; most of it is absorbed here, but it raises the minimum Better Auth version and requires a one-time database migration. See Migration.
@@ -45,7 +67,10 @@ Better Auth 1.7 support. 1.7 is a large release with a wide breaking-change surf
 
    -- Email/password rows
    UPDATE accounts SET issuer = 'local:credential' WHERE provider_id = 'credential';
-   -- Built-in social providers ('google', 'github', …)
+   -- OAuth rows: the issuer each provider DECLARES (see "Issuer values" below)
+   UPDATE accounts SET issuer = 'https://accounts.google.com' WHERE provider_id = 'google';
+   UPDATE accounts SET issuer = 'https://www.facebook.com'    WHERE provider_id = 'facebook';
+   -- Only providers that declare no issuer of their own get the synthetic form
    UPDATE accounts SET issuer = 'local:oauth:' || provider_id WHERE issuer IS NULL;
 
    ALTER TABLE accounts ALTER COLUMN issuer SET NOT NULL;
@@ -61,7 +86,19 @@ Better Auth 1.7 support. 1.7 is a large release with a wide breaking-change surf
 
    Table and column names above assume the plugin's defaults on Postgres (pluralized slug `accounts`, snake_case columns). Adjust for `usePlural: false`, a custom `account` model name, or MongoDB.
 
-   **Issuer values:** built-in social providers use the synthetic `local:oauth:<providerId>` form shown above, and email/password uses `local:credential`. Generic-OAuth/OIDC providers (Okta, Auth0, Keycloak, Microsoft Entra ID) use their **real** discovery issuer instead, and Google One Tap uses `https://accounts.google.com`. Better Auth's [1.7 upgrade guide](https://better-auth.com/docs/guides/1-7-upgrade-guide#account-identity-is-scoped-by-issuer) has the full table — check it if you use any of those.
+   **Issuer values — `local:oauth:<providerId>` is the FALLBACK, not the rule.** Email/password uses `local:credential`. The synthetic OAuth form applies only to providers that declare no issuer of their own. In Better Auth 1.7.1 seven built-ins declare one and must NOT get it: `google` → `https://accounts.google.com`, `facebook` → `https://www.facebook.com`, `apple` → `https://appleid.apple.com`, plus `line`, `cognito`, `paybin` and `microsoft`. Every generic-OAuth/OIDC provider (Okta, Auth0, Keycloak) uses its discovery issuer. Read the value instead of guessing:
+
+   ```sh
+   node -e "import('better-auth/social-providers').then(m => console.log(m.google({clientId:'x',clientSecret:'y'}).accountIssuer))"
+   ```
+
+   Getting this wrong is silent. The row is filed under a key Better Auth never queries, so the next sign-in does not match it, takes the new-identity path and writes a SECOND account row — which the unique index permits, because the pair differs. Nothing throws. It surfaces later as an unexpected account-link prompt, or `account_not_linked` where the policy forbids linking.
+
+   **Microsoft Entra ID cannot be backfilled with a flat UPDATE, and its `accountId` moves too.** Its issuer is per-tenant — `https://login.microsoftonline.com/<tid>/v2.0` — so there is no single value to write. And 1.7 keys the subject on the `oid` claim (`accountSubject: ({ profile }) => profile.oid`) where 1.6 stored `sub` (its `getUserInfo` returned `id: user.sub`), so every existing Entra `accountId` is wrong as well. Both values are in the `id_token` already stored on the row: decode the claims segment — base64url, no signature check, the token is months old — and take `iss` and `oid`.
+
+   **Facebook's `accountId` does NOT move** — worth stating, because its `accountSubject` reads like it changed. 1.7 declares `"sub" in profile ? profile.sub : profile.id`, which is the same branch 1.6 took inside `getUserInfo`: the Limited Login path (a 3-part `id_token`) yields `sub`, the Graph path (`/me?fields=…`) yields `id`. Both are unchanged, so Facebook rows need only the `issuer` update. Rows with no stored `id_token` came via Graph; only a Limited Login / `configId` consumer needs to look further.
+
+   The same question is worth asking for any provider you use: `accountSubject` in 1.7 is an explicit declaration, where 1.6 derived the id inside `getUserInfo`. Where the two disagree, `accountId` needs migrating alongside `issuer`.
 
 3. **Apply the migration** and verify sign-in for each provider you support before rolling out. Better Auth writes `issuer` on every new account row from this point on.
 

@@ -20,7 +20,10 @@ Better Auth adapter and plugins for Payload CMS. Enables seamless integration be
 >
 >    -- Email/password rows
 >    UPDATE accounts SET issuer = 'local:credential' WHERE provider_id = 'credential';
->    -- Built-in social providers ('google', 'github', …)
+>    -- OAuth rows: the issuer each provider DECLARES (see the warning below)
+>    UPDATE accounts SET issuer = 'https://accounts.google.com' WHERE provider_id = 'google';
+>    UPDATE accounts SET issuer = 'https://www.facebook.com'    WHERE provider_id = 'facebook';
+>    -- Only providers that declare no issuer of their own get the synthetic form
 >    UPDATE accounts SET issuer = 'local:oauth:' || provider_id WHERE issuer IS NULL;
 >
 >    -- Must return zero rows, or the unique index will fail
@@ -31,7 +34,19 @@ Better Auth adapter and plugins for Payload CMS. Enables seamless integration be
 >    -- then the unique index exactly as Payload generated it
 >    ```
 >
->    Generic-OAuth/OIDC providers (Okta, Auth0, Keycloak, Entra ID) use their **real** discovery issuer, not the `local:oauth:` form — check Better Auth's [1.7 upgrade guide](https://better-auth.com/docs/guides/1-7-upgrade-guide#account-identity-is-scoped-by-issuer) for those. Names above assume the plugin's Postgres defaults (pluralized slug, snake_case columns); adjust for `usePlural: false` or MongoDB.
+>    ⚠️ **`local:oauth:<providerId>` is the fallback, not the rule.** It applies only where a provider declares no issuer of its own. In Better Auth 1.7.1 seven built-ins DO declare one and must not get the synthetic form: **google** (`https://accounts.google.com`), **facebook** (`https://www.facebook.com`), **apple** (`https://appleid.apple.com`), **line**, **cognito**, **paybin** and **microsoft** — plus every generic-OAuth/OIDC provider (Okta, Auth0, Keycloak). Read the value rather than guessing it:
+>
+>    ```sh
+>    node -e "import('better-auth/social-providers').then(m => console.log(m.google({clientId:'x',clientSecret:'y'}).accountIssuer))"
+>    ```
+>
+>    Backfilling those rows with `local:oauth:…` files them under a key Better Auth never queries. Sign-in does not find the row, takes the new-identity path and writes a **second** account row; the unique index permits it because the pair differs. Nothing fails, and the damage is silent until a learner is asked to link an account they already have.
+>
+>    ✅ **Facebook's `account_id` does NOT move**, despite an `accountSubject` that reads like it changed. 1.7 declares `"sub" in profile ? profile.sub : profile.id` — the same branch 1.6 took inside `getUserInfo` (Limited Login yields `sub`, the Graph `/me?fields=…` path yields `id`). Facebook rows need only the `issuer` update; rows with no stored `id_token` came via Graph. Only a Limited Login / `configId` consumer needs to look further.
+>
+>    ⚠️ **Microsoft Entra ID needs a row-by-row backfill, and its `account_id` moves too.** Its issuer is per-tenant (`https://login.microsoftonline.com/<tid>/v2.0`), so there is no constant to write — and 1.7 keys the subject on the `oid` claim where 1.6 stored `sub`, so every existing Entra `account_id` is also wrong. Both values are in the `id_token` already stored on the row: decode the claims segment and take `iss` and `oid` from it. No signature check — the token is months old and only its claims are wanted.
+>
+>    Names above assume the plugin's Postgres defaults (pluralized slug, snake_case columns); adjust for `usePlural: false` or MongoDB.
 > 3. **Apply the migration** and verify sign-in for each provider you support.
 >
 > No application-code changes are required for the common setup — the adapter, generated collections, and admin UI absorb the rest of 1.7. If you use OAuth JWT bearer auth, database `joins`, or a proxy with a dynamic `baseURL`, see the [CHANGELOG](./CHANGELOG.md#0110---2026-08-19) for the smaller items.
