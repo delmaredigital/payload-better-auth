@@ -541,6 +541,8 @@ function generateCollection(
     delete: isAdmin(),
   }
 
+  const indexes = buildCompoundIndexes(table, fields)
+
   return {
     slug,
     admin: {
@@ -550,8 +552,66 @@ function generateCollection(
     },
     access: customAccess ?? defaultAccess,
     fields,
+    ...(indexes.length > 0 && { indexes }),
     timestamps: true,
   }
+}
+
+/**
+ * Translate Better Auth's table-level `indexes` into Payload compound indexes.
+ *
+ * Better Auth 1.7 moved constraints that used to be implicit into the schema
+ * itself — most importantly `account`'s unique `(issuer, accountId)`, which is
+ * what stops one provider identity from being linked to two users. Passing them
+ * through keeps the generated collections a faithful projection of Better
+ * Auth's schema instead of a lossy one.
+ *
+ * Index entries name Better Auth fields; relationship fields are renamed on the
+ * Payload side (`userId` → `user`), so map through the generated field list and
+ * drop any index we can't fully resolve rather than emitting one that points at
+ * a column Payload doesn't have.
+ */
+function buildCompoundIndexes(
+  table: ReturnType<typeof getAuthTables>[string],
+  fields: Field[]
+): NonNullable<CollectionConfig['indexes']> {
+  const tableIndexes = (table as { indexes?: { fields: string[]; unique?: boolean }[] }).indexes
+  if (!Array.isArray(tableIndexes) || tableIndexes.length === 0) return []
+
+  const generatedNames = new Set(
+    fields.map((f) => ('name' in f ? f.name : undefined)).filter(Boolean) as string[]
+  )
+
+  const resolved: NonNullable<CollectionConfig['indexes']> = []
+  for (const index of tableIndexes) {
+    if (!Array.isArray(index.fields) || index.fields.length === 0) continue
+
+    const mapped: string[] = []
+    for (const fieldKey of index.fields) {
+      const fieldDef = table.fields[fieldKey]
+      const payloadName = fieldDef?.fieldName ?? fieldKey
+      // Reference fields become relationships named without the Id suffix.
+      const candidate = generatedNames.has(payloadName)
+        ? payloadName
+        : payloadName.replace(/(_id|Id)$/, '')
+      if (!generatedNames.has(candidate)) {
+        mapped.length = 0
+        break
+      }
+      mapped.push(candidate)
+    }
+
+    if (mapped.length === index.fields.length) {
+      resolved.push({ fields: mapped, ...(index.unique && { unique: true }) })
+    } else {
+      console.warn(
+        `[betterAuthCollections] skipping index on '${table.modelName}' — ` +
+          `field(s) not present on the generated collection: ${index.fields.join(', ')}`
+      )
+    }
+  }
+
+  return resolved
 }
 
 /**

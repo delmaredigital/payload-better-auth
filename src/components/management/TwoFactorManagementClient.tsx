@@ -8,6 +8,7 @@ import {
   createPayloadAuthClient,
 } from '../../exports/client.js'
 import { useAuthClientBaseURL } from '../useAuthMountPath.js'
+import { extractTotpSecret } from '../../utils/totp.js'
 
 export type TwoFactorManagementClientProps = {
   /** Optional pre-configured auth client */
@@ -98,15 +99,21 @@ export function TwoFactorManagementClient({
 
     try {
       const client = getClient()
-      const result = await client.twoFactor.enable({ password })
+      // Better Auth 1.7 made the response a discriminated union on `method`;
+      // `totp` is still the default, but ask for it explicitly so this stays
+      // pinned to the authenticator-app flow this UI actually renders.
+      const result = await client.twoFactor.enable({ password, method: 'totp' })
 
       if (result.error) {
         setError(result.error.message ?? 'Failed to enable 2FA')
       } else if (result.data) {
+        if (result.data.method !== 'totp') {
+          setError('Unexpected two-factor method returned by the server.')
+          return
+        }
         setTotpUri(result.data.totpURI)
-        // Secret is embedded in the totpURI, extract it for manual entry option
-        const secretMatch = result.data.totpURI.match(/secret=([A-Z2-7]+)/i)
-        setSecret(secretMatch ? secretMatch[1] : null)
+        // Secret is only carried inside the totpURI — offered here for manual entry.
+        setSecret(extractTotpSecret(result.data.totpURI))
         setBackupCodes(result.data.backupCodes ?? [])
         setPassword('') // Clear password
         setStep('setup')

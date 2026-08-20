@@ -25,6 +25,46 @@ import type {
 export type DbType = 'postgres' | 'mongodb' | 'sqlite'
 
 /**
+ * How many times `incrementOne` re-reads and retries when its compare-and-swap
+ * guard loses to a concurrent writer. Contention on these counters (API-key
+ * quota, rate limits, team member counts) is short-lived, so a small bound
+ * converges without turning a hot row into an unbounded retry loop.
+ */
+const INCREMENT_ONE_MAX_ATTEMPTS = 5
+
+/** Methods the Payload adapter implements against Better Auth's `CustomAdapter`. */
+type ImplementedAdapterMethods =
+  | 'create'
+  | 'findOne'
+  | 'findMany'
+  | 'update'
+  | 'updateMany'
+  | 'delete'
+  | 'deleteMany'
+  | 'consumeOne'
+  | 'incrementOne'
+  | 'count'
+
+/**
+ * The adapter object is returned through `as CustomAdapter` to reconcile the
+ * interface's generic (`<T>`) return types with Payload's concrete ones — but a
+ * cast also silently accepts an object that is *missing* methods. That is how
+ * Better Auth 1.7's new required `consumeOne`/`incrementOne` cleared the build
+ * while the factory would have thrown at runtime.
+ *
+ * This check closes that gap: if Better Auth adds a required `CustomAdapter`
+ * method that isn't listed above, the assignment fails and the build breaks
+ * with a pointer to here.
+ */
+const _adapterImplementsCustomAdapter: Exclude<
+  keyof CustomAdapter,
+  ImplementedAdapterMethods | 'createSchema' | 'options'
+> extends never
+  ? true
+  : never = true
+void _adapterImplementsCustomAdapter
+
+/**
  * Detect the database type from the Payload instance.
  */
 export function detectDbType(payload: BasePayload): DbType {
@@ -409,6 +449,46 @@ export function payloadAdapter({
               : hay.endsWith(needle)
           })
 
+        // Fetch the single row a `where` selects, honoring the id fast-path and
+        // the anchored-operator post-filter. Shared by consumeOne/incrementOne,
+        // which need the row (and its id) before they can write.
+        const findOneDoc = async (
+          model: string,
+          where: WhereClause[]
+        ): Promise<Record<string, unknown> | null> => {
+          const payload = await getPayload()
+          const collection = getCollection(model)
+
+          const id = extractSingleId(where)
+          if (id !== null) {
+            try {
+              return (await payload.findByID({
+                collection,
+                id,
+                depth: 0,
+                overrideAccess: true,
+              })) as Record<string, unknown>
+            } catch (error) {
+              if (isNotFoundError(error)) return null
+              throw error
+            }
+          }
+
+          const anchors = getAnchorClauses(where)
+          const result = await payload.find({
+            collection,
+            where: convertWhereToPayload(where),
+            limit: anchors.length > 0 ? 100 : 1,
+            depth: 0,
+            overrideAccess: true,
+          })
+          const docs =
+            anchors.length > 0
+              ? result.docs.filter((d) => matchesAnchors(d as Record<string, unknown>, anchors))
+              : result.docs
+          return (docs[0] as Record<string, unknown>) ?? null
+        }
+
         // Warn when input fields don't survive the write — i.e. Payload silently
         // stripped a column that doesn't exist on the collection (usually a
         // plugin field added without regenerating collections). Rename-aware so
@@ -772,6 +852,107 @@ export function payloadAdapter({
             }
 
             return result.docs.length
+          },
+
+          // Better Auth 1.7 requires these two atomic primitives on every
+          // custom adapter — the factory throws rather than falling back.
+          //
+          // Payload's Local API exposes no `DELETE ... RETURNING` or
+          // `SET n = n + d`, so both are read-then-write. We narrow the race
+          // window by re-asserting Better Auth's guard (which already carries
+          // the caller's precondition, e.g. `remaining > 0`) on the write, and
+          // by treating "the write matched nothing" as losing the race rather
+          // than as success. See the README's "Atomic operations" section for
+          // the exact guarantees and their limits.
+          consumeOne: async ({ model, where }) => {
+            const payload = await getPayload()
+            const collection = getCollection(model)
+
+            if (enableDebugLogs) {
+              debugLog('consumeOne', { collection, model, where })
+            }
+
+            const doc = await findOneDoc(model, where as WhereClause[])
+            if (!doc) return null
+
+            const id = (doc as Record<string, unknown>).id as string | number
+            try {
+              await payload.delete({ collection, id, overrideAccess: true })
+            } catch (error) {
+              // A concurrent consumer already removed the row — Payload 404s.
+              // Returning null (rather than the row we read) is what keeps
+              // single-use credentials single-use.
+              if (isNotFoundError(error)) return null
+              throw error
+            }
+
+            return doc as never
+          },
+
+          incrementOne: async ({ model, where, increment, set }) => {
+            const payload = await getPayload()
+            const collection = getCollection(model)
+
+            if (enableDebugLogs) {
+              debugLog('incrementOne', { collection, model, where, increment, set })
+            }
+
+            const incrementFields = Object.entries(increment)
+
+            // Compare-and-swap with bounded retry. The guard re-asserts both
+            // Better Auth's own precondition and the counter values we read,
+            // so a racing writer's update matches no row; we then re-read and
+            // retry instead of silently clobbering their write.
+            for (let attempt = 0; attempt < INCREMENT_ONE_MAX_ATTEMPTS; attempt++) {
+              const doc = await findOneDoc(model, where as WhereClause[])
+              if (!doc) return null
+
+              const current = doc as Record<string, unknown>
+              const data: Record<string, unknown> = { ...(set ?? {}) }
+              for (const [field, delta] of incrementFields) {
+                const value = current[field]
+                data[field] = (typeof value === 'number' ? value : 0) + delta
+              }
+
+              const guard: PayloadWhere = {
+                and: [
+                  { id: { equals: current.id } },
+                  convertWhereToPayload(where),
+                  // Lost-update guard: only write if the counters still hold
+                  // the values this attempt computed from. A counter that has
+                  // never been written is NULL rather than 0, and `equals: 0`
+                  // does not match NULL in SQL — guard on absence instead.
+                  ...incrementFields.map(([field]) =>
+                    typeof current[field] === 'number'
+                      ? { [field]: { equals: current[field] } }
+                      : { [field]: { exists: false } }
+                  ),
+                ],
+              }
+
+              const result = await payload.update({
+                collection,
+                where: guard,
+                data,
+                depth: 0,
+                overrideAccess: true,
+              })
+
+              const updated = result.docs[0]
+              if (updated) {
+                warnDroppedKeys('incrementOne', model, collection, data, updated as Record<string, unknown>)
+                return updated as never
+              }
+              // Guard matched nothing: either a racer moved the counter (retry
+              // against the new value) or the caller's precondition no longer
+              // holds (the next findOneDoc returns null and we report null).
+            }
+
+            console.warn(
+              `[payload-adapter] incrementOne on '${collection}' gave up after ` +
+                `${INCREMENT_ONE_MAX_ATTEMPTS} contended attempts`
+            )
+            return null
           },
 
           count: async ({ model, where }) => {

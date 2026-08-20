@@ -63,6 +63,7 @@ export type SessionPluginFields = {
 export type Session = BaseSessionFields & SessionPluginFields["admin"] & SessionPluginFields["organization"]
 
 export type BaseAccountFields = {
+  issuer: string
   accountId: string
   providerId: string
   userId: string
@@ -133,11 +134,13 @@ export type Passkey = PasskeyFields
 export type OauthClientFields = {
   clientId: string
   clientSecret?: string
+  clientDiscoveryId?: string
   disabled?: boolean
   skipConsent?: boolean
   enableEndSession?: boolean
   subjectType?: string
   scopes?: string[]
+  clientCredentialsScopes?: string[]
   userId?: string
   createdAt?: Date
   updatedAt?: Date
@@ -152,17 +155,49 @@ export type OauthClientFields = {
   softwareStatement?: string
   redirectUris: string[]
   postLogoutRedirectUris?: string[]
+  backchannelLogoutUri?: string
+  backchannelLogoutSessionRequired?: boolean
   tokenEndpointAuthMethod?: string
+  applicationType?: string
+  jwks?: string
+  jwksUri?: string
   grantTypes?: string[]
   responseTypes?: string[]
-  public?: boolean
-  type?: string
   requirePKCE?: boolean
+  dpopBoundAccessTokens?: boolean
   referenceId?: string
   metadata?: unknown
 }
 
 export type OauthClient = OauthClientFields
+
+export type OauthResourceFields = {
+  identifier: string
+  name: string
+  accessTokenTtl?: number
+  refreshTokenTtl?: number
+  signingAlgorithm?: string
+  signingKeyId?: string
+  allowedScopes?: string[]
+  customClaims?: unknown
+  dpopBoundAccessTokensRequired?: boolean
+  disabled?: boolean
+  createdAt?: Date
+  updatedAt?: Date
+  policyVersion?: number
+  metadata?: unknown
+}
+
+export type OauthResource = OauthResourceFields
+
+export type OauthClientResourceFields = {
+  clientId: string
+  resourceId: string
+  metadata?: unknown
+  createdAt?: Date
+}
+
+export type OauthClientResource = OauthClientResourceFields
 
 export type OauthRefreshTokenFields = {
   token: string
@@ -170,10 +205,17 @@ export type OauthRefreshTokenFields = {
   sessionId?: string
   userId: string
   referenceId?: string
+  authorizationCodeId?: string
+  resources?: string[]
+  requestedUserInfoClaims?: string[]
   expiresAt?: Date
   createdAt?: Date
   revoked?: Date
+  rotatedAt?: Date
+  rotationReplayResponse?: string
+  rotationReplayExpiresAt?: Date
   authTime?: Date
+  confirmation?: unknown
   scopes: string[]
 }
 
@@ -185,9 +227,14 @@ export type OauthAccessTokenFields = {
   sessionId?: string
   userId?: string
   referenceId?: string
+  authorizationCodeId?: string
+  resources?: string[]
+  requestedUserInfoClaims?: string[]
   refreshId?: string
   expiresAt?: Date
   createdAt?: Date
+  revoked?: Date
+  confirmation?: unknown
   scopes: string[]
 }
 
@@ -197,12 +244,20 @@ export type OauthConsentFields = {
   clientId: string
   userId?: string
   referenceId?: string
+  resources?: string[]
+  requestedUserInfoClaims?: string[]
   scopes: string[]
   createdAt?: Date
   updatedAt?: Date
 }
 
 export type OauthConsent = OauthConsentFields
+
+export type OauthClientAssertionFields = {
+  expiresAt: Date
+}
+
+export type OauthClientAssertion = OauthClientAssertionFields
 
 export type OrganizationFields = {
   name: string
@@ -216,6 +271,7 @@ export type Organization = OrganizationFields
 
 export type TeamFields = {
   name: string
+  memberCount: number
   organizationId: string
   createdAt: Date
   updatedAt?: Date
@@ -226,6 +282,7 @@ export type Team = TeamFields
 export type TeamMemberFields = {
   teamId: string
   userId: string
+  membershipKey?: string
   createdAt?: Date
 }
 
@@ -258,6 +315,8 @@ export type JwksFields = {
   privateKey: string
   createdAt: Date
   expiresAt?: Date
+  alg?: string
+  crv?: string
 }
 
 export type Jwks = JwksFields
@@ -289,9 +348,12 @@ export type BetterAuthFullSchema = {
   "apikey": Apikey
   "passkey": Passkey
   "oauthClient": OauthClient
+  "oauthResource": OauthResource
+  "oauthClientResource": OauthClientResource
   "oauthRefreshToken": OauthRefreshToken
   "oauthAccessToken": OauthAccessToken
   "oauthConsent": OauthConsent
+  "oauthClientAssertion": OauthClientAssertion
   "organization": Organization
   "team": Team
   "teamMember": TeamMember

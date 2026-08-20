@@ -5,6 +5,72 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-08-19
+
+Better Auth 1.7 support. 1.7 is a large release with a wide breaking-change surface; most of it is absorbed here, but it raises the minimum Better Auth version and requires a one-time database migration. See Migration.
+
+### Changed
+
+- **BREAKING: Better Auth >= 1.7.0 is now required** (peer ranges bumped for `better-auth`, `@better-auth/api-key` and `@better-auth/passkey`). This is a hard floor, not a preference: 1.7 added two **required** methods to the database-adapter contract and its factory throws rather than falling back, so the previous release cannot run on 1.7 and this release cannot run on 1.6.
+- **BREAKING: `account` gains a required `issuer` field and a unique `(issuer, accountId)` index.** Better Auth 1.7 scopes account identity by issuer instead of `providerId`, so generated collections now emit both. Existing databases need a backfill before the `NOT NULL` column can be added — see Migration.
+
+### Added
+
+- **Adapter `consumeOne` and `incrementOne`.** Better Auth 1.7 requires these atomic primitives on every custom adapter and dispatches to them for single-use credentials (email verification, password reset, magic links, email OTP, device-authorization codes) and guarded counters (API-key quota and rate limits, two-factor backup codes, team member counts). Without them, those flows throw `Adapter "payload-adapter" must implement consumeOne…` at runtime.
+
+  Payload's Local API offers no `DELETE … RETURNING` or `SET n = n + d`, so both are read-then-write with the race window narrowed rather than removed. `consumeOne` returns the row **only if its own delete removed it** (a racing consumer's delete 404s and yields `null`), preserving single-use semantics for tokens. `incrementOne` re-asserts Better Auth's own guard (e.g. `remaining > 0`) plus the counter values it computed from, and re-reads and retries — bounded at five attempts — when a concurrent writer wins, rather than clobbering it. The residual window and how to close it for API-key quota are documented under [Atomic operations](./README.md#atomic-operations).
+- **Table-level indexes from the Better Auth schema are passed through to generated collections.** 1.7 moved constraints that were previously implicit into the schema as table `indexes`; the generator now maps them onto Payload's compound `indexes` (renaming reference fields, e.g. `userId` → `user`) and warns rather than emitting an index over a field it did not generate.
+- **Compile-time guard against the next adapter-contract change.** The adapter object is returned through an `as CustomAdapter` cast to reconcile the interface's generic return types — but a cast also silently accepts an object that is *missing* methods, which is exactly how 1.7's new requirements cleared the build while the factory would have thrown at runtime. A type-level completeness check now fails the build instead.
+
+### Fixed
+
+- **OAuth JWT bearer verification in `betterAuthStrategy`.** Better Auth 1.7 removed `verifyAccessToken` from `better-auth/oauth2`, splitting it into `verifyBearerToken` (raw token, bearer only) and `verifyAccessTokenRequest` (full request, also handles RFC 9449 DPoP sender-constrained tokens). The strategy now uses `verifyBearerToken`, which is the form its inputs support — Payload hands the strategy only `headers`, with no method or URL. DPoP-bound tokens are rejected here by design.
+- **Two-factor setup no longer shows a blank manual-entry secret.** `/two-factor/enable` returns `{ method, totpURI, backupCodes }` and has no `secret` field; `TwoFactorSetupView` was reading `data.secret` and rendering nothing. Both 2FA components now derive the secret from the TOTP URI via a shared helper.
+- **`PasskeyLoginView` builds again under 1.7.** The new `hydrateSession(session)` client method puts the plugin-augmented user shape in parameter position, making the client type invariant — a plugin-laden client no longer assigns to a bare `ReturnType<typeof createAuthClient>`. The ref is now typed from the actual client factory.
+
+### Internal
+
+- Both two-factor components request `method: 'totp'` explicitly. It remains Better Auth's default, but 1.7 made the response a discriminated union on `method`, and these views only render the authenticator-app flow — they now narrow on it and surface an error instead of rendering an empty QR code if a server returns something else.
+- Test doubles for Payload now recurse through nested `and`/`or` groups, support the `exists` operator, and raise Payload's 404 on a delete-by-id for a missing row — all three are needed to exercise the guarded writes faithfully.
+- Plugin-id table re-verified against 1.7.
+
+### Migration
+
+1. **Upgrade the Better Auth peers together** — `better-auth@^1.7`, plus `@better-auth/api-key` / `@better-auth/passkey` at the same major if you use them.
+
+2. **Generate the migration, then edit it to backfill `issuer`.** `payload migrate:create` will produce a migration that adds `issuer` as `NOT NULL` and creates the unique index — and that migration **fails on a populated table**, because every existing row would violate the constraint. Split it into add-nullable → backfill → enforce:
+
+   ```sql
+   ALTER TABLE accounts ADD COLUMN issuer varchar;
+
+   -- Email/password rows
+   UPDATE accounts SET issuer = 'local:credential' WHERE provider_id = 'credential';
+   -- Built-in social providers ('google', 'github', …)
+   UPDATE accounts SET issuer = 'local:oauth:' || provider_id WHERE issuer IS NULL;
+
+   ALTER TABLE accounts ALTER COLUMN issuer SET NOT NULL;
+   -- then the unique index exactly as Payload generated it
+   ```
+
+   Before enforcing, confirm the backfill produced no duplicates — this must return zero rows, or the unique index will fail:
+
+   ```sql
+   SELECT issuer, account_id, COUNT(*)
+   FROM accounts GROUP BY issuer, account_id HAVING COUNT(*) > 1;
+   ```
+
+   Table and column names above assume the plugin's defaults on Postgres (pluralized slug `accounts`, snake_case columns). Adjust for `usePlural: false`, a custom `account` model name, or MongoDB.
+
+   **Issuer values:** built-in social providers use the synthetic `local:oauth:<providerId>` form shown above, and email/password uses `local:credential`. Generic-OAuth/OIDC providers (Okta, Auth0, Keycloak, Microsoft Entra ID) use their **real** discovery issuer instead, and Google One Tap uses `https://accounts.google.com`. Better Auth's [1.7 upgrade guide](https://better-auth.com/docs/guides/1-7-upgrade-guide#account-identity-is-scoped-by-issuer) has the full table — check it if you use any of those.
+
+3. **Apply the migration** and verify sign-in for each provider you support before rolling out. Better Auth writes `issuer` on every new account row from this point on.
+
+4. **Only if they apply to you** — these are Better Auth changes this package passes through rather than shields you from:
+   - **Database joins** moved out of experimental: `experimental: { joins: true }` → `advanced: { database: { joins: true } }`.
+   - **Dynamic `baseURL` behind a proxy**: 1.7 resolves the auth origin from `Host` by default. If your proxy exposes the public hostname via `x-forwarded-host`, set `advanced: { trustedProxyHeaders: true }`. Proxies that rewrite the host (Vercel, Cloudflare, Netlify) need no change.
+   - **Generic OAuth** was rewritten: `signIn.oauth2({ providerId })` → `signIn.social({ provider })`, `oauth2.link()` → `linkSocial()`, and callbacks moved to `/api/auth/callback/:id`. The bundled admin login already uses `signIn.social`.
+   - **The `oidcProvider` plugin was removed** in favor of `@better-auth/oauth-provider`, and the MCP plugin moved to `@better-auth/mcp`.
+
 ## [0.10.0] - 2026-08-07
 
 ### Fixed

@@ -4,7 +4,7 @@
  * A single source of truth for reading which plugins are configured, so the
  * management-UI detector (`detectEnabledPlugins`) and the login-method detector
  * (`detectEnabledMethods`) can't drift apart. All ids verified against Better
- * Auth 1.6.
+ * Auth 1.7.
  */
 
 /** Known Better Auth plugin ids this package recognizes. */

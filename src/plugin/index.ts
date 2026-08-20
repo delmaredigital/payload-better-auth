@@ -1106,7 +1106,14 @@ export function betterAuthStrategy(
             const token = authHeader.slice(7)
             // Try OAuth JWT verification via the oauth-provider's verifyAccessToken
             try {
-              const { verifyAccessToken } = await import('better-auth/oauth2')
+              // Better Auth 1.7 split `verifyAccessToken` into `verifyBearerToken`
+              // (raw token, bearer only) and `verifyAccessTokenRequest` (full
+              // request, also handles DPoP sender-constrained tokens). We hold a
+              // raw token lifted from the Authorization header, and Payload's
+              // auth strategy is only handed `headers` — no method/URL — so the
+              // bearer form is the one we can satisfy. DPoP-bound tokens are
+              // rejected here by design.
+              const { verifyBearerToken } = await import('better-auth/oauth2')
               const baseURL = (auth as unknown as { options: { baseURL?: string; basePath?: string } }).options?.baseURL
               const basePath = (auth as unknown as { options: { basePath?: string } }).options?.basePath || '/api/auth'
               if (!baseURL) throw new Error('baseURL not configured')
@@ -1114,7 +1121,7 @@ export function betterAuthStrategy(
               // audience = baseURL (e.g., https://example.com) — the resource server
               // jwks = issuer + /jwks
               const issuer = `${baseURL}${basePath}`
-              const jwtPayload = await verifyAccessToken(token, {
+              const jwtPayload = await verifyBearerToken(token, {
                 jwksUrl: `${issuer}/jwks`,
                 verifyOptions: {
                   issuer,

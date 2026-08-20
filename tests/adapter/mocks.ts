@@ -59,25 +59,7 @@ export function createMockPayload(options: MockPayloadOptions = {}): BasePayload
       if (throwOn.find) throw throwOn.find
 
       const docs = getCollection(collection)
-      let filtered = [...docs]
-
-      // Simple where clause filtering
-      if (where) {
-        filtered = docs.filter((doc) => {
-          return Object.entries(where).every(([key, condition]) => {
-            if (key === 'and' || key === 'or') {
-              // Handle compound conditions
-              const conditions = condition as Array<Record<string, unknown>>
-              const results = conditions.map((cond) => {
-                const [field, op] = Object.entries(cond)[0]
-                return matchCondition(doc, field, op as Record<string, unknown>)
-              })
-              return key === 'and' ? results.every(Boolean) : results.some(Boolean)
-            }
-            return matchCondition(doc, key, condition as Record<string, unknown>)
-          })
-        })
-      }
+      const filtered = where ? docs.filter((doc) => matchWhere(doc, where)) : [...docs]
 
       // Apply pagination
       const start = (page - 1) * limit
@@ -144,13 +126,17 @@ export function createMockPayload(options: MockPayloadOptions = {}): BasePayload
       const docs = getCollection(collection)
 
       if (id !== undefined) {
-        // Single document delete
+        // Single document delete. Payload 404s when the row is already gone —
+        // the adapter leans on that to tell "I consumed it" from "someone else
+        // did", so the mock has to raise it too.
         const index = docs.findIndex((d) => String(d.id) === String(id))
         if (index === -1) {
-          return { docs: [] }
+          const error = new Error('Not Found') as Error & { status: number }
+          error.status = 404
+          throw error
         }
         const deleted = docs.splice(index, 1)
-        return { docs: deleted }
+        return deleted[0]
       }
 
       // Bulk delete with where
@@ -189,6 +175,10 @@ function matchCondition(
 ): boolean {
   const value = doc[field]
 
+  if ('exists' in condition) {
+    const present = value !== undefined && value !== null
+    return condition.exists ? present : !present
+  }
   if ('equals' in condition) {
     return value === condition.equals
   }
@@ -218,7 +208,11 @@ function matchCondition(
 }
 
 /**
- * Match a where clause against a document
+ * Match a where clause against a document.
+ *
+ * Recurses through `and`/`or` so nested groups and multi-field branches behave
+ * the way Payload's query parser does — the adapter's guarded writes build
+ * exactly that shape (`{ and: [ {id}, <converted where>, ...guards ] }`).
  */
 function matchWhere(
   doc: MockDocument,
@@ -228,18 +222,14 @@ function matchWhere(
 
   return Object.entries(where).every(([key, condition]) => {
     if (key === 'and') {
-      const conditions = condition as Array<Record<string, unknown>>
-      return conditions.every((cond) => {
-        const [field, op] = Object.entries(cond)[0]
-        return matchCondition(doc, field, op as Record<string, unknown>)
-      })
+      return (condition as Array<Record<string, unknown>>).every((cond) =>
+        matchWhere(doc, cond)
+      )
     }
     if (key === 'or') {
-      const conditions = condition as Array<Record<string, unknown>>
-      return conditions.some((cond) => {
-        const [field, op] = Object.entries(cond)[0]
-        return matchCondition(doc, field, op as Record<string, unknown>)
-      })
+      return (condition as Array<Record<string, unknown>>).some((cond) =>
+        matchWhere(doc, cond)
+      )
     }
     return matchCondition(doc, key, condition as Record<string, unknown>)
   })
