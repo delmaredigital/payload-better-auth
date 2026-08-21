@@ -1,6 +1,6 @@
 {
   "name": "@delmaredigital/payload-better-auth",
-  "version": "0.10.0",
+  "version": "0.11.1",
   "description": "Better Auth adapter and plugins for Payload CMS",
   "type": "module",
   "license": "MIT",
@@ -102,11 +102,11 @@
     "prepublishOnly": "pnpm build"
   },
   "peerDependencies": {
-    "@better-auth/api-key": ">=1.6.0 <2",
-    "@better-auth/passkey": ">=1.6.0 <2",
+    "@better-auth/api-key": ">=1.7.0 <2",
+    "@better-auth/passkey": ">=1.7.0 <2",
     "@payloadcms/next": ">=3.69.0 <4",
     "@payloadcms/ui": ">=3.69.0 <4",
-    "better-auth": ">=1.6.0 <2",
+    "better-auth": ">=1.7.0 <2",
     "next": ">=15.5.16 <17",
     "payload": ">=3.69.0 <4",
     "react": ">=19.2.1 <20"
@@ -120,9 +120,9 @@
     }
   },
   "devDependencies": {
-    "@better-auth/api-key": "^1.6.23",
-    "@better-auth/oauth-provider": "^1.6.23",
-    "@better-auth/passkey": "^1.6.23",
+    "@better-auth/api-key": "^1.7.1",
+    "@better-auth/oauth-provider": "^1.7.1",
+    "@better-auth/passkey": "^1.7.1",
     "@payloadcms/next": "^3.85.0",
     "@payloadcms/ui": "^3.85.0",
     "@swc/cli": "^0.6.0",
@@ -134,7 +134,7 @@
     "@types/react": "^19.2.14",
     "@vitejs/plugin-react": "^5.2.0",
     "@vitest/coverage-v8": "^4.1.8",
-    "better-auth": "^1.6.23",
+    "better-auth": "^1.7.1",
     "jsdom": "^29.1.1",
     "next": "^16.2.5",
     "payload": "^3.85.0",

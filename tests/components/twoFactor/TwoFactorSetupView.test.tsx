@@ -43,7 +43,10 @@ describe('TwoFactorSetupView password step', () => {
     expect(await screen.findByText(/Scan the QR code/)).toBeInTheDocument()
     const [url, init] = fetchMock.mock.calls[0]
     expect(String(url)).toBe('/api/auth/two-factor/enable')
-    expect(JSON.parse((init as RequestInit).body as string)).toEqual({ password: 'hunter2222' })
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+      password: 'hunter2222',
+      method: 'totp',
+    })
   })
 
   it('stays on the password step and surfaces the error when enable fails', async () => {
@@ -69,7 +72,7 @@ describe('TwoFactorSetupView passwordless account', () => {
     expect(screen.queryByLabelText('Password')).not.toBeInTheDocument()
     const [url, init] = fetchMock.mock.calls[0]
     expect(String(url)).toBe('/api/auth/two-factor/enable')
-    expect(JSON.parse((init as RequestInit).body as string)).toEqual({})
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({ method: 'totp' })
   })
 
   it('confirms copying and offers a download on the backup-codes step', async () => {

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useConfig } from '@payloadcms/ui'
 import { QRCodeSVG } from 'qrcode.react'
 import { useAuthMountPath } from '../useAuthMountPath.js'
+import { extractTotpSecret } from '../../utils/totp.js'
 
 export type TwoFactorSetupViewProps = {
   /** Custom logo element */
@@ -67,13 +68,22 @@ export function TwoFactorSetupView({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(body),
+        // Better Auth 1.7 made the response a discriminated union on `method`;
+        // `totp` is still the default, but ask for it explicitly so this stays
+        // pinned to the authenticator-app flow this view actually renders.
+        body: JSON.stringify({ ...body, method: 'totp' }),
       })
 
       if (response.ok) {
         const data = await response.json()
+        if (data.method && data.method !== 'totp') {
+          setError('Unexpected two-factor method returned by the server.')
+          return
+        }
         setTotpUri(data.totpURI)
-        setSecret(data.secret)
+        // The response carries no `secret` field — it only lives inside the
+        // totpURI, which is what the manual-entry fallback below shows.
+        setSecret(extractTotpSecret(data.totpURI))
         setBackupCodes(data.backupCodes || [])
         setPassword('')
         setStep('qr')
