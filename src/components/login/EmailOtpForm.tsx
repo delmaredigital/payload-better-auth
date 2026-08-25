@@ -4,7 +4,7 @@ import { OtpInput } from './OtpInput.js'
 import { AuthBanner } from './AuthBanner.js'
 import { AuthButton } from './AuthButton.js'
 
-export function EmailOtpForm({ email, code, onCodeChange, onSubmit, onBack, loading, error, logo }: {
+export function EmailOtpForm({ email, code, onCodeChange, onSubmit, onBack, loading, error, logo, codeLength = 6 }: {
   email: string
   code: string
   onCodeChange: (v: string) => void
@@ -13,6 +13,8 @@ export function EmailOtpForm({ email, code, onCodeChange, onSubmit, onBack, load
   loading: boolean
   error: string | null
   logo?: React.ReactNode
+  /** Digits in the emailed code — the emailOTP plugin's `otpLength`. Default: 6. */
+  codeLength?: number
 }) {
   return (
     <AuthCard logo={logo}>
@@ -55,12 +57,12 @@ export function EmailOtpForm({ email, code, onCodeChange, onSubmit, onBack, load
             >
               Verification Code
             </label>
-            <OtpInput id="email-otp-code" value={code} onChange={onCodeChange} autoFocus />
+            <OtpInput id="email-otp-code" value={code} onChange={onCodeChange} length={codeLength} autoFocus />
           </div>
 
           {error && <AuthBanner kind="error">{error}</AuthBanner>}
 
-          <AuthButton type="submit" disabled={loading || code.length !== 6}>
+          <AuthButton type="submit" disabled={loading || code.length !== codeLength}>
             {loading ? 'Verifying...' : 'Verify'}
           </AuthButton>
         </form>

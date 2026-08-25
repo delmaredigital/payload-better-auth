@@ -3,6 +3,8 @@ import {
   resolveAvailability,
   pickPrimaryMethod,
   detectEnabledMethods,
+  detectOtpLengths,
+  resolveTwoFactorOffer,
   detectSocialProviders,
   resolveSocialProviders,
   socialProviderLabel,
@@ -118,6 +120,63 @@ describe('detectEnabledMethods', () => {
     expect(detectEnabledMethods({})).toEqual(allFalse)
     // tolerates malformed plugin entries
     expect(detectEnabledMethods({ plugins: [null, undefined, { id: 'passkey' }] }).passkey).toBe(true)
+  })
+})
+
+describe('resolveTwoFactorOffer', () => {
+  it('follows what sign-in reported for this user', () => {
+    expect(resolveTwoFactorOffer(['totp'], true)).toEqual({ totp: true, emailOtp: false })
+    expect(resolveTwoFactorOffer(['otp'], true)).toEqual({ totp: false, emailOtp: true })
+    expect(resolveTwoFactorOffer(['totp', 'otp'], true)).toEqual({ totp: true, emailOtp: true })
+  })
+
+  it('treats an empty report as "neither" — only backup codes are left', () => {
+    expect(resolveTwoFactorOffer([], true)).toEqual({ totp: false, emailOtp: false })
+  })
+
+  it('falls back to the config when the server reported nothing', () => {
+    expect(resolveTwoFactorOffer(null, true)).toEqual({ totp: true, emailOtp: true })
+    expect(resolveTwoFactorOffer(null, false)).toEqual({ totp: true, emailOtp: false })
+  })
+
+  it('keeps the config as a ceiling over the report', () => {
+    expect(resolveTwoFactorOffer(['otp'], false)).toEqual({ totp: false, emailOtp: false })
+  })
+})
+
+describe('detectOtpLengths', () => {
+  it('defaults every code to six', () => {
+    expect(detectOtpLengths(undefined)).toEqual({
+      emailOtp: 6,
+      twoFactorTotp: 6,
+      twoFactorEmailOtp: 6,
+    })
+    expect(detectOtpLengths({ plugins: [{ id: 'two-factor' }, { id: 'email-otp' }] })).toEqual({
+      emailOtp: 6,
+      twoFactorTotp: 6,
+      twoFactorEmailOtp: 6,
+    })
+  })
+
+  it('reads the configured lengths off each plugin', () => {
+    expect(
+      detectOtpLengths({
+        plugins: [
+          { id: 'email-otp', options: { otpLength: 4 } },
+          { id: 'two-factor', options: { totpOptions: { digits: 8 }, otpOptions: { digits: 7 } } },
+        ],
+      })
+    ).toEqual({ emailOtp: 4, twoFactorTotp: 8, twoFactorEmailOtp: 7 })
+  })
+
+  it('ignores a length that could never render an input', () => {
+    const lengths = detectOtpLengths({
+      plugins: [
+        { id: 'email-otp', options: { otpLength: 0 } },
+        { id: 'two-factor', options: { totpOptions: { digits: -1 }, otpOptions: { digits: '6' } } },
+      ],
+    })
+    expect(lengths).toEqual({ emailOtp: 6, twoFactorTotp: 6, twoFactorEmailOtp: 6 })
   })
 })
 

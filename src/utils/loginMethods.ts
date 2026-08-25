@@ -66,7 +66,16 @@ export interface AuthOptionsLike {
     sendResetPassword?: unknown
   }
   plugins?: Array<
-    { id?: string; options?: { otpOptions?: { sendOTP?: unknown } } } | null | undefined
+    | {
+        id?: string
+        options?: {
+          otpLength?: unknown
+          otpOptions?: { sendOTP?: unknown; digits?: unknown }
+          totpOptions?: { digits?: unknown }
+        }
+      }
+    | null
+    | undefined
   >
   socialProviders?: Record<string, unknown> | null
 }
@@ -95,6 +104,72 @@ export function detectEnabledMethods(options: AuthOptionsLike | null | undefined
     emailOtp: pluginIds.has(PLUGIN_IDS.emailOtp),
     twoFactorBackupCode: !!twoFactorPlugin,
     twoFactorEmailOtp: typeof twoFactorPlugin?.options?.otpOptions?.sendOTP === 'function',
+  }
+}
+
+/** Which second factors the two-factor step should offer. */
+export interface TwoFactorOffer {
+  totp: boolean
+  emailOtp: boolean
+}
+
+/**
+ * Decide which second factors to offer, from what sign-in reported for this
+ * user (`twoFactorMethods`) narrowed by the server-wide config ceiling.
+ *
+ * `reported` is `null` when the server didn't say — an older Better Auth, or a
+ * flow that doesn't carry the field — in which case the ceiling stands alone.
+ * An empty array is a real answer: this user has neither, so only their backup
+ * codes are left.
+ */
+export function resolveTwoFactorOffer(
+  reported: string[] | null,
+  allowEmailOtp: boolean,
+): TwoFactorOffer {
+  return {
+    totp: reported ? reported.includes('totp') : true,
+    emailOtp: allowEmailOtp && (reported ? reported.includes('otp') : true),
+  }
+}
+
+/**
+ * How many characters each one-time code has. Better Auth lets every one of
+ * these be configured, and a form that hardcodes six silently refuses to submit
+ * a valid code of any other length.
+ */
+export interface OtpLengths {
+  /** emailOTP plugin's `otpLength` — the sign-in code. */
+  emailOtp: number
+  /** twoFactor plugin's `totpOptions.digits` — the authenticator-app code. */
+  twoFactorTotp: number
+  /** twoFactor plugin's `otpOptions.digits` — the emailed second factor. */
+  twoFactorEmailOtp: number
+}
+
+/** Better Auth's default for all three. */
+export const DEFAULT_OTP_LENGTHS: OtpLengths = {
+  emailOtp: 6,
+  twoFactorTotp: 6,
+  twoFactorEmailOtp: 6,
+}
+
+/** A configured length is only honoured if it's a positive integer. */
+function otpLength(value: unknown): number {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : 6
+}
+
+/**
+ * Read the configured one-time-code lengths off a Better Auth instance's
+ * resolved `options`. Anything absent or nonsensical falls back to 6.
+ */
+export function detectOtpLengths(options: AuthOptionsLike | null | undefined): OtpLengths {
+  const plugins = options?.plugins
+  const emailOtpPlugin = plugins?.find((p) => p?.id === PLUGIN_IDS.emailOtp)
+  const twoFactorPlugin = plugins?.find((p) => p?.id === PLUGIN_IDS.twoFactor)
+  return {
+    emailOtp: otpLength(emailOtpPlugin?.options?.otpLength),
+    twoFactorTotp: otpLength(twoFactorPlugin?.options?.totpOptions?.digits),
+    twoFactorEmailOtp: otpLength(twoFactorPlugin?.options?.otpOptions?.digits),
   }
 }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 vi.mock('@payloadcms/ui', () => ({
@@ -88,6 +88,41 @@ describe('TwoFactorSetupView passwordless account', () => {
     await user.click(screen.getByRole('button', { name: 'Copy to Clipboard' }))
     expect(await screen.findByText('Copied!')).toBeInTheDocument()
     expect(await window.navigator.clipboard.readText()).toBe('AAAAA-BBBBB')
+  })
+
+  it('attaches the download link before clicking it, and revokes the URL after', async () => {
+    fetchMock.mockImplementation(enableOk)
+    // jsdom implements neither, and the component is the only caller.
+    const createObjectURL = vi.fn(() => 'blob:backup-codes')
+    const revokeObjectURL = vi.fn()
+    Object.assign(URL, { createObjectURL, revokeObjectURL })
+
+    let attachedAtClick: boolean | null = null
+    let downloadName: string | undefined
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        attachedAtClick = document.body.contains(this)
+        downloadName = this.download
+      })
+
+    const user = userEvent.setup()
+    render(<TwoFactorSetupView hasPassword={false} />)
+    await user.type(await screen.findByLabelText('Verification Code'), '123456')
+    await user.click(screen.getByRole('button', { name: 'Verify and Enable' }))
+    await screen.findByText('Save Your Backup Codes')
+
+    // fireEvent, not userEvent: the point is what has happened the instant the
+    // handler returns, and userEvent's await would let the timer run first.
+    fireEvent.click(screen.getByRole('button', { name: 'Download' }))
+
+    expect(attachedAtClick).toBe(true) // Firefox ignores a click on a detached anchor
+    expect(downloadName).toBe('backup-codes.txt')
+    expect(document.querySelector('a[download]')).toBeNull() // cleaned up again
+    expect(revokeObjectURL).not.toHaveBeenCalled() // revoking now cancels the download
+    await waitFor(() => expect(revokeObjectURL).toHaveBeenCalledWith('blob:backup-codes'))
+
+    click.mockRestore()
   })
 
   it('surfaces the error and offers a retry when enablement fails', async () => {

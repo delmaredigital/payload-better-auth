@@ -153,6 +153,29 @@ describe('TwoFactorForm', () => {
     expect(resend).toBeDisabled()
   })
 
+  it('hides the authenticator link when the user has no TOTP secret', async () => {
+    render(
+      <TwoFactorForm
+        {...defaultProps}
+        method="backup"
+        enableTotp={false}
+        enableBackupCode
+        enableEmailOtp
+      />,
+    )
+    expect(screen.queryByText('Use your authenticator app')).not.toBeInTheDocument()
+    expect(screen.getByText('Email me a code')).toBeInTheDocument()
+  })
+
+  it('honours a code length other than six', () => {
+    const { rerender } = render(<TwoFactorForm {...defaultProps} codeLength={8} code="1234567" />)
+    expect(screen.getByText(/Enter the 8-digit code/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Verify' })).toBeDisabled()
+
+    rerender(<TwoFactorForm {...defaultProps} codeLength={8} code="12345678" />)
+    expect(screen.getByRole('button', { name: 'Verify' })).not.toBeDisabled()
+  })
+
   afterEach(() => {
     vi.useRealTimers()
   })
