@@ -116,6 +116,19 @@ export type BetterAuthPluginAdminOptions = {
      */
     enableEmailOtp?: boolean | 'auto'
     /**
+     * Offer "use a backup code" on the login form's two-factor step.
+     * - 'auto': available iff the twoFactor plugin is detected.
+     * Default: 'auto'.
+     */
+    enableTwoFactorBackupCode?: boolean | 'auto'
+    /**
+     * Offer "email me a code" on the login form's two-factor step.
+     * - 'auto': available iff the twoFactor plugin is configured with
+     *   `otpOptions.sendOTP`.
+     * Default: 'auto'.
+     */
+    enableTwoFactorEmailOtp?: boolean | 'auto'
+    /**
      * Where the emailed magic link returns after verification.
      * Default: afterLoginPath
      */
@@ -601,17 +614,23 @@ function injectAdminComponents(
     : adminOptions.logoutButtonComponent ??
       '@delmaredigital/payload-better-auth/components#LogoutButton'
 
-  // Build beforeLogin config
+  // Build beforeLogin config. Payload renders `beforeLogin` inside its OWN
+  // login view — which this plugin replaces below unless `disableLoginView` is
+  // set. Injecting it alongside the replacement made `beforeLoginComponent` a
+  // dead extension point (never rendered, no error), so only inject when
+  // Payload's login view actually survives.
   const existingBeforeLogin = existingComponents.beforeLogin ?? []
-  const beforeLogin = adminOptions.disableBeforeLogin
-    ? existingBeforeLogin
-    : [
+  const injectBeforeLogin =
+    !adminOptions.disableBeforeLogin && adminOptions.disableLoginView === true
+  const beforeLogin = injectBeforeLogin
+    ? [
         ...(Array.isArray(existingBeforeLogin)
           ? existingBeforeLogin
           : [existingBeforeLogin]),
         adminOptions.beforeLoginComponent ??
           '@delmaredigital/payload-better-auth/components#BeforeLogin',
       ]
+    : existingBeforeLogin
 
   // Build login view config
   const existingViews =

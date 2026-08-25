@@ -64,6 +64,55 @@ describe('LoginView — flows', () => {
     expect(await screen.findByText('Two-Factor Authentication')).toBeInTheDocument()
   })
 
+  it('verifies a backup code from the 2FA step', async () => {
+    const { client, user } = renderLogin({ enablePassword: true })
+    client.signIn.email.mockResolvedValue({ data: { twoFactorRedirect: true } })
+    await user.type(await screen.findByLabelText('Email'), 'a@b.com')
+    await user.type(screen.getByLabelText('Password'), 'pw12345678')
+    await user.click(screen.getByRole('button', { name: 'Sign In' }))
+    await screen.findByText('Two-Factor Authentication')
+    client.getSession.mockResolvedValue({ data: { user: { role: 'admin' } } })
+
+    await user.click(screen.getByText('Use a backup code'))
+    await user.type(screen.getByLabelText('Backup Code'), 'A1B2C-D3E4F')
+    await user.click(screen.getByRole('button', { name: 'Verify' }))
+    await waitFor(() =>
+      expect(client.twoFactor.verifyBackupCode).toHaveBeenCalledWith({ code: 'A1B2C-D3E4F' }),
+    )
+    expect(client.twoFactor.verifyTotp).not.toHaveBeenCalled()
+  })
+
+  it('sends and verifies an emailed second-factor code when enabled', async () => {
+    const { client, user } = renderLogin({
+      enablePassword: true,
+      enableTwoFactorEmailOtp: true,
+    })
+    client.signIn.email.mockResolvedValue({ data: { twoFactorRedirect: true } })
+    await user.type(await screen.findByLabelText('Email'), 'a@b.com')
+    await user.type(screen.getByLabelText('Password'), 'pw12345678')
+    await user.click(screen.getByRole('button', { name: 'Sign In' }))
+    await screen.findByText('Two-Factor Authentication')
+    client.getSession.mockResolvedValue({ data: { user: { role: 'admin' } } })
+
+    await user.click(screen.getByText('Email me a code'))
+    await waitFor(() => expect(client.twoFactor.sendOtp).toHaveBeenCalled())
+    await user.type(screen.getByLabelText('Emailed Code'), '123456')
+    await user.click(screen.getByRole('button', { name: 'Verify' }))
+    await waitFor(() =>
+      expect(client.twoFactor.verifyOtp).toHaveBeenCalledWith({ code: '123456' }),
+    )
+  })
+
+  it('hides the emailed-code option on the 2FA step by default', async () => {
+    const { client, user } = renderLogin({ enablePassword: true })
+    client.signIn.email.mockResolvedValue({ data: { twoFactorRedirect: true } })
+    await user.type(await screen.findByLabelText('Email'), 'a@b.com')
+    await user.type(screen.getByLabelText('Password'), 'pw12345678')
+    await user.click(screen.getByRole('button', { name: 'Sign In' }))
+    await screen.findByText('Two-Factor Authentication')
+    expect(screen.queryByText('Email me a code')).not.toBeInTheDocument()
+  })
+
   it('sends an email OTP and shows the code entry view', async () => {
     const { client, user } = renderLogin({ enablePassword: false, enableEmailOtp: true })
     await user.type(await screen.findByLabelText('Email'), 'a@b.com')

@@ -48,6 +48,10 @@ export interface DetectedMethods {
   passkey: boolean
   magicLink: boolean
   emailOtp: boolean
+  /** twoFactor plugin present — backup codes are issued on enable. */
+  twoFactorBackupCode: boolean
+  /** twoFactor plugin configured with `otpOptions.sendOTP` (emailed second factor). */
+  twoFactorEmailOtp: boolean
 }
 
 /**
@@ -61,7 +65,9 @@ export interface AuthOptionsLike {
     disableSignUp?: boolean
     sendResetPassword?: unknown
   }
-  plugins?: Array<{ id?: string } | null | undefined>
+  plugins?: Array<
+    { id?: string; options?: { otpOptions?: { sendOTP?: unknown } } } | null | undefined
+  >
   socialProviders?: Record<string, unknown> | null
 }
 
@@ -79,6 +85,7 @@ export function detectEnabledMethods(options: AuthOptionsLike | null | undefined
   const ep = options?.emailAndPassword
   const password = !!ep?.enabled
   const pluginIds = getPluginIds(options)
+  const twoFactorPlugin = options?.plugins?.find((p) => p?.id === PLUGIN_IDS.twoFactor)
   return {
     password,
     signup: password && !ep?.disableSignUp,
@@ -86,6 +93,8 @@ export function detectEnabledMethods(options: AuthOptionsLike | null | undefined
     passkey: pluginIds.has(PLUGIN_IDS.passkey),
     magicLink: pluginIds.has(PLUGIN_IDS.magicLink),
     emailOtp: pluginIds.has(PLUGIN_IDS.emailOtp),
+    twoFactorBackupCode: !!twoFactorPlugin,
+    twoFactorEmailOtp: typeof twoFactorPlugin?.options?.otpOptions?.sendOTP === 'function',
   }
 }
 

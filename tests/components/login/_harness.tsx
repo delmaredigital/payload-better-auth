@@ -36,7 +36,12 @@ export function makeClient(overrides: Record<string, unknown> = {}) {
     },
     signUp: { email: vi.fn(ok) },
     emailOtp: { sendVerificationOtp: vi.fn(ok) },
-    twoFactor: { verifyTotp: vi.fn(ok) },
+    twoFactor: {
+      verifyTotp: vi.fn(ok),
+      verifyBackupCode: vi.fn(ok),
+      verifyOtp: vi.fn(ok),
+      sendOtp: vi.fn(ok),
+    },
     requestPasswordReset: vi.fn(ok),
     signOut: vi.fn(async () => ({})),
   }

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TwoFactorForm } from '../../../src/components/login/TwoFactorForm.js'
 
@@ -72,5 +72,88 @@ describe('TwoFactorForm', () => {
     render(<TwoFactorForm {...defaultProps} code="123456" loading={true} />)
     const button = screen.getByRole('button', { name: 'Verifying...' })
     expect(button).toBeDisabled()
+  })
+
+  it('offers no alternate methods by default', () => {
+    render(<TwoFactorForm {...defaultProps} />)
+    expect(screen.queryByText('Use a backup code')).not.toBeInTheDocument()
+    expect(screen.queryByText('Email me a code')).not.toBeInTheDocument()
+  })
+
+  it('offers enabled alternates and reports the picked method', async () => {
+    const onMethodChange = vi.fn()
+    render(
+      <TwoFactorForm
+        {...defaultProps}
+        enableBackupCode
+        enableEmailOtp
+        onMethodChange={onMethodChange}
+      />,
+    )
+    const user = userEvent.setup()
+    await user.click(screen.getByText('Use a backup code'))
+    expect(onMethodChange).toHaveBeenCalledWith('backup')
+    await user.click(screen.getByText('Email me a code'))
+    expect(onMethodChange).toHaveBeenCalledWith('emailOtp')
+  })
+
+  it('backup mode accepts free text and offers the way back to TOTP', async () => {
+    const onMethodChange = vi.fn()
+    render(
+      <TwoFactorForm
+        {...defaultProps}
+        method="backup"
+        code="A1B2C-D3E4F"
+        enableBackupCode
+        onMethodChange={onMethodChange}
+      />,
+    )
+    // 11-char backup code enables submit (a 6-digit rule would block it).
+    expect(screen.getByRole('button', { name: 'Verify' })).not.toBeDisabled()
+    expect(screen.getByText(/backup codes you saved/i)).toBeInTheDocument()
+    const user = userEvent.setup()
+    await user.click(screen.getByText('Use your authenticator app'))
+    expect(onMethodChange).toHaveBeenCalledWith('totp')
+  })
+
+  it('backup mode submit is disabled on an empty code', () => {
+    render(<TwoFactorForm {...defaultProps} method="backup" code="  " enableBackupCode />)
+    expect(screen.getByRole('button', { name: 'Verify' })).toBeDisabled()
+  })
+
+  it('emailOtp mode gates the resend action behind a cooldown', async () => {
+    vi.useFakeTimers()
+    const onResendEmailOtp = vi.fn()
+    render(
+      <TwoFactorForm
+        {...defaultProps}
+        method="emailOtp"
+        enableEmailOtp
+        onResendEmailOtp={onResendEmailOtp}
+      />,
+    )
+    expect(screen.getByText(/emailed you a verification code/i)).toBeInTheDocument()
+
+    // The code was just sent (selecting the method sends it) — resend is on cooldown.
+    const resend = screen.getByRole('button', { name: /Resend the code/ })
+    expect(resend).toBeDisabled()
+
+    // Step second by second — each tick re-renders and schedules the next timer.
+    for (let i = 0; i < 30; i++) {
+      act(() => {
+        vi.advanceTimersByTime(1000)
+      })
+    }
+    expect(resend).not.toBeDisabled()
+
+    // fireEvent, not userEvent: userEvent's async event loop stalls under fake timers.
+    fireEvent.click(resend)
+    expect(onResendEmailOtp).toHaveBeenCalledTimes(1)
+    // Resending restarts the cooldown.
+    expect(resend).toBeDisabled()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 })

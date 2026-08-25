@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useConfig } from '@payloadcms/ui'
 import { QRCodeSVG } from 'qrcode.react'
 import { useAuthMountPath } from '../useAuthMountPath.js'
@@ -15,6 +15,15 @@ export type TwoFactorSetupViewProps = {
   afterSetupPath?: string
   /** Callback after successful setup */
   onSetupComplete?: () => void
+  /**
+   * Whether the signed-in account has a credential (password) account.
+   * `true` (default): the flow starts with a password confirmation step —
+   * Better Auth's `/two-factor/enable` requires the password. `false`:
+   * enablement starts immediately (needs the twoFactor plugin's
+   * `allowPasswordless`). Resolve it server-side — don't ask the user — by
+   * rendering through `TwoFactorSetupViewWrapper` (from `/rsc`).
+   */
+  hasPassword?: boolean
 }
 
 /**
@@ -27,6 +36,7 @@ export function TwoFactorSetupView({
   title = 'Set Up Two-Factor Authentication',
   afterSetupPath,
   onSetupComplete,
+  hasPassword = true,
 }: TwoFactorSetupViewProps) {
   const {
     config: {
@@ -35,52 +45,73 @@ export function TwoFactorSetupView({
   } = useConfig()
   const authMountPath = useAuthMountPath()
   const resolvedAfterSetupPath = afterSetupPath ?? adminRoute
-  const [step, setStep] = useState<'loading' | 'qr' | 'verify' | 'backup' | 'complete'>('loading')
+  const [step, setStep] = useState<
+    'password' | 'start' | 'qr' | 'verify' | 'backup' | 'complete'
+  >(hasPassword ? 'password' : 'start')
+  const [password, setPassword] = useState('')
   const [totpUri, setTotpUri] = useState<string | null>(null)
   const [secret, setSecret] = useState<string | null>(null)
   const [backupCodes, setBackupCodes] = useState<string[]>([])
   const [verificationCode, setVerificationCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle')
 
-  useEffect(() => {
-    async function enableTwoFactor() {
-      try {
-        const response = await fetch(`${authMountPath}/two-factor/enable`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          // Better Auth 1.7 made the response a discriminated union on `method`;
-          // `totp` is still the default, but ask for it explicitly so this stays
-          // pinned to the authenticator-app flow this view actually renders.
-          body: JSON.stringify({ method: 'totp' }),
-        })
+  // Better Auth's /two-factor/enable requires the account password (unless the
+  // account is passwordless and `allowPasswordless` is set), so credential
+  // accounts confirm it first instead of firing a doomed request on mount.
+  async function enableTwoFactor(body: { password?: string }) {
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await fetch(`${authMountPath}/two-factor/enable`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        // Better Auth 1.7 made the response a discriminated union on `method`;
+        // `totp` is still the default, but ask for it explicitly so this stays
+        // pinned to the authenticator-app flow this view actually renders.
+        body: JSON.stringify({ ...body, method: 'totp' }),
+      })
 
-        if (response.ok) {
-          const data = await response.json()
-          if (data.method && data.method !== 'totp') {
-            setError('Unexpected two-factor method returned by the server.')
-            setStep('qr')
-            return
-          }
-          setTotpUri(data.totpURI)
-          // The response carries no `secret` field — it only lives inside the
-          // totpURI, which is what the manual-entry fallback below shows.
-          setSecret(extractTotpSecret(data.totpURI))
-          setBackupCodes(data.backupCodes || [])
-          setStep('qr')
-        } else {
-          const data = await response.json().catch(() => ({}))
-          setError(data.message || 'Failed to enable two-factor authentication.')
-          setStep('qr')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.method && data.method !== 'totp') {
+          setError('Unexpected two-factor method returned by the server.')
+          return
         }
-      } catch {
-        setError('An error occurred. Please try again.')
+        setTotpUri(data.totpURI)
+        // The response carries no `secret` field — it only lives inside the
+        // totpURI, which is what the manual-entry fallback below shows.
+        setSecret(extractTotpSecret(data.totpURI))
+        setBackupCodes(data.backupCodes || [])
+        setPassword('')
         setStep('qr')
+      } else {
+        const data = await response.json().catch(() => ({}))
+        setError(data.message || 'Failed to enable two-factor authentication.')
       }
+    } catch {
+      setError('An error occurred. Please try again.')
+    } finally {
+      setLoading(false)
     }
-    enableTwoFactor()
-  }, [authMountPath])
+  }
+
+  function handlePasswordSubmit(e: FormEvent) {
+    e.preventDefault()
+    void enableTwoFactor({ password })
+  }
+
+  // Passwordless accounts have no password to confirm — start enablement
+  // directly (the ref keeps StrictMode's double-invoke to one request).
+  const autoStartRan = useRef(false)
+  useEffect(() => {
+    if (hasPassword || autoStartRan.current) return
+    autoStartRan.current = true
+    void enableTwoFactor({})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasPassword])
 
   async function handleVerify(e: FormEvent) {
     e.preventDefault()
@@ -118,8 +149,29 @@ export function TwoFactorSetupView({
     onSetupComplete?.()
   }
 
-  // Loading state
-  if (step === 'loading') {
+  async function handleCopyCodes() {
+    try {
+      await navigator.clipboard.writeText(backupCodes.join('\n'))
+      setCopyStatus('copied')
+      setTimeout(() => setCopyStatus('idle'), 2000)
+    } catch {
+      // Clipboard permission denied — tell the user instead of failing silently.
+      setCopyStatus('failed')
+    }
+  }
+
+  function handleDownloadCodes() {
+    const blob = new Blob([`${backupCodes.join('\n')}\n`], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'backup-codes.txt'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // Password confirmation state
+  if (step === 'password') {
     return (
       <div
         style={{
@@ -128,10 +180,218 @@ export function TwoFactorSetupView({
           alignItems: 'center',
           justifyContent: 'center',
           background: 'var(--theme-bg)',
+          padding: 'var(--base)',
         }}
       >
-        <div style={{ color: 'var(--theme-text)', opacity: 0.7 }}>
-          Setting up two-factor authentication...
+        <div
+          style={{
+            background: 'var(--theme-elevation-50)',
+            padding: 'calc(var(--base) * 2)',
+            borderRadius: 'var(--style-radius-m)',
+            boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
+            width: '100%',
+            maxWidth: '400px',
+          }}
+        >
+          {logo && (
+            <div style={{ textAlign: 'center', marginBottom: 'calc(var(--base) * 1.5)' }}>
+              {logo}
+            </div>
+          )}
+
+          <h1
+            style={{
+              color: 'var(--theme-text)',
+              fontSize: 'var(--font-size-h3)',
+              fontWeight: 600,
+              margin: '0 0 calc(var(--base) * 0.5) 0',
+              textAlign: 'center',
+            }}
+          >
+            {title}
+          </h1>
+
+          <p
+            style={{
+              color: 'var(--theme-text)',
+              opacity: 0.7,
+              fontSize: 'var(--font-size-small)',
+              textAlign: 'center',
+              marginBottom: 'calc(var(--base) * 1.5)',
+            }}
+          >
+            Confirm your password to start setting up two-factor authentication.
+          </p>
+
+          <form onSubmit={handlePasswordSubmit}>
+            <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
+              <label
+                htmlFor="password"
+                style={{
+                  display: 'block',
+                  color: 'var(--theme-text)',
+                  marginBottom: 'calc(var(--base) * 0.5)',
+                  fontSize: 'var(--font-size-small)',
+                  fontWeight: 500,
+                }}
+              >
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoFocus
+                style={{
+                  width: '100%',
+                  padding: 'calc(var(--base) * 0.75)',
+                  background: 'var(--theme-input-bg)',
+                  border: '1px solid var(--theme-elevation-150)',
+                  borderRadius: 'var(--style-radius-s)',
+                  color: 'var(--theme-text)',
+                  fontSize: 'var(--font-size-base)',
+                  outline: 'none',
+                  boxSizing: 'border-box',
+                }}
+              />
+            </div>
+
+            {error && (
+              <div
+                style={{
+                  color: 'var(--theme-error-500)',
+                  marginBottom: 'var(--base)',
+                  fontSize: 'var(--font-size-small)',
+                  padding: 'calc(var(--base) * 0.5)',
+                  background: 'var(--theme-error-50)',
+                  borderRadius: 'var(--style-radius-s)',
+                  border: '1px solid var(--theme-error-200)',
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading || password.length === 0}
+              style={{
+                width: '100%',
+                padding: 'calc(var(--base) * 0.75)',
+                background: 'var(--theme-elevation-800)',
+                border: 'none',
+                borderRadius: 'var(--style-radius-s)',
+                color: 'var(--theme-elevation-50)',
+                fontSize: 'var(--font-size-base)',
+                fontWeight: 500,
+                cursor: loading || password.length === 0 ? 'not-allowed' : 'pointer',
+                opacity: loading || password.length === 0 ? 0.7 : 1,
+                transition: 'opacity 150ms ease',
+              }}
+            >
+              {loading ? 'Checking...' : 'Continue'}
+            </button>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
+  // Passwordless start state: enablement fires on mount; this renders the
+  // in-between (and a retry if it fails).
+  if (step === 'start') {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--theme-bg)',
+          padding: 'var(--base)',
+        }}
+      >
+        <div
+          style={{
+            background: 'var(--theme-elevation-50)',
+            padding: 'calc(var(--base) * 2)',
+            borderRadius: 'var(--style-radius-m)',
+            boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
+            width: '100%',
+            maxWidth: '400px',
+          }}
+        >
+          {logo && (
+            <div style={{ textAlign: 'center', marginBottom: 'calc(var(--base) * 1.5)' }}>
+              {logo}
+            </div>
+          )}
+
+          <h1
+            style={{
+              color: 'var(--theme-text)',
+              fontSize: 'var(--font-size-h3)',
+              fontWeight: 600,
+              margin: '0 0 calc(var(--base) * 0.5) 0',
+              textAlign: 'center',
+            }}
+          >
+            {title}
+          </h1>
+
+          <p
+            style={{
+              color: 'var(--theme-text)',
+              opacity: 0.7,
+              fontSize: 'var(--font-size-small)',
+              textAlign: 'center',
+              marginBottom: error ? 'var(--base)' : 0,
+            }}
+          >
+            {error ? 'Two-factor setup could not be started.' : 'Preparing two-factor setup…'}
+          </p>
+
+          {error && (
+            <>
+              <div
+                style={{
+                  color: 'var(--theme-error-500)',
+                  marginBottom: 'var(--base)',
+                  fontSize: 'var(--font-size-small)',
+                  padding: 'calc(var(--base) * 0.5)',
+                  background: 'var(--theme-error-50)',
+                  borderRadius: 'var(--style-radius-s)',
+                  border: '1px solid var(--theme-error-200)',
+                }}
+              >
+                {error}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => void enableTwoFactor({})}
+                disabled={loading}
+                style={{
+                  width: '100%',
+                  padding: 'calc(var(--base) * 0.75)',
+                  background: 'var(--theme-elevation-800)',
+                  border: 'none',
+                  borderRadius: 'var(--style-radius-s)',
+                  color: 'var(--theme-elevation-50)',
+                  fontSize: 'var(--font-size-base)',
+                  fontWeight: 500,
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  opacity: loading ? 0.7 : 1,
+                  transition: 'opacity 150ms ease',
+                }}
+              >
+                {loading ? 'Retrying...' : 'Try again'}
+              </button>
+            </>
+          )}
         </div>
       </div>
     )
@@ -299,24 +559,48 @@ export function TwoFactorSetupView({
             </div>
           </div>
 
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(backupCodes.join('\n'))
-            }}
+          <div
             style={{
-              width: '100%',
-              padding: 'calc(var(--base) * 0.5)',
-              background: 'var(--theme-elevation-150)',
-              border: 'none',
-              borderRadius: 'var(--style-radius-s)',
-              color: 'var(--theme-text)',
-              fontSize: 'var(--font-size-small)',
-              cursor: 'pointer',
+              display: 'flex',
+              gap: 'calc(var(--base) * 0.5)',
               marginBottom: 'var(--base)',
             }}
           >
-            Copy to Clipboard
-          </button>
+            <button
+              onClick={() => void handleCopyCodes()}
+              style={{
+                flex: 1,
+                padding: 'calc(var(--base) * 0.5)',
+                background: 'var(--theme-elevation-150)',
+                border: 'none',
+                borderRadius: 'var(--style-radius-s)',
+                color: 'var(--theme-text)',
+                fontSize: 'var(--font-size-small)',
+                cursor: 'pointer',
+              }}
+            >
+              {copyStatus === 'copied'
+                ? 'Copied!'
+                : copyStatus === 'failed'
+                  ? 'Copy failed — select the codes manually'
+                  : 'Copy to Clipboard'}
+            </button>
+            <button
+              onClick={handleDownloadCodes}
+              style={{
+                flex: 1,
+                padding: 'calc(var(--base) * 0.5)',
+                background: 'var(--theme-elevation-150)',
+                border: 'none',
+                borderRadius: 'var(--style-radius-s)',
+                color: 'var(--theme-text)',
+                fontSize: 'var(--font-size-small)',
+                cursor: 'pointer',
+              }}
+            >
+              Download
+            </button>
+          </div>
 
           <button
             onClick={handleBackupContinue}

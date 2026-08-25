@@ -1301,7 +1301,7 @@ strategies: [<span class="hl-func">betterAuthStrategy</span>({ idType: <span cla
             <thead><tr><th>Option</th><th>Default</th><th>Description</th></tr></thead>
             <tbody>
               <tr><td><code>admin.disableLogoutButton</code></td><td><code>false</code></td><td>Disable logout button injection</td></tr>
-              <tr><td><code>admin.disableBeforeLogin</code></td><td><code>false</code></td><td>Disable BeforeLogin redirect</td></tr>
+              <tr><td><code>admin.disableBeforeLogin</code></td><td><code>false</code></td><td>Disable BeforeLogin redirect. Only injected when <code>disableLoginView</code> keeps Payload's own login view — it renders inside that view.</td></tr>
               <tr><td><code>admin.disableLoginView</code></td><td><code>false</code></td><td>Disable login view injection</td></tr>
               <tr><td><code>admin.login.title</code></td><td><code>'Login'</code></td><td>Custom login page title</td></tr>
               <tr><td><code>admin.login.afterLoginPath</code></td><td><code>'/admin'</code></td><td>Redirect path after login</td></tr>
@@ -1315,6 +1315,8 @@ strategies: [<span class="hl-func">betterAuthStrategy</span>({ idType: <span cla
               <tr><td><code>admin.login.enablePassword</code></td><td><code>'auto'</code></td><td>Show the email/password field. <code>false</code> (or auto-detect) hides it for passwordless-only sign-in.</td></tr>
               <tr><td><code>admin.login.enableMagicLink</code></td><td><code>'auto'</code></td><td>Enable magic-link ("email me a link") sign-in. Requires the Better Auth <code>magicLink()</code> plugin.</td></tr>
               <tr><td><code>admin.login.enableEmailOtp</code></td><td><code>'auto'</code></td><td>Enable email-OTP ("email me a code") sign-in. Requires the Better Auth <code>emailOTP()</code> plugin.</td></tr>
+              <tr><td><code>admin.login.enableTwoFactorBackupCode</code></td><td><code>'auto'</code></td><td>Offer "use a backup code" on the login form's two-factor step.</td></tr>
+              <tr><td><code>admin.login.enableTwoFactorEmailOtp</code></td><td><code>'auto'</code></td><td>Offer "email me a code" on the two-factor step. Requires the <code>twoFactor()</code> plugin's <code>otpOptions</code>.</td></tr>
               <tr><td><code>admin.login.magicLinkCallbackURL</code></td><td>&mdash;</td><td>Where the emailed magic link returns. Defaults to <code>afterLoginPath</code>.</td></tr>
               <tr><td><code>admin.login.enableSocial</code></td><td><code>false</code></td><td>Show social/OAuth provider buttons for providers configured in Better Auth's <code>socialProviders</code>. <code>true</code> shows all configured providers; an array is an allowlist of provider ids. There is no <code>'auto'</code>.</td></tr>
               <tr><td><code>admin.login.socialCallbackURL</code></td><td>&mdash;</td><td>Where a successful social sign-in returns. Defaults to the login page so the role gate runs; errors always return there.</td></tr>
@@ -1650,7 +1652,11 @@ read: <span class="hl-func">requireApiKey</span>()</code></pre>
           <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import</span> { <span class="hl-type">TwoFactorSetupView</span>, <span class="hl-type">TwoFactorVerifyView</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/components/twoFactor'</span>
 
 &lt;<span class="hl-type">TwoFactorSetupView</span> logo={&lt;MyLogo /&gt;} afterSetupPath=<span class="hl-string">"/admin"</span> /&gt;
-&lt;<span class="hl-type">TwoFactorVerifyView</span> logo={&lt;MyLogo /&gt;} afterVerifyPath=<span class="hl-string">"/admin"</span> /&gt;</code></pre>
+&lt;<span class="hl-type">TwoFactorVerifyView</span> logo={&lt;MyLogo /&gt;} afterVerifyPath=<span class="hl-string">"/admin"</span> /&gt;
+
+<span class="hl-comment">// As an admin view, prefer the server wrapper — it detects whether the</span>
+<span class="hl-comment">// account has a password and skips the confirmation step when it doesn't:</span>
+<span class="hl-keyword">import</span> { <span class="hl-type">TwoFactorSetupViewWrapper</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth/rsc'</span></code></pre>
         </div>
       </details>
 
