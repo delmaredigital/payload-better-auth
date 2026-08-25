@@ -166,8 +166,13 @@ export function TwoFactorSetupView({
     const link = document.createElement('a')
     link.href = url
     link.download = 'backup-codes.txt'
+    // Firefox only honours a click on an anchor that's in the document, and
+    // revoking the URL in the same tick can cancel the download that click
+    // just started — so attach, click, then clean up once it's under way.
+    document.body.appendChild(link)
     link.click()
-    URL.revokeObjectURL(url)
+    document.body.removeChild(link)
+    setTimeout(() => URL.revokeObjectURL(url), 0)
   }
 
   // Password confirmation state

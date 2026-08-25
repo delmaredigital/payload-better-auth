@@ -5,7 +5,13 @@ import { useRouter } from 'next/navigation.js'
 import { createAuthClient } from 'better-auth/react'
 import { twoFactorClient, magicLinkClient, emailOTPClient } from 'better-auth/client/plugins'
 import { hasAnyRole, hasAllRoles, normalizeRoles } from '../utils/access.js'
-import { resolveAvailability, pickPrimaryMethod } from '../utils/loginMethods.js'
+import {
+  resolveAvailability,
+  pickPrimaryMethod,
+  resolveTwoFactorOffer,
+  DEFAULT_OTP_LENGTHS,
+  type OtpLengths,
+} from '../utils/loginMethods.js'
 import { useConfig } from '@payloadcms/ui'
 import { useAuthClientBaseURL } from './useAuthMountPath.js'
 import { LoadingScreen } from './login/LoadingScreen.js'
@@ -124,6 +130,9 @@ export type LoginViewProps = {
    *   issued on enable). Standalone use without the wrapper resolves to true —
    *   the 2FA step only renders when a second factor exists.
    * Default: 'auto'.
+   *
+   * Better Auth never reports whether a given user still holds unused backup
+   * codes, so this stays a server-wide ceiling rather than a per-user fact.
    */
   enableTwoFactorBackupCode?: boolean | 'auto'
   /**
@@ -131,8 +140,18 @@ export type LoginViewProps = {
    * - 'auto': available iff the twoFactor plugin is configured with
    *   `otpOptions.sendOTP`. Standalone use without the wrapper resolves to false.
    * Default: 'auto'.
+   *
+   * This is a ceiling: sign-in reports the factors this user actually has, and
+   * the step never offers one the server left out of that list.
    */
   enableTwoFactorEmailOtp?: boolean | 'auto'
+  /**
+   * Digits in each one-time code, read from the Better Auth plugin options by
+   * LoginViewWrapper. Better Auth lets all three be configured, and a form that
+   * assumes six refuses to submit a valid code of any other length.
+   * Default: 6 for each.
+   */
+  otpLengths?: Partial<OtpLengths>
 }
 
 /** Map a Better Auth social `?error=` code to a friendly message. */
@@ -212,6 +231,7 @@ export function LoginView({
   authBasePath,
   enableTwoFactorBackupCode = 'auto',
   enableTwoFactorEmailOtp = 'auto',
+  otpLengths,
 }: LoginViewProps) {
   const router = useRouter()
 
@@ -250,8 +270,10 @@ export function LoginView({
   const emailOtpAvailable = resolveAvailability(enableEmailOtp, false)
   // The 2FA step only renders after the server demanded a second factor, so the
   // backup-code escape hatch is safe to offer even unresolved.
-  const twoFactorBackupCodeAvailable = enableTwoFactorBackupCode !== false
-  const twoFactorEmailOtpAvailable = resolveAvailability(enableTwoFactorEmailOtp, false)
+  const twoFactorBackupCodeAllowed = enableTwoFactorBackupCode !== false
+  const twoFactorEmailOtpAllowed = resolveAvailability(enableTwoFactorEmailOtp, false)
+
+  const codeLengths = { ...DEFAULT_OTP_LENGTHS, ...otpLengths }
 
   // Email-OTP code entry state
   const [otp, setOtp] = useState('')
@@ -262,6 +284,12 @@ export function LoginView({
   const [totpCode, setTotpCode] = useState('')
   const [totpLoading, setTotpLoading] = useState(false)
   const [twoFactorMethod, setTwoFactorMethod] = useState<TwoFactorMethod>('totp')
+  // What sign-in said this user's second factors actually are, e.g. ['totp'] or
+  // ['otp']. `null` means the server didn't say, so fall back to the config.
+  const [userTwoFactorMethods, setUserTwoFactorMethods] = useState<string[] | null>(null)
+
+  // Server-wide config is a ceiling; the sign-in response narrows it per user.
+  const twoFactorOffer = resolveTwoFactorOffer(userTwoFactorMethods, twoFactorEmailOtpAllowed)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const clientRef = useRef<any>(null)
@@ -370,7 +398,10 @@ export function LoginView({
 
       // Check if 2FA is required (use 'in' operator for proper TypeScript inference)
       if (result.data && 'twoFactorRedirect' in result.data && result.data.twoFactorRedirect) {
-        setViewMode('twoFactor')
+        const reported = (result.data as { twoFactorMethods?: unknown }).twoFactorMethods
+        enterTwoFactorStep(
+          Array.isArray(reported) ? reported.filter((m): m is string => typeof m === 'string') : null
+        )
         setLoading(false)
         return
       }
@@ -523,6 +554,32 @@ export function LoginView({
     }
   }
 
+  /**
+   * Open the second-factor step on a factor this user actually holds.
+   *
+   * Sign-in reports them: `['totp']`, `['otp']`, both, or neither when only
+   * backup codes remain. Defaulting to the authenticator app regardless would
+   * strand anyone who never set one up on an input that can't succeed.
+   * `null` means the server didn't report — keep the configured behaviour.
+   */
+  function enterTwoFactorStep(methods: string[] | null) {
+    setUserTwoFactorMethods(methods)
+    // Computed from the argument, not the state we just set: that lands next render.
+    const offer = resolveTwoFactorOffer(methods, twoFactorEmailOtpAllowed)
+    const initial: TwoFactorMethod = offer.totp
+      ? 'totp'
+      : offer.emailOtp
+        ? 'emailOtp'
+        : twoFactorBackupCodeAllowed
+          ? 'backup'
+          : 'totp'
+
+    setTotpCode('')
+    setTwoFactorMethod(initial)
+    setViewMode('twoFactor')
+    if (initial === 'emailOtp') void sendTwoFactorOtp()
+  }
+
   /** Ask the server to email the second-factor code (twoFactor `otpOptions`). */
   async function sendTwoFactorOtp() {
     setError(null)
@@ -554,6 +611,7 @@ export function LoginView({
     if (newView === 'login') {
       setTotpCode('')
       setTwoFactorMethod('totp')
+      setUserTwoFactorMethods(null)
       setConfirmPassword('')
       setOtp('')
     } else if (newView === 'register') {
@@ -761,8 +819,12 @@ export function LoginView({
         logo={logo}
         method={twoFactorMethod}
         onMethodChange={selectTwoFactorMethod}
-        enableBackupCode={twoFactorBackupCodeAvailable}
-        enableEmailOtp={twoFactorEmailOtpAvailable}
+        enableTotp={twoFactorOffer.totp}
+        enableBackupCode={twoFactorBackupCodeAllowed}
+        enableEmailOtp={twoFactorOffer.emailOtp}
+        codeLength={
+          twoFactorMethod === 'emailOtp' ? codeLengths.twoFactorEmailOtp : codeLengths.twoFactorTotp
+        }
         onResendEmailOtp={sendTwoFactorOtp}
       />
     )
@@ -770,7 +832,7 @@ export function LoginView({
 
   // Email-OTP code entry view
   if (viewMode === 'emailOtp') {
-    return <EmailOtpForm email={email} code={otp} onCodeChange={setOtp} onSubmit={handleVerifyEmailOtp} onBack={handleBackToLogin} loading={otpLoading} error={error} logo={logo} />
+    return <EmailOtpForm email={email} code={otp} onCodeChange={setOtp} onSubmit={handleVerifyEmailOtp} onBack={handleBackToLogin} loading={otpLoading} error={error} logo={logo} codeLength={codeLengths.emailOtp} />
   }
 
   // Registration view

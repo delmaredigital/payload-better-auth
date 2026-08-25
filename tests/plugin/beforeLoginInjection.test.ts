@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { createBetterAuthPlugin } from '../../src/plugin/index.js'
 import type { Config } from 'payload'
 
@@ -38,5 +38,32 @@ describe('BeforeLogin injection (issue: dead extension point)', () => {
     const config = buildWith({ disableLoginView: true, disableBeforeLogin: true })
     const beforeLogin = config.admin?.components?.beforeLogin ?? []
     expect(beforeLogin).not.toContain(BEFORE_LOGIN)
+  })
+
+  describe('warning on a dropped beforeLoginComponent', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    afterEach(() => warn.mockClear())
+
+    it('warns when the consumer passed one the plugin cannot inject', () => {
+      buildWith({ beforeLoginComponent: './Custom#Banner' })
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('admin.beforeLoginComponent was not injected')
+      )
+    })
+
+    it('stays quiet when the component is actually injected', () => {
+      buildWith({ beforeLoginComponent: './Custom#Banner', disableLoginView: true })
+      expect(warn).not.toHaveBeenCalled()
+    })
+
+    it('stays quiet when the consumer turned beforeLogin off themselves', () => {
+      buildWith({ beforeLoginComponent: './Custom#Banner', disableBeforeLogin: true })
+      expect(warn).not.toHaveBeenCalled()
+    })
+
+    it('stays quiet when no component was passed', () => {
+      buildWith()
+      expect(warn).not.toHaveBeenCalled()
+    })
   })
 })

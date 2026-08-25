@@ -622,6 +622,21 @@ function injectAdminComponents(
   const existingBeforeLogin = existingComponents.beforeLogin ?? []
   const injectBeforeLogin =
     !adminOptions.disableBeforeLogin && adminOptions.disableLoginView === true
+
+  // Dropping a component the consumer explicitly asked for is worth a word —
+  // it never rendered, but silence makes that look like a bug in their code.
+  if (
+    adminOptions.beforeLoginComponent &&
+    !adminOptions.disableBeforeLogin &&
+    adminOptions.disableLoginView !== true
+  ) {
+    console.warn(
+      '[payload-better-auth] admin.beforeLoginComponent was not injected: Payload renders ' +
+      '`beforeLogin` inside its own login view, which this plugin replaces. Set ' +
+      '`admin.disableLoginView: true` to keep that view (and the component), or render your ' +
+      'content from `admin.login` options on the plugin\'s login view instead.'
+    )
+  }
   const beforeLogin = injectBeforeLogin
     ? [
         ...(Array.isArray(existingBeforeLogin)

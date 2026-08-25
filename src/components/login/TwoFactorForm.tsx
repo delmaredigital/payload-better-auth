@@ -9,19 +9,24 @@ export type TwoFactorMethod = 'totp' | 'backup' | 'emailOtp'
 
 const RESEND_COOLDOWN_SECONDS = 30
 
-const copyByMethod: Record<TwoFactorMethod, { hint: string; label: string }> = {
-  totp: {
-    hint: 'Enter the 6-digit code from your authenticator app',
-    label: 'Verification Code',
-  },
-  backup: {
-    hint: 'Enter one of the backup codes you saved when setting up two-factor authentication. Each code works once.',
-    label: 'Backup Code',
-  },
-  emailOtp: {
-    hint: "We've emailed you a verification code. Enter it below.",
-    label: 'Emailed Code',
-  },
+function copyFor(method: TwoFactorMethod, codeLength: number): { hint: string; label: string } {
+  switch (method) {
+    case 'backup':
+      return {
+        hint: 'Enter one of the backup codes you saved when setting up two-factor authentication. Each code works once.',
+        label: 'Backup Code',
+      }
+    case 'emailOtp':
+      return {
+        hint: "We've emailed you a verification code. Enter it below.",
+        label: 'Emailed Code',
+      }
+    default:
+      return {
+        hint: `Enter the ${codeLength}-digit code from your authenticator app`,
+        label: 'Verification Code',
+      }
+  }
 }
 
 const linkStyle: React.CSSProperties = {
@@ -45,8 +50,10 @@ export function TwoFactorForm({
   logo,
   method = 'totp',
   onMethodChange,
+  enableTotp = true,
   enableBackupCode = false,
   enableEmailOtp = false,
+  codeLength = 6,
   onResendEmailOtp,
 }: {
   code: string
@@ -60,16 +67,20 @@ export function TwoFactorForm({
   method?: TwoFactorMethod
   /** Called when the user picks a different second factor. */
   onMethodChange?: (method: TwoFactorMethod) => void
+  /** Offer the authenticator app. False when this user has no verified TOTP secret. */
+  enableTotp?: boolean
   /** Offer "use a backup code". */
   enableBackupCode?: boolean
   /** Offer "email me a code" (requires the twoFactor plugin's `otpOptions`). */
   enableEmailOtp?: boolean
+  /** Digits in the TOTP / emailed code. Better Auth allows other than 6. Default: 6. */
+  codeLength?: number
   /** Re-send the emailed code (shown in emailOtp mode). */
   onResendEmailOtp?: () => void
 }) {
-  const { hint, label } = copyByMethod[method]
+  const { hint, label } = copyFor(method, codeLength)
   const submitDisabled =
-    loading || (method === 'backup' ? code.trim().length === 0 : code.length !== 6)
+    loading || (method === 'backup' ? code.trim().length === 0 : code.length !== codeLength)
 
   // A code is emailed when the method is selected and on every resend, so gate
   // resends behind a countdown — the server rate-limits anyway, but a ticking
@@ -85,7 +96,7 @@ export function TwoFactorForm({
   }, [resendCooldown])
 
   const alternates: Array<{ label: string; method: TwoFactorMethod }> = []
-  if (method !== 'totp') {
+  if (enableTotp && method !== 'totp') {
     alternates.push({ label: 'Use your authenticator app', method: 'totp' })
   }
   if (enableBackupCode && method !== 'backup') {
@@ -158,7 +169,7 @@ export function TwoFactorForm({
                 }}
               />
             ) : (
-              <OtpInput id="totp-code" value={code} onChange={onCodeChange} autoFocus pattern="[0-9]*" />
+              <OtpInput id="totp-code" value={code} onChange={onCodeChange} length={codeLength} autoFocus pattern="[0-9]*" />
             )}
           </div>
 

@@ -3,9 +3,11 @@ import { LoginView, type LoginViewProps } from './LoginView.js'
 import type { PayloadWithAuth } from '../types/betterAuth.js'
 import {
   detectEnabledMethods,
+  detectOtpLengths,
   resolveAvailability,
   detectSocialProviders,
   resolveSocialProviders,
+  DEFAULT_OTP_LENGTHS,
   type DetectedMethods,
   type MethodSetting,
 } from '../utils/loginMethods.js'
@@ -38,6 +40,7 @@ export function resolveLoginViewProps(
   const authBasePath = payload.config.custom?.betterAuth?.authBasePath as string | undefined
   const authOptions = (payload as PayloadWithAuth).betterAuth?.options
   const detected = authOptions ? detectEnabledMethods(authOptions) : FALLBACK_DETECTED
+  const otpLengths = authOptions ? detectOtpLengths(authOptions) : DEFAULT_OTP_LENGTHS
   const detectedSocial = authOptions ? detectSocialProviders(authOptions) : []
   const socialProviders = resolveSocialProviders(loginConfig.enableSocial, detectedSocial)
 
@@ -69,6 +72,7 @@ export function resolveLoginViewProps(
     socialCallbackURL: loginConfig.socialCallbackURL,
     title: loginConfig.title,
     authBasePath,
+    otpLengths,
   }
 }
 
