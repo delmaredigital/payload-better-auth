@@ -792,7 +792,7 @@ details .details-body > :first-child { margin-top: 0; }
   <div class="header-brand">
     <span>payload</span>-better-auth
   </div>
-  <span class="header-badge">v0.10.0</span>
+  <span class="header-badge">v0.11.2</span>
 
   <div class="search-wrap">
     <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -880,13 +880,26 @@ details .details-body > :first-child { margin-top: 0; }
       </div>
     </div>
 
-    <!-- ═══════ UPGRADING TO 0.8 ═══════ -->
+    <!-- ═══════ UPGRADING ═══════ -->
     <div class="section" id="upgrading">
       <div class="callout callout-warn">
-        <p><strong>Upgrading to 0.10?</strong> One behavioral change: <strong>secret fields on the plugin's managed collections are now locked by default</strong> (<code>secureSecretFields</code> on <code>betterAuthCollections()</code>, default <code>true</code>). Session tokens, TOTP secrets and backup codes, verification identifiers/values, stored OAuth tokens, hashed passwords and API keys, JWKS private keys and OAuth client secrets are no longer readable through Payload's REST/GraphQL API, and are hidden in the admin UI. Better Auth is unaffected — the adapter runs with <code>overrideAccess: true</code>, as do Local API calls by default.</p>
-        <p style="margin-top:8px">You only need to act if you read those fields via REST/GraphQL or a Local API call passing <code>overrideAccess: false</code>. Opt out with <code>secureSecretFields: false</code>, or unlock per model (e.g. <code>{ session: [] }</code>). Locked fields are <em>silently dropped</em> from non-override writes rather than raising an error.</p>
-        <p style="margin-top:8px">Also fixed in 0.10: password reset through the bundled <code>ForgotPasswordView</code> (it posted to <code>/forget-password</code>, removed in Better Auth 1.6, while always reporting success), <code>ResetPasswordView</code> invalidating its own token, and auth failing when Payload's <code>routes.api</code> isn't <code>/api</code>.</p>
-        <p style="margin-top:8px"><strong>Upgrading from pre-0.9?</strong> Every release from 0.7 to 0.9 carried breaking changes — Better Auth 1.6 plus a <code>twoFactor</code> schema migration (0.7), server-side role assignment and API-key scope enforcement (0.8), and the passkey/admin-login split with <code>normalizeRoles</code> and query-anchoring changes (0.9). Read the <a href="https://github.com/delmaredigital/payload-better-auth/blob/main/CHANGELOG.md">CHANGELOG</a> carefully and apply the migration steps for each version between yours and the current one.</p>
+        <p><strong>Upgrading to 0.11? Better Auth 1.7 is now required, and it needs a database migration.</strong></p>
+
+        <p style="margin-top:8px"><strong>1. Upgrade the peers together</strong> &mdash; <code>better-auth@^1.7</code>, plus <code>@better-auth/api-key</code> / <code>@better-auth/passkey</code> at the same major if you use them. 1.6 is no longer supported: 1.7 requires two new adapter methods, and a 1.6 install throws at runtime.</p>
+
+        <p style="margin-top:8px"><strong>2. Generate the migration, then edit it to backfill <code>issuer</code>.</strong> Better Auth 1.7 keys provider identities on <code>(issuer, accountId)</code> instead of <code>providerId</code>, so the accounts collection gains a <strong>required</strong> <code>issuer</code> field plus a unique index. <code>payload migrate:create</code> emits an <code>ADD COLUMN &hellip; NOT NULL</code> that <strong>fails on a populated table</strong> &mdash; split it into add-nullable &rarr; backfill &rarr; enforce, and check for duplicate <code>(issuer, account_id)</code> pairs before adding the index. The full SQL is in the <a href="https://github.com/delmaredigital/payload-better-auth/blob/main/README.md">README</a>.</p>
+
+        <p style="margin-top:8px">&#9888;&#65039; <strong><code>local:oauth:&lt;providerId&gt;</code> is the fallback, not the rule.</strong> It applies only where a provider declares no issuer of its own. In Better Auth 1.7.1 seven built-ins DO declare one and must not get the synthetic form: <strong>google</strong> (<code>https://accounts.google.com</code>), <strong>facebook</strong> (<code>https://www.facebook.com</code>), <strong>apple</strong> (<code>https://appleid.apple.com</code>), <strong>line</strong>, <strong>cognito</strong>, <strong>paybin</strong> and <strong>microsoft</strong> &mdash; plus every generic-OAuth/OIDC provider (Okta, Auth0, Keycloak). Email/password rows take <code>local:credential</code>. Read the value rather than guessing it:</p>
+
+        <pre><span class="lang-tag">bash</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code>node -e "import('better-auth/social-providers').then(m =&gt; console.log(m.google({clientId:'x',clientSecret:'y'}).accountIssuer))"</code></pre>
+
+        <p>Backfilling those rows with <code>local:oauth:&hellip;</code> files them under a key Better Auth never queries. Sign-in doesn't find the row, takes the new-identity path and writes a <strong>second</strong> account row &mdash; the unique index permits it because the pair differs. Nothing fails, and the damage is silent until a user is asked to link an account they already have.</p>
+
+        <p style="margin-top:8px">&#9888;&#65039; <strong>Microsoft Entra ID needs a row-by-row backfill, and its <code>account_id</code> moves too.</strong> Its issuer is per-tenant (<code>https://login.microsoftonline.com/&lt;tid&gt;/v2.0</code>), so there is no constant to write &mdash; and 1.7 keys the subject on the <code>oid</code> claim where 1.6 stored <code>sub</code>. Both values are in the <code>id_token</code> already on the row: decode the claims segment (base64url) and take <code>iss</code> and <code>oid</code>. Decode only &mdash; there is no signature to check, because this reads a claim out of your own database rather than a token presented by a caller.</p>
+
+        <p style="margin-top:8px"><strong>3. Apply the migration</strong> and verify sign-in for each provider you support. No application-code changes are required for the common setup &mdash; the adapter, generated collections and admin UI absorb the rest of 1.7. If you use OAuth JWT bearer auth, database <code>joins</code>, or a proxy with a dynamic <code>baseURL</code>, see the <a href="https://github.com/delmaredigital/payload-better-auth/blob/main/CHANGELOG.md#0110---2026-08-19">CHANGELOG</a> for the smaller items.</p>
+
+        <p style="margin-top:12px">&#128230; <strong>Coming from 0.10 or earlier?</strong> One more behavioral change before you get to the above: since 0.10, <strong>secret fields on the plugin's managed collections are locked by default</strong> (<code>secureSecretFields</code> on <code>betterAuthCollections()</code>). Session tokens, TOTP secrets and backup codes, stored OAuth tokens, hashed passwords and API keys, JWKS private keys and OAuth client secrets are no longer readable through Payload's REST/GraphQL API. That only matters if you read them there, or via a Local API call passing <code>overrideAccess: false</code> &mdash; opt out with <code>secureSecretFields: false</code>, or unlock per model. Every release from 0.7 to 0.9 carried its own breaking change on top of that: read the <a href="https://github.com/delmaredigital/payload-better-auth/blob/main/CHANGELOG.md">CHANGELOG</a> and apply each migration between your version and this one.</p>
       </div>
     </div>
 
@@ -901,9 +914,11 @@ details .details-body > :first-child { margin-top: 0; }
           <tr><td><code>payload</code></td><td>&ge; 3.69.0</td></tr>
           <tr><td><code>@payloadcms/next</code></td><td>&ge; 3.69.0</td></tr>
           <tr><td><code>@payloadcms/ui</code></td><td>&ge; 3.69.0</td></tr>
-          <tr><td><code>better-auth</code></td><td>&ge; 1.6.0 (1.6.23+ recommended)</td></tr>
+          <tr><td><code>better-auth</code></td><td>&ge; 1.7.0 &lt; 2 &mdash; 1.6 is not supported</td></tr>
           <tr><td><code>next</code></td><td>&ge; 15.5.16</td></tr>
           <tr><td><code>react</code></td><td>&ge; 19.2.1</td></tr>
+          <tr><td><code>@better-auth/api-key</code></td><td>&ge; 1.7.0 &lt; 2 &mdash; optional, only for API keys</td></tr>
+          <tr><td><code>@better-auth/passkey</code></td><td>&ge; 1.7.0 &lt; 2 &mdash; optional, only for passkeys</td></tr>
         </tbody>
       </table>
 
@@ -1644,7 +1659,8 @@ read: <span class="hl-func">requireApiKey</span>()</code></pre>
 
     <div class="section" id="two-factor">
       <h3>Two-Factor Authentication</h3>
-      <p>The LoginView <strong>handles 2FA inline</strong> automatically. When a user with 2FA enabled signs in, the form transitions to a TOTP code input.</p>
+      <p>The LoginView <strong>handles 2FA inline</strong> automatically. When a user with 2FA enabled signs in, the form transitions to a second-factor step.</p>
+      <p>The step offers the factors that user actually has. Better Auth reports them on the sign-in response, so someone with no authenticator set up lands on the emailed code rather than a TOTP input they can't satisfy. "Use a backup code" is offered whenever the twoFactor plugin is active &mdash; the escape hatch for a lost authenticator &mdash; and "email me a code" when the plugin is configured with <code>otpOptions.sendOTP</code>, with resends on a 30-second cooldown. Both are detected server-side; <code>admin.login.enableTwoFactorBackupCode</code> and <code>admin.login.enableTwoFactorEmailOtp</code> are ceilings over that detection.</p>
 
       <details>
         <summary>Standalone components for custom flows</summary>
@@ -1669,13 +1685,17 @@ read: <span class="hl-func">requireApiKey</span>()</code></pre>
           <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">const</span> result = <span class="hl-keyword">await</span> signIn.<span class="hl-func">email</span>({ email, password })
 
 <span class="hl-keyword">if</span> (result.data?.twoFactorRedirect) {
-  <span class="hl-comment">// Show TOTP verification form</span>
-  <span class="hl-func">setTwoFactorRequired</span>(<span class="hl-const">true</span>)
+  <span class="hl-comment">// twoFactorMethods is the factors THIS user holds: ['totp'], ['otp'],</span>
+  <span class="hl-comment">// both, or [] when only backup codes are left. Offer from that list —</span>
+  <span class="hl-comment">// defaulting to TOTP strands anyone who never set up an authenticator.</span>
+  <span class="hl-func">setTwoFactorMethods</span>(result.data.twoFactorMethods)
   <span class="hl-keyword">return</span>
 }
 
-<span class="hl-comment">// Then verify with:</span>
-<span class="hl-keyword">await</span> twoFactor.<span class="hl-func">verifyTotp</span>({ code: totpCode })</code></pre>
+<span class="hl-comment">// Then verify with whichever factor they chose:</span>
+<span class="hl-keyword">await</span> twoFactor.<span class="hl-func">verifyTotp</span>({ code })        <span class="hl-comment">// authenticator app</span>
+<span class="hl-keyword">await</span> twoFactor.<span class="hl-func">verifyBackupCode</span>({ code })  <span class="hl-comment">// backup code</span>
+<span class="hl-keyword">await</span> twoFactor.<span class="hl-func">sendOtp</span>()                   <span class="hl-comment">// then verifyOtp({ code })</span></code></pre>
         </div>
       </details>
     </div>
