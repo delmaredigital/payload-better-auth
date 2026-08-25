@@ -5,16 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.11.2] - 2026-08-25
+
+Two-factor authentication was reachable but not recoverable: the login form's
+second-factor step only accepted TOTP, and the bundled setup view could never
+succeed for an account with a password. Both are fixed, along with the smaller
+things found alongside them.
+
+### Added
+
+- **`admin.login.enableTwoFactorBackupCode` / `admin.login.enableTwoFactorEmailOtp`** (`boolean | 'auto'`, default `'auto'`) — what the login form's two-factor step may offer beyond the authenticator app. `'auto'` detects the twoFactor plugin and its `otpOptions.sendOTP` server-side. These are ceilings: the step then follows the factors Better Auth reports for the signed-in user, and never offers one they don't hold.
+- **`TwoFactorSetupViewWrapper`** (exported from `/rsc`) — server wrapper for `TwoFactorSetupView` that resolves whether the signed-in account has a password by listing its Better Auth accounts, mirroring `LoginViewWrapper`'s detection pattern. Use it as the admin view; the client component also accepts an explicit `hasPassword` prop for custom flows.
 
 ### Fixed
 
-- **The login form's two-factor step now accepts backup codes and emailed codes**, not just TOTP. A user with a lost authenticator was previously locked out entirely — backup codes were issued by setup and redeemable by nothing, and the emailed second factor (`otpOptions`) was unreachable. The 2FA step now offers "use a backup code" (free-text input, `verifyBackupCode`) whenever the twoFactor plugin is active, and "email me a code" (`sendOtp`/`verifyOtp`, with a resend action on a 30-second cooldown) when `otpOptions.sendOTP` is configured — auto-detected server-side by the login wrappers, overridable via `admin.login.enableTwoFactorBackupCode` / `enableTwoFactorEmailOtp`.
-- **`TwoFactorSetupView` can now actually enable 2FA for password accounts.** It fired a passwordless `/two-factor/enable` on mount, which Better Auth rejects for any account with a password ("Invalid password", no way to supply one). Credential accounts now confirm their password first; passwordless (social/passkey-only) accounts skip the prompt and start enablement immediately (`allowPasswordless`). Whether the account has a password is resolved server-side by the new `TwoFactorSetupViewWrapper` (exported from `/rsc`), or passed explicitly via the view's `hasPassword` prop — the user is never asked which kind of account they have. Backup codes can now be downloaded as a file as well as copied, and copying confirms visibly instead of failing silently when clipboard access is denied.
-- **`BeforeLogin` is no longer injected where it can't render.** Payload renders `beforeLogin` inside its *own* login view, which this plugin replaces by default — so the injected component (and any `beforeLoginComponent` a consumer passed) silently never rendered. It is now injected only when `disableLoginView: true` keeps Payload's login view alive. Passing a `beforeLoginComponent` that can't be injected now logs a warning instead of dropping it silently.
-- **The two-factor step opens on a factor the user actually has.** Better Auth reports them on sign-in (`twoFactorMethods`), and the step now follows: someone who enabled 2FA by email lands on the emailed-code entry instead of an authenticator input they can never satisfy, and the "use your authenticator app" link is hidden when there's no verified TOTP secret. `enableTwoFactorBackupCode` / `enableTwoFactorEmailOtp` stay as server-wide ceilings over that.
-- **One-time code inputs honour the configured length.** The login form assumed six digits everywhere, so a Better Auth config setting `emailOTP`'s `otpLength`, or the twoFactor plugin's `totpOptions.digits` / `otpOptions.digits`, to anything else produced a form that refused to submit a valid code. All three are now read from the plugin options server-side.
-- **Backup codes download reliably.** The generated link is attached to the document before it's clicked and its object URL is revoked after the download starts, instead of immediately (which cancelled it in some browsers).
+- **The login form's two-factor step accepts backup codes and emailed codes**, not just TOTP. A user with a lost authenticator was locked out entirely: backup codes were issued by setup and redeemable by nothing, and the emailed second factor was unreachable even with `otpOptions.sendOTP` configured. Where admin access itself requires 2FA, that could mean recoverable by nobody. The step now offers "use a backup code" (free-text, `verifyBackupCode`) and "email me a code" (`sendOtp`/`verifyOtp`, with a resend action on a 30-second cooldown).
+- **The step opens on a factor the user actually has.** Better Auth reports them on sign-in (`twoFactorMethods`) and the login view discarded them, always opening on an authenticator input. Someone who enabled 2FA by email now lands on the emailed-code entry instead of a code they can't produce, and the "use your authenticator app" link is hidden when there is no verified TOTP secret.
+- **`TwoFactorSetupView` can enable 2FA for password accounts at all.** It fired a passwordless `/two-factor/enable` on mount, which Better Auth rejects for any account holding a password — a guaranteed "Invalid password" with no field to answer it. Credential accounts now confirm their password first; passwordless accounts start enablement immediately. Backup codes can also be downloaded as a file, and copying confirms visibly instead of failing silently when clipboard access is denied.
+- **One-time code inputs honour the configured length.** The forms assumed six digits, so a config setting `emailOTP`'s `otpLength`, or the twoFactor plugin's `totpOptions.digits` / `otpOptions.digits`, to anything else produced a form that truncated the code and refused to submit it. All three are read from the plugin options server-side.
+- **`BeforeLogin` is no longer injected where it can't render.** Payload renders `beforeLogin` inside its *own* login view, which this plugin replaces by default — so the injected component, and any `beforeLoginComponent` a consumer passed, silently never rendered. It is now injected only when `disableLoginView: true` keeps Payload's login view alive, and passing one that can't be injected logs a warning instead of dropping it silently.
+- **The backup-codes download link** is attached to the document before it's clicked (Firefox ignores a detached anchor) and its object URL is revoked after the download starts rather than in the same tick, which cancelled it in some browsers.
+
+### Upgrading
+
+No action for the common setup. Two narrow cases:
+
+- **If you mount `TwoFactorSetupView` yourself** (rather than the plugin's management UI) **for accounts with no password** — social- or passkey-only, with the twoFactor plugin's `allowPasswordless` — it now shows a password step those users can't answer, because `hasPassword` defaults to `true`. Render `TwoFactorSetupViewWrapper` from `/rsc` instead, which resolves it server-side, or pass `hasPassword={false}`.
+- **If you pass `admin.beforeLoginComponent`** and have not set `admin.disableLoginView: true`, it is no longer injected. It never rendered either way; the plugin now says so at config-build time instead of staying quiet.
 
 ## [0.11.1] - 2026-08-21
 

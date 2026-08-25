@@ -50,19 +50,8 @@ Better Auth adapter and plugins for Payload CMS. Enables seamless integration be
 > 3. **Apply the migration** and verify sign-in for each provider you support.
 >
 > No application-code changes are required for the common setup — the adapter, generated collections, and admin UI absorb the rest of 1.7. If you use OAuth JWT bearer auth, database `joins`, or a proxy with a dynamic `baseURL`, see the [CHANGELOG](./CHANGELOG.md#0110---2026-08-19) for the smaller items.
-
----
-
-> 🔒 **Upgrading to 0.10?** One behavioral change to be aware of:
 >
-> - **Secret fields on the plugin's managed collections are now locked by default** (`secureSecretFields` on `betterAuthCollections()`, default `true`). Session tokens, TOTP secrets and backup codes, verification identifiers/values, stored OAuth access/refresh/ID tokens, hashed passwords and API keys, JWKS private keys and OAuth client secrets are no longer readable via Payload's REST/GraphQL API, and are hidden in the admin UI. Better Auth itself is unaffected — the adapter operates with `overrideAccess: true`, as do Local API calls by default.
-> - **Action:** only needed if you read those fields through REST/GraphQL or a Local API call that passes `overrideAccess: false`. Opt out entirely with `secureSecretFields: false`, or unlock per model (e.g. `{ session: [] }`). Note that locked fields are *silently dropped* from non-override writes rather than raising an error.
->
-> Also fixed in 0.10: password reset through the bundled `ForgotPasswordView` (it posted to `/forget-password`, removed in Better Auth 1.6, while always reporting success to the user), `ResetPasswordView` invalidating its own token, and auth failing entirely when Payload's `routes.api` isn't `/api`. See the [CHANGELOG](./CHANGELOG.md#0100---2026-08-07).
-
----
-
-> 📦 **Upgrading from pre-0.9?** Every release from 0.7 to 0.9 carried breaking changes — Better Auth 1.6 as a hard requirement plus a `twoFactor` schema migration (0.7), server-side role assignment and API-key scope enforcement (0.8), and the passkey/admin-login split along with `normalizeRoles` and query-anchoring changes (0.9). Read the [CHANGELOG](./CHANGELOG.md) carefully and apply the migration steps for each version between yours and the current one.
+> 📦 **Coming from 0.10 or earlier?** One more behavioral change worth knowing before you get to the above: since 0.10, **secret fields on the plugin's managed collections are locked by default** (`secureSecretFields` on `betterAuthCollections()`). Session tokens, TOTP secrets and backup codes, stored OAuth tokens, hashed passwords and API keys, JWKS private keys and OAuth client secrets are no longer readable through Payload's REST/GraphQL API. That only matters if you read them there, or via a Local API call passing `overrideAccess: false` — opt out with `secureSecretFields: false`, or unlock per model. Every release from 0.7 to 0.9 carried its own breaking change on top of that: read the [CHANGELOG](./CHANGELOG.md) and apply each migration between your version and this one.
 
 ---
 
