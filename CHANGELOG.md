@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.3] - 2026-09-01
+
+The admin login page decided which sign-in buttons to render by reading Better
+Auth's raw configuration. That object is not the list Better Auth signs people in
+against, so the page both hid providers that worked and showed providers that
+didn't. Detection now reads the resolved auth context (`auth.$context`) — the same
+list `/sign-in/social` matches against.
+
+### Fixed
+
+- **Generic OAuth / OIDC providers appear on the admin login** ([#32](https://github.com/allandelmare/payload-better-auth/issues/32)). Since Better Auth 1.7, `genericOAuth()` registers its providers as first-class social providers — merged into the auth context during plugin `init()`, never into `options.socialProviders`, which is where this plugin looked. A Keycloak, Zitadel, Okta, Auth0 or Entra ID provider was silently filtered out of `enableSocial`, and the only way to offer SSO on the admin login was a custom login view. They now render alongside the built-in providers, sign in through the same `signIn.social` call, and are allowlisted by their `providerId`. A provider's configured `name` becomes its button label, so `{ providerId: 'zitadel', name: 'Company SSO' }` reads as "Continue with Company SSO" instead of "Continue with Zitadel".
+- **No more buttons that Better Auth would refuse.** Reading raw config also meant rendering providers that never resolved: one switched off with `enabled: false`, or one whose config is a function that resolves to `null`. Clicking either produced "Provider not found". The login page now shows a provider if and only if sign-in accepts it.
+- **Sign-in methods contributed by a plugin are detected.** Better Auth merges options returned from a plugin's `init()` into the auth context, so `auth.options` — what detection read — can be missing configuration that is genuinely in effect. Method detection (`enablePassword`, `enableSignUp`, `enableForgotPassword`, the OTP lengths) now reads the post-init options, and no longer hides a method the server actually accepts.
+
+### Changed
+
+- **The login view resolves its props from `auth.$context` rather than `auth.options`.** `$context` is a single promise built once by `betterAuth()`, so this costs nothing per render. If it rejects — `genericOAuth`'s `init()` throws when OIDC discovery fails and no `accountIssuer` is set — the login page logs and falls back to rendering password sign-in with no social buttons, rather than 500ing the one screen an admin needs to fix the config.
+
+### Upgrading
+
+No action. If you use `genericOAuth()` and kept a custom login view solely to render its buttons, you can now drop it and set `admin.login.enableSocial` instead. The account-creation warning under Social Sign-In applies to generic providers exactly as it does to built-in ones: set `disableImplicitSignUp` if you don't want a public admin login creating user rows.
+
 ## [0.11.2] - 2026-08-25
 
 Two-factor authentication was reachable but not recoverable: the login form's

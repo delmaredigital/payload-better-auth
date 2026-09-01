@@ -181,23 +181,91 @@ describe('detectOtpLengths', () => {
 })
 
 describe('detectSocialProviders', () => {
-  it('returns the keys of socialProviders', () => {
-    expect(detectSocialProviders({ socialProviders: { google: {}, github: {} } })).toEqual([
-      'google',
-      'github',
+  it('reads the providers Better Auth resolved on the context', async () => {
+    expect(
+      await detectSocialProviders({
+        socialProviders: [{ id: 'google', name: 'Google' }, { id: 'github', name: 'GitHub' }],
+      })
+    ).toEqual([
+      { id: 'google', name: 'Google' },
+      { id: 'github', name: 'GitHub' },
     ])
   })
 
-  it('returns [] when socialProviders is absent, null, or not an object', () => {
-    expect(detectSocialProviders({})).toEqual([])
-    expect(detectSocialProviders(null)).toEqual([])
-    expect(detectSocialProviders(undefined)).toEqual([])
-    expect(detectSocialProviders({ socialProviders: null })).toEqual([])
+  it('carries a generic provider display name through', async () => {
+    expect(
+      await detectSocialProviders({ socialProviders: [{ id: 'zitadel', name: 'Company SSO' }] })
+    ).toEqual([{ id: 'zitadel', name: 'Company SSO' }])
+  })
+
+  it('omits name when the provider has none', async () => {
+    expect(await detectSocialProviders({ socialProviders: [{ id: 'okta' }] })).toEqual([
+      { id: 'okta' },
+    ])
+    expect(await detectSocialProviders({ socialProviders: [{ id: 'okta', name: '  ' }] })).toEqual([
+      { id: 'okta' },
+    ])
+  })
+
+  it('resolves thunk entries, the way Better Auth does before matching a provider', async () => {
+    expect(
+      await detectSocialProviders({
+        socialProviders: [
+          () => ({ id: 'sync', name: 'Sync' }),
+          async () => ({ id: 'async', name: 'Async' }),
+        ],
+      })
+    ).toEqual([
+      { id: 'sync', name: 'Sync' },
+      { id: 'async', name: 'Async' },
+    ])
+  })
+
+  it('skips a thunk that throws instead of losing the rest of the list', async () => {
+    expect(
+      await detectSocialProviders({
+        socialProviders: [
+          () => {
+            throw new Error('provider blew up')
+          },
+          { id: 'github' },
+        ],
+      })
+    ).toEqual([{ id: 'github' }])
+  })
+
+  it('keeps the first entry for an id, matching how a generic provider shadows a built-in', async () => {
+    expect(
+      await detectSocialProviders({
+        socialProviders: [
+          { id: 'github', name: 'Corp GitHub' },
+          { id: 'github', name: 'GitHub' },
+        ],
+      })
+    ).toEqual([{ id: 'github', name: 'Corp GitHub' }])
+  })
+
+  it('drops entries without a usable id', async () => {
+    expect(
+      await detectSocialProviders({
+        socialProviders: [null, undefined, {}, { id: '' }, { id: 42 }, { id: 'github' }],
+      })
+    ).toEqual([{ id: 'github' }])
+  })
+
+  it('returns [] when the context has no resolved providers', async () => {
+    expect(await detectSocialProviders({})).toEqual([])
+    expect(await detectSocialProviders(null)).toEqual([])
+    expect(await detectSocialProviders(undefined)).toEqual([])
+    expect(await detectSocialProviders({ socialProviders: null })).toEqual([])
   })
 })
 
 describe('resolveSocialProviders', () => {
-  const detected = ['google', 'github']
+  const detected = [
+    { id: 'google', name: 'Google' },
+    { id: 'github', name: 'GitHub' },
+  ]
 
   it('returns [] for false or undefined (the default)', () => {
     expect(resolveSocialProviders(false, detected)).toEqual([])
@@ -229,8 +297,19 @@ describe('resolveSocialProviders', () => {
   })
 
   it('dedupes duplicate allowlist ids', () => {
-    expect(resolveSocialProviders(['google', 'google'], ['google', 'github'])).toEqual([
+    expect(resolveSocialProviders(['google', 'google'], detected)).toEqual([
       { id: 'google', label: 'Google' },
+    ])
+  })
+
+  it('labels a generic provider with its display name, and allowlists it by id', () => {
+    const generic = [{ id: 'zitadel', name: 'Company SSO' }, { id: 'github', name: 'GitHub' }]
+    expect(resolveSocialProviders(true, generic)).toEqual([
+      { id: 'zitadel', label: 'Company SSO' },
+      { id: 'github', label: 'GitHub' },
+    ])
+    expect(resolveSocialProviders(['zitadel'], generic)).toEqual([
+      { id: 'zitadel', label: 'Company SSO' },
     ])
   })
 })
@@ -242,8 +321,19 @@ describe('socialProviderLabel', () => {
     expect(socialProviderLabel('linkedin')).toBe('LinkedIn')
   })
 
+  it("prefers the admin UI's name for a known id over Better Auth's", () => {
+    // Better Auth calls this provider 'Microsoft EntraID'.
+    expect(socialProviderLabel('microsoft', 'Microsoft EntraID')).toBe('Microsoft')
+  })
+
+  it("uses the provider's own display name for an unknown id", () => {
+    expect(socialProviderLabel('zitadel', 'Company SSO')).toBe('Company SSO')
+    expect(socialProviderLabel('company-sso', 'Company SSO')).toBe('Company SSO')
+  })
+
   it('capitalizes unknown provider ids', () => {
     expect(socialProviderLabel('okta')).toBe('Okta')
+    expect(socialProviderLabel('okta', '   ')).toBe('Okta')
   })
 
   it('returns an empty string unchanged', () => {

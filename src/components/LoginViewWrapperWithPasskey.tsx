@@ -24,7 +24,7 @@ import { PasskeyLoginView } from './PasskeyLoginView.js'
  */
 export async function LoginViewWrapperWithPasskey({ initPageResult }: AdminViewProps) {
   const { payload } = initPageResult.req
-  return <PasskeyLoginView {...resolveLoginViewProps(payload)} />
+  return <PasskeyLoginView {...(await resolveLoginViewProps(payload))} />
 }
 
 export default LoginViewWrapperWithPasskey

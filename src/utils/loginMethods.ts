@@ -180,34 +180,111 @@ export interface SocialProvider {
 }
 
 /**
- * Provider ids Better Auth actually has configured — the keys of `socialProviders`.
- * (genericOAuth providers live in plugin config and are intentionally not included.)
+ * A social provider as it appears on Better Auth's resolved context.
+ *
+ * Entries may be a provider object or a thunk resolving to one: Better Auth's own
+ * lookup (`getAwaitableValue`) calls function entries before matching, so anything
+ * reading this list has to resolve them the same way.
  */
-export function detectSocialProviders(options: AuthOptionsLike | null | undefined): string[] {
-  const sp = options?.socialProviders
-  if (!sp || typeof sp !== 'object') return []
-  return Object.keys(sp)
+export type ContextSocialProvider =
+  | { id?: unknown; name?: unknown }
+  | (() => { id?: unknown; name?: unknown } | Promise<{ id?: unknown; name?: unknown }>)
+  | null
+  | undefined
+
+/**
+ * Minimal structural shape of Better Auth's resolved auth context (`auth.$context`).
+ * Declared locally, like `AuthOptionsLike`, so this module stays dependency-free.
+ */
+export interface AuthContextLike {
+  /**
+   * Options AFTER plugin `init()` ran. Not the same object as `auth.options`:
+   * Better Auth merges plugin-contributed options into the context, so a plugin
+   * that enables a sign-in method is only visible here.
+   */
+  options?: AuthOptionsLike | null
+  /** Providers Better Auth actually resolved — the list `/sign-in/social` matches against. */
+  socialProviders?: ContextSocialProvider[] | null
+}
+
+/** A social provider detected on the resolved context. */
+export interface DetectedSocialProvider {
+  id: string
+  /** Better Auth's display name for the provider, when it has one ('Company SSO'). */
+  name?: string
 }
 
 /**
- * Resolve the `enableSocial` setting against the detected provider ids.
+ * Providers Better Auth actually resolved, read off `auth.$context`.
+ *
+ * This is deliberately not derived from `options.socialProviders`. That record is
+ * the raw config, and three things happen between it and a working sign-in:
+ *
+ * - `genericOAuth` registers its providers as first-class social providers by
+ *   merging them into the context during plugin `init()` (Better Auth >= 1.7) —
+ *   they never appear in options at all.
+ * - A provider with `enabled: false` is dropped.
+ * - A provider whose config is a thunk is awaited, and dropped if it resolves to
+ *   `null`.
+ *
+ * Reading the resolved list instead keeps the login page honest by construction:
+ * if a button renders, `/sign-in/social` will accept its id.
+ *
+ * Order and shadowing follow Better Auth: the first entry for an id wins, which is
+ * how a generic provider shadows a built-in one of the same name.
+ */
+export async function detectSocialProviders(
+  context: AuthContextLike | null | undefined,
+): Promise<DetectedSocialProvider[]> {
+  const entries = context?.socialProviders
+  if (!Array.isArray(entries)) return []
+  const detected: DetectedSocialProvider[] = []
+  const seen = new Set<string>()
+  for (const entry of entries) {
+    if (!entry) continue
+    let provider: { id?: unknown; name?: unknown }
+    try {
+      provider = typeof entry === 'function' ? await entry() : entry
+    } catch {
+      // A thunk that throws is a provider that can't sign anyone in; skip it rather
+      // than lose the rest of the login page.
+      continue
+    }
+    const id = provider?.id
+    if (typeof id !== 'string' || id === '' || seen.has(id)) continue
+    seen.add(id)
+    const name = provider?.name
+    detected.push(typeof name === 'string' && name.trim() !== '' ? { id, name } : { id })
+  }
+  return detected
+}
+
+/**
+ * Resolve the `enableSocial` setting against the detected providers.
  * - `false` / `undefined` -> `[]` (off; the default)
  * - `true`                -> every detected provider, as `{ id, label }`
  * - `string[]`            -> allowlist ∩ detected, in the ALLOWLIST's order; unknown ids dropped
  */
 export function resolveSocialProviders(
   enableSocial: boolean | string[] | undefined,
-  detected: string[],
+  detected: DetectedSocialProvider[],
 ): SocialProvider[] {
   if (!enableSocial) return []
+  const byId = new Map(detected.map((p) => [p.id, p]))
   const ids =
-    enableSocial === true ? detected : enableSocial.filter((id) => detected.includes(id))
+    enableSocial === true ? detected.map((p) => p.id) : enableSocial.filter((id) => byId.has(id))
   const unique = [...new Set(ids)]
-  return unique.map((id) => ({ id, label: socialProviderLabel(id) }))
+  return unique.map((id) => ({ id, label: socialProviderLabel(id, byId.get(id)?.name) }))
 }
 
-/** Human-facing label for a provider id: canonical casing for known ids, else capitalized. */
-export function socialProviderLabel(id: string): string {
+/**
+ * Human-facing label for a provider: canonical casing for ids we know (Better Auth
+ * calls `microsoft` "Microsoft EntraID"; the admin UI says "Microsoft"), then the
+ * provider's own display name — which is how a generic provider configured as
+ * `{ providerId: 'zitadel', name: 'Company SSO' }` reads as "Company SSO" rather
+ * than "Zitadel" — and finally the capitalized id.
+ */
+export function socialProviderLabel(id: string, name?: string): string {
   const known: Record<string, string> = {
     google: 'Google',
     github: 'GitHub',
@@ -231,6 +308,7 @@ export function socialProviderLabel(id: string): string {
     notion: 'Notion',
   }
   if (known[id]) return known[id]
+  if (name && name.trim() !== '') return name.trim()
   if (!id) return id
   return id.charAt(0).toUpperCase() + id.slice(1)
 }

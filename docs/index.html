@@ -792,7 +792,7 @@ details .details-body > :first-child { margin-top: 0; }
   <div class="header-brand">
     <span>payload</span>-better-auth
   </div>
-  <span class="header-badge">v0.11.2</span>
+  <span class="header-badge">v0.11.3</span>
 
   <div class="search-wrap">
     <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -1333,7 +1333,7 @@ strategies: [<span class="hl-func">betterAuthStrategy</span>({ idType: <span cla
               <tr><td><code>admin.login.enableTwoFactorBackupCode</code></td><td><code>'auto'</code></td><td>Offer "use a backup code" on the login form's two-factor step.</td></tr>
               <tr><td><code>admin.login.enableTwoFactorEmailOtp</code></td><td><code>'auto'</code></td><td>Offer "email me a code" on the two-factor step. Requires the <code>twoFactor()</code> plugin's <code>otpOptions</code>. A ceiling only &mdash; the step follows the factors Better Auth reports for the signed-in user, so it opens on the emailed code when they have no authenticator, and never offers a factor they don't hold.</td></tr>
               <tr><td><code>admin.login.magicLinkCallbackURL</code></td><td>&mdash;</td><td>Where the emailed magic link returns. Defaults to <code>afterLoginPath</code>.</td></tr>
-              <tr><td><code>admin.login.enableSocial</code></td><td><code>false</code></td><td>Show social/OAuth provider buttons for providers configured in Better Auth's <code>socialProviders</code>. <code>true</code> shows all configured providers; an array is an allowlist of provider ids. There is no <code>'auto'</code>.</td></tr>
+              <tr><td><code>admin.login.enableSocial</code></td><td><code>false</code></td><td>Show social/OAuth provider buttons for every provider Better Auth resolved &mdash; built-in <code>socialProviders</code> <em>and</em> <code>genericOAuth()</code> (OIDC/SSO) providers. <code>true</code> shows them all; an array is an allowlist of provider ids (a generic provider's <code>providerId</code>). There is no <code>'auto'</code>.</td></tr>
               <tr><td><code>admin.login.socialCallbackURL</code></td><td>&mdash;</td><td>Where a successful social sign-in returns. Defaults to the login page so the role gate runs; errors always return there.</td></tr>
               <tr><td><code>admin.enableManagementUI</code></td><td><code>true</code></td><td>Enable security management views</td></tr>
             </tbody>
@@ -1746,7 +1746,7 @@ admin: {
     enableEmailOtp: <span class="hl-string">'auto'</span>,    <span class="hl-comment">// requires emailOTP() plugin</span>
     enablePassword: <span class="hl-const">false</span>,     <span class="hl-comment">// hide password field (passwordless-only)</span>
     magicLinkCallbackURL: <span class="hl-string">'/admin'</span>,
-    enableSocial: [<span class="hl-string">'google'</span>, <span class="hl-string">'github'</span>], <span class="hl-comment">// opt-in; requires socialProviders configured</span>
+    enableSocial: [<span class="hl-string">'google'</span>, <span class="hl-string">'github'</span>], <span class="hl-comment">// opt-in; socialProviders or genericOAuth ids</span>
   },
 }</code></pre>
 
@@ -1756,7 +1756,20 @@ admin: {
     <div class="section" id="social-login">
       <h3>Social Sign-In</h3>
 
-      <p>Set <code>admin.login.enableSocial</code> to <code>true</code> (all configured providers) or an array of provider ids to surface "Continue with …" buttons on the admin login page. Configure <code>socialProviders</code> in your Better Auth instance as usual — the UI reflects exactly what is configured there.</p>
+      <p>Set <code>admin.login.enableSocial</code> to <code>true</code> (every resolved provider) or an array of provider ids to surface "Continue with …" buttons on the admin login page. Configure <code>socialProviders</code> in your Better Auth instance as usual — the UI reflects what Better Auth actually resolved, so a provider you switched off with <code>enabled: false</code> never gets a button that would fail on click.</p>
+
+      <p><strong>Generic OAuth / OIDC (SSO) providers work too.</strong> Since Better Auth 1.7, <code>genericOAuth()</code> registers its providers as first-class social providers, so a Keycloak, Zitadel, Okta, Auth0 or Entra ID provider appears alongside the built-in ones with no custom login view. Allowlist it by its <code>providerId</code>, and give it a <code>name</code> to control the button label — <code>{ providerId: 'zitadel', name: 'Company SSO' }</code> renders as "Continue with Company SSO". <em>Fixed in v0.11.3 &mdash; before that, generic providers were filtered out.</em></p>
+
+<pre><code>plugins: [
+  genericOAuth({
+    config: [
+      keycloak({ clientId, clientSecret, issuer: process.env.KEYCLOAK_ISSUER }),
+      { providerId: <span class="hl-string">'zitadel'</span>, name: <span class="hl-string">'Company SSO'</span>, clientId, clientSecret, discoveryUrl },
+    ],
+  }),
+],
+<span class="hl-comment">// admin.login</span>
+enableSocial: [<span class="hl-string">'github'</span>, <span class="hl-string">'keycloak'</span>, <span class="hl-string">'zitadel'</span>],</code></pre>
 
       <div class="callout callout-warn">
         <p><strong>Account creation warning:</strong> A social button on the public admin login lets <em>anyone</em> with that provider account create a (non-admin) user row — the role gate blocks admin <em>access</em>, but the row (and any creation hooks) is still created. Set Better Auth's <code>disableImplicitSignUp</code> (per-provider or global) if you don't want open sign-up. This is why <code>enableSocial</code> defaults to <code>false</code>.</p>
