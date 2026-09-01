@@ -54,9 +54,12 @@ export type PermissionCheck = {
 /**
  * Extract API key from request headers.
  *
- * Supports BOTH transports the auth strategy authenticates keys on:
- *   - `x-api-key: <api-key>`
- *   - `Authorization: Bearer <api-key>` (or a bare `Authorization` value)
+ * Reads both headers a key may arrive on:
+ *   - `x-api-key: <api-key>` — what Better Auth's api-key plugin accepts by default
+ *   - `Authorization: Bearer <api-key>` (or a bare `Authorization` value) — only
+ *     authenticated by Better Auth if the app configured the plugin's
+ *     `apiKeyHeaders` / `customAPIKeyGetter`; with a default configuration such a
+ *     request reaches access control with `req.user === null`
  *
  * The `x-api-key` case is security-critical: the strategy (plugin/index.ts)
  * mints `req.user` for keys sent via `x-api-key`, so if this helper only read

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Docs: API keys must be sent as `x-api-key` unless Better Auth is configured otherwise.** The strategy comment and the 0.8.0 changelog entry stated that `betterAuthStrategy` authenticates keys sent via both `x-api-key` and `Authorization: Bearer`. Which header counts as an API key is decided by Better Auth's api-key plugin inside `getSession()`, and by default it reads only `x-api-key`; a `Bearer <key>` request yields no session unless the app sets the plugin's `apiKeyHeaders` or `customAPIKeyGetter` (verified against Better Auth 1.7.1). The code is unchanged — the `authorization` fallback in the strategy and `extractApiKeyFromRequest` still serve apps that configured it — but the comments and docs now say so.
+
+### Added
+
+- **Tests pin the shape of the user `betterAuthStrategy` returns.** Every non-null return now has assertions for `collection` and `_strategy` (cookie/API-key path and OAuth JWT path), and the OAuth JWT path — previously untested — is covered end to end with a mocked `verifyBearerToken`: issuer/audience/JWKS derivation, `oauthScopes` and organization context from claims, and fail-closed behaviour when `baseURL` is missing, verification fails, or the `sub` has no Payload user. Downstream packages now discriminate on `collection` (payload-puck ≥ 0.9.0), so this is guaranteed behaviour rather than incidental.
+
 ## [0.11.3] - 2026-09-01
 
 The admin login page decided which sign-in buttons to render by reading Better
