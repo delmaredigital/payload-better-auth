@@ -5,8 +5,9 @@
  * ("data must be array") whenever the target field validates its shape.
  *
  * Payload's `json` field stores arrays natively, so the adapter reports
- * `supportsArrays: true` and keeps a read-side shim for rows written by earlier
- * releases, which still hold a JSON string where an array belongs. (Issue #34)
+ * `supportsArrays: true` — one shape in the database, no translation layer.
+ * Rows written by earlier releases are converted once by
+ * `migrateStringifiedArrays`. (Issue #34)
  */
 
 import { describe, it, expect } from 'vitest'
@@ -99,9 +100,9 @@ describe('array fields on the read path', () => {
     expect(user?.scores).toEqual([1, 2])
   })
 
-  it('parses rows written by releases that stringified arrays', async () => {
+  it('does not silently reinterpret a stringified row — that is the migration\'s job', async () => {
     const { adapter } = makeAdapter({
-      users: [{ id: 1, email: 'a@example.com', name: 'A', roles: '["wst"]', scores: '[1,2]' }],
+      users: [{ id: 1, email: 'a@example.com', name: 'A', roles: '["wst"]' }],
     })
 
     const user = await adapter.findOne<Record<string, unknown>>({
@@ -109,21 +110,9 @@ describe('array fields on the read path', () => {
       where: [{ field: 'id', value: '1', operator: 'eq' }],
     })
 
-    expect(user?.roles).toEqual(['wst'])
-    expect(user?.scores).toEqual([1, 2])
-  })
-
-  it('leaves a string that is not a serialized array alone rather than nulling it', async () => {
-    const { adapter } = makeAdapter({
-      users: [{ id: 1, email: 'a@example.com', name: 'A', roles: 'not json' }],
-    })
-
-    const user = await adapter.findOne<Record<string, unknown>>({
-      model: 'user',
-      where: [{ field: 'id', value: '1', operator: 'eq' }],
-    })
-
-    expect(user?.roles).toBe('not json')
+    // The adapter reports what Payload holds. Unmigrated data stays visibly
+    // wrong rather than being papered over on every read forever.
+    expect(user?.roles).toBe('["wst"]')
   })
 
   it('does not touch a plain string field that happens to hold JSON', async () => {

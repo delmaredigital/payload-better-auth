@@ -403,9 +403,12 @@ function getSaveToJWT(modelKey: string, fieldName: string): boolean | undefined 
 }
 
 /**
- * Simple pluralization (add 's' suffix)
+ * Simple pluralization (add 's' suffix).
+ *
+ * Exported for `migrateStringifiedArrays`, which has to resolve the same slugs
+ * this generator produces. Not part of the public API.
  */
-function pluralize(name: string): string {
+export function pluralize(name: string): string {
   if (name.endsWith('s')) return name
   return `${name}s`
 }

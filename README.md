@@ -141,6 +141,10 @@ adapter writes real arrays, not serialized ones:
 { name: 'roles', type: 'json' }
 ```
 
+> Upgrading from 0.11.x with the oauth-provider plugin or an array-typed
+> `additionalField`? Those columns hold JSON strings and need converting once —
+> see [Migrating stringified arrays](#migrating-stringified-arrays-0120).
+
 ### 3. Payload Config
 
 ```ts
@@ -251,6 +255,47 @@ Payload's Local API has no `DELETE … RETURNING` or `SET n = n + d`, so the ada
 - **`incrementOne`** reads the row, then writes with a guard that re-asserts both Better Auth's own precondition (e.g. `remaining > 0`) and the counter values the write was computed from. A racing writer's update matches no row, so the loser re-reads and retries (up to five times) instead of clobbering the winner.
 
 **The limit:** Payload resolves a `where` by finding rows and then mutating them, so a narrow window remains between its internal read and write. Under heavy concurrency on the *same row*, a quota decrement can be lost or a token consumed twice. This matches the guarantee Better Auth 1.6 provided for these flows, and is fine for typical traffic — but if you need strict cross-process guarantees for API-key quota, enforce it at the database with a `CHECK` constraint or a unique index rather than relying on the adapter alone.
+
+## Migrating stringified arrays (0.12.0)
+
+Releases up to 0.11.3 reported `supportsArrays: false` to Better Auth, so every
+`string[]` / `number[]` value was `JSON.stringify`'d on its way into Payload.
+Those columns hold `'["a","b"]'` where an array belongs. From 0.12.0 the adapter
+stores arrays natively and reads back what Payload holds, so those rows need
+converting once.
+
+**If you don't use the oauth-provider plugin and have no array-typed
+`additionalFields`, there is nothing to do** — nothing else in Better Auth uses an
+array field.
+
+Otherwise run this once after upgrading, before serving traffic:
+
+```ts
+import { migrateStringifiedArrays } from '@delmaredigital/payload-better-auth'
+import { betterAuthOptions } from './lib/auth/config'
+
+const results = await migrateStringifiedArrays({
+  payload,
+  betterAuthOptions,
+  dryRun: true, // drop this once the report looks right
+})
+console.table(results)
+// [{ collection: 'oauthClients', field: 'redirectUris', scanned: 12, converted: 12, skipped: 0 }, …]
+```
+
+It derives the fields to convert from your own Better Auth schema rather than a
+hardcoded list, so it covers whatever plugins you run, and it's safe to re-run —
+values that are already arrays are left alone, and a string that doesn't parse to
+an array is skipped and counted rather than guessed at.
+
+Left unmigrated, an `oauthClient` row breaks `/oauth2/authorize` for that client:
+Better Auth calls `registered.find(...)` on `redirectUris`, which throws on a
+string. These rows are written once at registration and then only read, so they
+never correct themselves.
+
+If you were working around the old behaviour yourself — writing
+`JSON.stringify(uris)` into these columns, or parsing them back out on read —
+drop that too. After migrating, the column holds one shape.
 
 ---
 

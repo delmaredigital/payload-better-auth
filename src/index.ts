@@ -129,3 +129,10 @@ export type { FirstUserAdminOptions } from './utils/firstUserAdmin.js'
 
 // Better Auth defaults utility
 export { withBetterAuthDefaults } from './utils/betterAuthDefaults.js'
+
+// One-time data migration for the 0.12.0 `supportsArrays` correction
+export { migrateStringifiedArrays } from './utils/migrateStringifiedArrays.js'
+export type {
+  StringifiedArrayMigration,
+  MigrateStringifiedArraysOptions,
+} from './utils/migrateStringifiedArrays.js'
