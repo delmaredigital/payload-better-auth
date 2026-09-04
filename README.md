@@ -10,6 +10,27 @@ Better Auth adapter and plugins for Payload CMS. Enables seamless integration be
   <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fdelmaredigital%2Fdd-starter&project-name=my-payload-site&build-command=pnpm%20run%20ci&env=PAYLOAD_SECRET,BETTER_AUTH_SECRET&stores=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22productSlug%22%3A%22neon%22%2C%22integrationSlug%22%3A%22neon%22%7D%2C%7B%22type%22%3A%22blob%22%7D%5D"><img src="https://vercel.com/button" alt="Deploy with Vercel" height="32"></a>
 </p>
 
+> ⚠️ **Upgrading to 0.12? Array-typed fields changed shape on disk.**
+>
+> Releases up to 0.11.3 reported `supportsArrays: false` to Better Auth, so every `string[]` / `number[]` value was `JSON.stringify`'d on its way into Payload — those columns hold `'["a","b"]'` where an array belongs. 0.12.0 stores arrays natively and reads back what Payload holds, with no translation layer, so existing rows need converting once.
+>
+> **If you don't use the oauth-provider plugin and have no array-typed `additionalFields`, there is nothing to do** — nothing else in Better Auth uses an array field.
+>
+> Otherwise run the shipped migration once after upgrading, before serving traffic, and drop any workaround of your own (`JSON.stringify` on write, tolerant parse on read) — after migrating, the column holds one shape:
+>
+> ```ts
+> import { migrateStringifiedArrays } from '@delmaredigital/payload-better-auth'
+>
+> const results = await migrateStringifiedArrays({
+>   payload,
+>   betterAuthOptions,
+>   dryRun: true, // drop this once the report looks right
+> })
+> console.table(results)
+> ```
+>
+> Left unmigrated, an `oauthClient` row breaks `/oauth2/authorize` for that client — Better Auth calls `registered.find(...)` on `redirectUris`, which throws on a string. These rows are written once at registration and then only read, so they never correct themselves. Full details: [Migrating stringified arrays](#migrating-stringified-arrays-0120).
+
 > ⚠️ **Upgrading to 0.11? Better Auth 1.7 is now required, and it needs a database migration.**
 >
 > 1. **Upgrade the peers together** — `better-auth@^1.7`, plus `@better-auth/api-key` / `@better-auth/passkey` at the same major if you use them. 1.6 is no longer supported: 1.7 requires two new adapter methods, and a 1.6 install would throw at runtime.

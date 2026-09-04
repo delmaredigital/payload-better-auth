@@ -883,6 +883,27 @@ details .details-body > :first-child { margin-top: 0; }
     <!-- ═══════ UPGRADING ═══════ -->
     <div class="section" id="upgrading">
       <div class="callout callout-warn">
+        <p><strong>Upgrading to 0.12? Array-typed fields changed shape on disk.</strong></p>
+
+        <p style="margin-top:8px">Releases up to 0.11.3 reported <code>supportsArrays: false</code> to Better Auth, so every <code>string[]</code> / <code>number[]</code> value was <code>JSON.stringify</code>'d on its way into Payload &mdash; those columns hold <code>'["a","b"]'</code> where an array belongs. 0.12.0 stores arrays natively and reads back what Payload holds, with no translation layer, so existing rows need converting once.</p>
+
+        <p style="margin-top:8px"><strong>If you don't use the oauth-provider plugin and have no array-typed <code>additionalFields</code>, there is nothing to do</strong> &mdash; nothing else in Better Auth uses an array field.</p>
+
+        <p style="margin-top:8px">Otherwise run the shipped migration once after upgrading, before serving traffic, and drop any workaround of your own (<code>JSON.stringify</code> on write, tolerant parse on read) &mdash; after migrating, the column holds one shape:</p>
+
+        <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import</span> { <span class="hl-func">migrateStringifiedArrays</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth'</span>
+
+<span class="hl-keyword">const</span> results = <span class="hl-keyword">await</span> <span class="hl-func">migrateStringifiedArrays</span>({
+  payload,
+  betterAuthOptions,
+  dryRun: <span class="hl-const">true</span>, <span class="hl-comment">// drop this once the report looks right</span>
+})
+<span class="hl-type">console</span>.<span class="hl-func">table</span>(results)</code></pre>
+
+        <p style="margin-top:8px">Left unmigrated, an <code>oauthClient</code> row breaks <code>/oauth2/authorize</code> for that client &mdash; Better Auth calls <code>registered.find(...)</code> on <code>redirectUris</code>, which throws on a string. These rows are written once at registration and then only read, so they never correct themselves.</p>
+      </div>
+
+      <div class="callout callout-warn">
         <p><strong>Upgrading to 0.11? Better Auth 1.7 is now required, and it needs a database migration.</strong></p>
 
         <p style="margin-top:8px"><strong>1. Upgrade the peers together</strong> &mdash; <code>better-auth@^1.7</code>, plus <code>@better-auth/api-key</code> / <code>@better-auth/passkey</code> at the same major if you use them. 1.6 is no longer supported: 1.7 requires two new adapter methods, and a 1.6 install throws at runtime.</p>
