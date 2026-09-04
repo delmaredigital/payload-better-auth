@@ -10,13 +10,13 @@ Better Auth adapter and plugins for Payload CMS. Enables seamless integration be
   <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fdelmaredigital%2Fdd-starter&project-name=my-payload-site&build-command=pnpm%20run%20ci&env=PAYLOAD_SECRET,BETTER_AUTH_SECRET&stores=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22productSlug%22%3A%22neon%22%2C%22integrationSlug%22%3A%22neon%22%7D%2C%7B%22type%22%3A%22blob%22%7D%5D"><img src="https://vercel.com/button" alt="Deploy with Vercel" height="32"></a>
 </p>
 
-> ⚠️ **Upgrading to 0.12? Array-typed fields changed shape on disk.**
+> ⚠️ **Upgrading to 0.12? Array-typed fields changed shape on disk. Use 0.12.1 or later.**
 >
-> Releases up to 0.11.3 reported `supportsArrays: false` to Better Auth, so every `string[]` / `number[]` value was `JSON.stringify`'d on its way into Payload — those columns hold `'["a","b"]'` where an array belongs. 0.12.0 stores arrays natively and reads back what Payload holds, with no translation layer, so existing rows need converting once.
+> Releases up to 0.11.3 reported `supportsArrays: false` to Better Auth, so every `string[]` / `number[]` value was `JSON.stringify`'d on its way into Payload — those columns hold `'["a","b"]'` where an array belongs. 0.12.0 stores arrays natively, so existing rows need converting once.
 >
 > **If you don't use the oauth-provider plugin and have no array-typed `additionalFields`, there is nothing to do** — nothing else in Better Auth uses an array field.
 >
-> Otherwise run the shipped migration once after upgrading, before serving traffic, and drop any workaround of your own (`JSON.stringify` on write, tolerant parse on read) — after migrating, the column holds one shape:
+> Otherwise run the migration, **then verify, then remove any workaround of your own** — in that order:
 >
 > ```ts
 > import { migrateStringifiedArrays } from '@delmaredigital/payload-better-auth'
@@ -29,7 +29,9 @@ Better Auth adapter and plugins for Payload CMS. Enables seamless integration be
 > console.table(results)
 > ```
 >
-> Left unmigrated, an `oauthClient` row breaks `/oauth2/authorize` for that client — Better Auth calls `registered.find(...)` on `redirectUris`, which throws on a string. These rows are written once at registration and then only read, so they never correct themselves. Full details: [Migrating stringified arrays](#migrating-stringified-arrays-0120).
+> **On 0.12.0 this reported `converted: 0` against databases that were not clean** — on Postgres the ORM parses stored strings into arrays on read, hiding them. 0.12.1 censuses the stored shape in SQL instead. If you ran the 0.12.0 migration, re-run it on 0.12.1, and check each row says `observedVia: 'stored-shape'`.
+>
+> Confirm with the database itself before dropping any tolerant parsing you added — `SELECT jsonb_typeof(scopes), count(*) FROM oauth_access_tokens GROUP BY 1;` should show no `string` rows. Full details: [Migrating stringified arrays](#migrating-stringified-arrays-0120).
 
 > ⚠️ **Upgrading to 0.11? Better Auth 1.7 is now required, and it needs a database migration.**
 >
@@ -282,14 +284,22 @@ Payload's Local API has no `DELETE … RETURNING` or `SET n = n + d`, so the ada
 Releases up to 0.11.3 reported `supportsArrays: false` to Better Auth, so every
 `string[]` / `number[]` value was `JSON.stringify`'d on its way into Payload.
 Those columns hold `'["a","b"]'` where an array belongs. From 0.12.0 the adapter
-stores arrays natively and reads back what Payload holds, so those rows need
-converting once.
+stores arrays natively, so those rows need converting once.
 
 **If you don't use the oauth-provider plugin and have no array-typed
 `additionalFields`, there is nothing to do** — nothing else in Better Auth uses an
 array field.
 
-Otherwise run this once after upgrading, before serving traffic:
+**Use 0.12.1 or later.** On 0.12.0 this migration was a silent no-op on Postgres:
+it reported `converted: 0` against databases that were not clean. Payload writes
+these fields to a `jsonb` column, so a stringified value is stored as a *jsonb
+string*; on read node-postgres parses the jsonb and hands drizzle a JS string,
+and drizzle's `PgJsonb.mapFromDriverValue` parses it a second time. The stored
+string becomes an array before Payload sees it, so a stringified row and a native
+one are indistinguishable through `payload.find()`. 0.12.1 censuses the stored
+shape in SQL instead. If you ran the 0.12.0 migration, re-run it.
+
+### 1. Migrate
 
 ```ts
 import { migrateStringifiedArrays } from '@delmaredigital/payload-better-auth'
@@ -301,22 +311,55 @@ const results = await migrateStringifiedArrays({
   dryRun: true, // drop this once the report looks right
 })
 console.table(results)
-// [{ collection: 'oauthClients', field: 'redirectUris', scanned: 12, converted: 12, skipped: 0 }, …]
+// [{ collection: 'oauthClients', field: 'redirectUris', scanned: 12,
+//    converted: 12, skipped: 0, observedVia: 'stored-shape' }, …]
 ```
 
 It derives the fields to convert from your own Better Auth schema rather than a
 hardcoded list, so it covers whatever plugins you run, and it's safe to re-run —
-values that are already arrays are left alone, and a string that doesn't parse to
+values already stored as arrays are left alone, and a string that doesn't parse to
 an array is skipped and counted rather than guessed at.
 
-Left unmigrated, an `oauthClient` row breaks `/oauth2/authorize` for that client:
-Better Auth calls `registered.find(...)` on `redirectUris`, which throws on a
-string. These rows are written once at registration and then only read, so they
-never correct themselves.
+Read `observedVia` alongside `converted`. On Postgres it must say `stored-shape`;
+`local-api` there would mean the count came from the laundered value and is not
+trustworthy. If the stored shape can't be inspected at all, the migration throws
+rather than reporting a clean database.
 
-If you were working around the old behaviour yourself — writing
-`JSON.stringify(uris)` into these columns, or parsing them back out on read —
-drop that too. After migrating, the column holds one shape.
+### 2. Verify against the database
+
+`converted: 0` is only good news if the census could see the stored shape. Confirm
+independently:
+
+```sql
+SELECT jsonb_typeof(scopes) AS shape, count(*)
+FROM oauth_access_tokens GROUP BY 1;
+```
+
+You want only `array` (and `null`). Any `string` rows are unconverted. To fix them
+outside the plugin:
+
+```sql
+UPDATE oauth_access_tokens
+SET scopes = (scopes #>> '{}')::jsonb
+WHERE jsonb_typeof(scopes) = 'string';
+```
+
+### 3. Only then, remove your own workarounds
+
+If you were writing `JSON.stringify(uris)` into these columns, or parsing them back
+out on read, drop that — after migrating, the column holds one shape.
+
+**Do this last, and only after step 2 reads clean.** Removing a tolerant parse
+while unconverted rows remain is what turns this into an incident: raw SQL reads
+carry no column type, so they bypass drizzle's mapper and still see the string.
+Code that reads `redirect_uris` via `drizzle.execute(sql`…`)` — a DCR connector
+gate, a consent screen — would get `[]` from an unconverted row. For a
+redirect-URI allowlist that's a hard lockout of a legitimate connector.
+
+That raw-SQL path is also the real exposure of leaving rows unmigrated. Better
+Auth's own reads go through Payload, where the double-parse launders the value, so
+`/oauth2/authorize` keeps working — the damage is confined to code that queries
+these columns directly.
 
 ---
 

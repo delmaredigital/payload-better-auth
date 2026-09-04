@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-09-04
+
+`migrateStringifiedArrays()` was a silent no-op on Postgres, and its `converted: 0`
+read as "your database is clean". Combined with 0.12.0's advice to then delete your
+own tolerant parsing, that could take a legitimate OAuth connector offline. Thanks
+to the reporter who measured this against a live database and traced the cause.
+
+### Fixed
+
+- **`migrateStringifiedArrays()` now censuses the stored shape on Postgres instead of the value the ORM returns.** Payload writes these fields to a `jsonb` column, so a stringified value is stored as a *jsonb string*. On read, node-postgres parses the jsonb and hands drizzle a JS string — and drizzle's `PgJsonb.mapFromDriverValue` runs `JSON.parse` on any string it receives (a guard for drivers that return raw text). That second parse turns the stored string back into an array before Payload sees it, so a stringified row and a native one are **indistinguishable** through `payload.find()`. The migration's `typeof value === 'string'` check could therefore never fire: it reported `scanned: 207, converted: 0` against a database with 62 genuinely stringified rows. The census now runs in SQL against `jsonb_typeof`, which reports what is actually stored.
+
+  SQLite and MongoDB were never affected — SQLite stores json as TEXT and drizzle parses it exactly once, MongoDB stores the value verbatim — so on those backends the Local API is faithful and is still used.
+
+- **Results carry `observedVia`** (`'stored-shape' | 'local-api'`), so a `converted: 0` is interpretable. "We inspected the columns and they were clean" and "we could not observe the stored shape" are different facts and printed identically before.
+
+- **It throws instead of reporting a clean database it could not inspect.** If the Postgres adapter doesn't expose drizzle, or a collection's table can't be resolved, that is now a hard error naming the collection and field rather than a `converted: 0`.
+
+### Changed
+
+- **Corrected the 0.12.0 claim that an unmigrated row breaks `/oauth2/authorize`.** It doesn't, on Postgres — the same double-parse launders the value before Better Auth sees it, so `findRegisteredRedirectUri` receives an array and works. The real exposure is narrower: **code that reads these columns with raw SQL**, which carries no column type and so bypasses drizzle's mapper entirely and sees the string. A DCR connector gate or consent screen reading `redirect_uris` via `drizzle.execute(sql\`…\`)` is the case that matters.
+
+- **Reordered the upgrade guidance so the workaround removal comes last**, after the migration has been verified against the stored shape. 0.12.0 had it the other way round, which is what turned a false negative into a lockout: `converted: 0` → conclude there is nothing to convert → delete the tolerant parse → every raw-SQL read of an unconverted row returns `[]`. For a redirect-URI allowlist that is a hard lockout of a legitimate connector.
+
+### Upgrading
+
+If you already ran the 0.12.0 migration and saw `converted: 0` on Postgres, **re-run it** — that result was not trustworthy. Confirm each row reports `observedVia: 'stored-shape'`, and verify independently before removing any tolerant parsing of your own:
+
+```sql
+SELECT jsonb_typeof(scopes) AS shape, count(*)
+FROM oauth_access_tokens GROUP BY 1;
+```
+
+`string` rows are unconverted; you want only `array` (and `null`). If you need to convert by hand, or outside the plugin:
+
+```sql
+UPDATE oauth_access_tokens
+SET scopes = (scopes #>> '{}')::jsonb
+WHERE jsonb_typeof(scopes) = 'string';
+```
+
+Only after that census reads clean should you drop your own `JSON.stringify`-on-write or tolerant-parse-on-read.
+
 ## [0.12.0] - 2026-09-04
 
 Array-typed fields were being written to Payload as JSON strings. The adapter now

@@ -883,13 +883,13 @@ details .details-body > :first-child { margin-top: 0; }
     <!-- ═══════ UPGRADING ═══════ -->
     <div class="section" id="upgrading">
       <div class="callout callout-warn">
-        <p><strong>Upgrading to 0.12? Array-typed fields changed shape on disk.</strong></p>
+        <p><strong>Upgrading to 0.12? Array-typed fields changed shape on disk. Use 0.12.1 or later.</strong></p>
 
-        <p style="margin-top:8px">Releases up to 0.11.3 reported <code>supportsArrays: false</code> to Better Auth, so every <code>string[]</code> / <code>number[]</code> value was <code>JSON.stringify</code>'d on its way into Payload &mdash; those columns hold <code>'["a","b"]'</code> where an array belongs. 0.12.0 stores arrays natively and reads back what Payload holds, with no translation layer, so existing rows need converting once.</p>
+        <p style="margin-top:8px">Releases up to 0.11.3 reported <code>supportsArrays: false</code> to Better Auth, so every <code>string[]</code> / <code>number[]</code> value was <code>JSON.stringify</code>'d on its way into Payload &mdash; those columns hold <code>'["a","b"]'</code> where an array belongs. 0.12.0 stores arrays natively, so existing rows need converting once.</p>
 
         <p style="margin-top:8px"><strong>If you don't use the oauth-provider plugin and have no array-typed <code>additionalFields</code>, there is nothing to do</strong> &mdash; nothing else in Better Auth uses an array field.</p>
 
-        <p style="margin-top:8px">Otherwise run the shipped migration once after upgrading, before serving traffic, and drop any workaround of your own (<code>JSON.stringify</code> on write, tolerant parse on read) &mdash; after migrating, the column holds one shape:</p>
+        <p style="margin-top:8px">Otherwise: migrate, <strong>then verify, then remove any workaround of your own</strong> &mdash; in that order.</p>
 
         <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">import</span> { <span class="hl-func">migrateStringifiedArrays</span> } <span class="hl-keyword">from</span> <span class="hl-string">'@delmaredigital/payload-better-auth'</span>
 
@@ -900,7 +900,9 @@ details .details-body > :first-child { margin-top: 0; }
 })
 <span class="hl-type">console</span>.<span class="hl-func">table</span>(results)</code></pre>
 
-        <p style="margin-top:8px">Left unmigrated, an <code>oauthClient</code> row breaks <code>/oauth2/authorize</code> for that client &mdash; Better Auth calls <code>registered.find(...)</code> on <code>redirectUris</code>, which throws on a string. These rows are written once at registration and then only read, so they never correct themselves.</p>
+        <p style="margin-top:8px"><strong>On 0.12.0 this reported <code>converted: 0</code> against databases that were not clean.</strong> Payload writes these fields to a <code>jsonb</code> column, so a stringified value is stored as a <em>jsonb string</em>; on read node-postgres parses the jsonb and drizzle's <code>PgJsonb.mapFromDriverValue</code> parses it a second time, so the stored string reaches Payload as an array and is indistinguishable from a native one. 0.12.1 censuses the stored shape in SQL instead. If you ran the 0.12.0 migration, re-run it, and check each row reports <code>observedVia: 'stored-shape'</code>.</p>
+
+        <p style="margin-top:8px">Verify against the database before dropping any tolerant parsing you added &mdash; <code>SELECT jsonb_typeof(scopes), count(*) FROM oauth_access_tokens GROUP BY 1;</code> should show no <code>string</code> rows. Removing a tolerant parse while unconverted rows remain is what turns this into an incident: raw SQL carries no column type, so it bypasses drizzle's mapper and still sees the string. Better Auth's own reads go through Payload and are laundered, so <code>/oauth2/authorize</code> keeps working &mdash; the damage is confined to code that queries these columns directly.</p>
       </div>
 
       <div class="callout callout-warn">
