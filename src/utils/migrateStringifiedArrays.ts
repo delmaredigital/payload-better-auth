@@ -103,14 +103,27 @@ type DrizzleAdapterish = {
 }
 
 /**
- * Rows whose stored jsonb is a *string*, with the string's contents extracted.
- * `#>> '{}'` returns the scalar's text without the surrounding JSON quoting.
+ * Inline a value the database itself gave us as a SQL literal. Only ever used for
+ * an `id` read back from the row we are paging past.
  */
-async function censusPostgres(
+function sqlLiteral(value: string | number): string {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      throw new Error(`[migrateStringifiedArrays] refusing to page on a non-finite id: ${value}`)
+    }
+    return String(value)
+  }
+  return `'${value.replace(/'/g, "''")}'`
+}
+
+type PostgresTarget = { table: string; columns: Map<string, string> }
+
+/** Resolve a collection's real table and the database name of each array column. */
+function resolvePostgresTarget(
   payload: BasePayload,
   slug: string,
-  field: string
-): Promise<Array<{ id: string | number; raw: string }>> {
+  fields: string[]
+): PostgresTarget {
   const db = payload.db as unknown as DrizzleAdapterish
 
   if (typeof db.execute !== 'function' || !db.drizzle || !db.tables || !db.tableNameMap) {
@@ -118,7 +131,7 @@ async function censusPostgres(
       `[migrateStringifiedArrays] cannot inspect stored shape on Postgres: the Payload database ` +
         `adapter does not expose drizzle (needed because the ORM parses stored strings into arrays ` +
         `on read, hiding what is actually in the column). Upgrade @payloadcms/db-postgres, or ` +
-        `migrate '${slug}.${field}' by hand — see the 0.12.1 CHANGELOG for the SQL.`
+        `migrate '${slug}' by hand — see the CHANGELOG for the SQL.`
     )
   }
 
@@ -131,19 +144,68 @@ async function censusPostgres(
     )
   }
 
-  // The drizzle column knows its real database name; fall back to Payload's convention.
-  const columnName = table[field]?.name ?? toSnakeCase(field)
+  const columns = new Map<string, string>()
+  for (const field of fields) {
+    // The drizzle column knows its real database name; fall back to Payload's convention.
+    const columnName = table[field]?.name ?? toSnakeCase(field)
+    columns.set(field, assertSafeIdentifier(columnName, 'column name'))
+  }
 
-  const t = assertSafeIdentifier(tableName, 'table name')
-  const c = assertSafeIdentifier(columnName, 'column name')
+  return { table: assertSafeIdentifier(tableName, 'table name'), columns }
+}
 
-  const result = (await db.execute({
-    drizzle: db.drizzle,
-    raw: `SELECT "id", "${c}" #>> '{}' AS "__raw" FROM "${t}" WHERE jsonb_typeof("${c}") = 'string'`,
-  })) as { rows?: Array<{ id: string | number; __raw: string }> } | Array<{ id: string | number; __raw: string }>
+/**
+ * Page over the rows of one table whose stored jsonb is a *string*, for every
+ * array field at once.
+ *
+ * All of a table's array columns are censused in a single scan — a provider's
+ * `oauthAccessTokens` carries several, and scanning once per field would read the
+ * table several times over.
+ *
+ * Paging is keyset on `id`, not `OFFSET`: converting a row makes it stop matching
+ * `jsonb_typeof(...) = 'string'`, so an offset would step over rows as the result
+ * set shrinks underneath it. Rows we skip stay matching, which an offset would
+ * also mishandle. Advancing past the last id we handled is correct for both.
+ */
+async function* censusPostgres(
+  payload: BasePayload,
+  target: PostgresTarget,
+  batchSize: number
+): AsyncGenerator<{ id: string | number; values: Map<string, string> }> {
+  const db = payload.db as unknown as DrizzleAdapterish
+  const entries = [...target.columns.entries()]
 
-  const rows = Array.isArray(result) ? result : (result?.rows ?? [])
-  return rows.map((r) => ({ id: r.id, raw: r.__raw }))
+  // `#>> '{}'` returns a jsonb scalar's text without its JSON quoting.
+  const projection = entries
+    .map(([, col], i) => `CASE WHEN jsonb_typeof("${col}") = 'string' THEN "${col}" #>> '{}' END AS "c${i}"`)
+    .join(', ')
+  const predicate = entries.map(([, col]) => `jsonb_typeof("${col}") = 'string'`).join(' OR ')
+
+  let cursor: string | number | undefined
+
+  for (;;) {
+    const after = cursor === undefined ? '' : ` AND "id" > ${sqlLiteral(cursor)}`
+    const raw =
+      `SELECT "id", ${projection} FROM "${target.table}" ` +
+      `WHERE (${predicate})${after} ORDER BY "id" LIMIT ${batchSize}`
+
+    const result = (await db.execute!({ drizzle: db.drizzle, raw })) as
+      | { rows?: Array<Record<string, unknown>> }
+      | Array<Record<string, unknown>>
+    const rows = Array.isArray(result) ? result : (result?.rows ?? [])
+
+    for (const row of rows) {
+      const values = new Map<string, string>()
+      entries.forEach(([field], i) => {
+        const v = row[`c${i}`]
+        if (typeof v === 'string') values.set(field, v)
+      })
+      cursor = row.id as string | number
+      if (values.size > 0) yield { id: cursor, values }
+    }
+
+    if (rows.length < batchSize) return
+  }
 }
 
 /**
@@ -198,78 +260,83 @@ export async function migrateStringifiedArrays({
     // A collection the consumer skipped (or hasn't generated) has nothing of ours in it.
     if (!payload.collections?.[slug]) continue
 
-    for (const field of arrayFields) {
-      const result: StringifiedArrayMigration = {
-        collection: slug,
+    const perField = new Map<string, StringifiedArrayMigration>(
+      arrayFields.map((field) => [
         field,
-        scanned: 0,
-        converted: 0,
-        skipped: 0,
-        observedVia,
-      }
+        { collection: slug, field, scanned: 0, converted: 0, skipped: 0, observedVia },
+      ])
+    )
 
-      const convert = async (id: string | number, raw: string) => {
+    /**
+     * Turn one row's stringified values into arrays. Every field converted on a
+     * row is written in a single update rather than one write per field.
+     */
+    const convertRow = async (id: string | number, values: Map<string, string>) => {
+      const data: Record<string, unknown> = {}
+
+      for (const [field, raw] of values) {
+        const stat = perField.get(field)!
         let parsed: unknown
         try {
           parsed = JSON.parse(raw)
         } catch {
-          result.skipped++
-          return
+          stat.skipped++
+          continue
         }
         if (!Array.isArray(parsed)) {
-          result.skipped++
-          return
+          stat.skipped++
+          continue
         }
-
-        result.converted++
+        data[field] = parsed
+        stat.converted++
         onProgress?.({ collection: slug, field, id })
-
-        if (!dryRun) {
-          await payload.update({
-            collection: slug,
-            id,
-            data: { [field]: parsed },
-            depth: 0,
-            overrideAccess: true,
-          })
-        }
       }
 
-      if (observedVia === 'stored-shape') {
-        const total = await payload.count({ collection: slug, overrideAccess: true })
-        result.scanned = total.totalDocs
-
-        for (const { id, raw } of await censusPostgres(payload, slug, field)) {
-          await convert(id, raw)
-        }
-      } else {
-        let page = 1
-        let hasNextPage = true
-
-        while (hasNextPage) {
-          const { docs, hasNextPage: more } = await payload.find({
-            collection: slug,
-            limit: batchSize,
-            page,
-            depth: 0,
-            sort: 'id',
-            overrideAccess: true,
-            pagination: true,
-          })
-
-          for (const doc of docs as Array<Record<string, unknown> & { id: string | number }>) {
-            result.scanned++
-            const value = doc[field]
-            if (typeof value === 'string') await convert(doc.id, value)
-          }
-
-          hasNextPage = more
-          page++
-        }
+      if (!dryRun && Object.keys(data).length > 0) {
+        await payload.update({ collection: slug, id, data, depth: 0, overrideAccess: true })
       }
-
-      results.push(result)
     }
+
+    if (observedVia === 'stored-shape') {
+      // The census reads only matching rows, but its predicate evaluated them all.
+      const { totalDocs } = await payload.count({ collection: slug, overrideAccess: true })
+      for (const stat of perField.values()) stat.scanned = totalDocs
+
+      const target = resolvePostgresTarget(payload, slug, arrayFields)
+      for await (const row of censusPostgres(payload, target, batchSize)) {
+        await convertRow(row.id, row.values)
+      }
+    } else {
+      let page = 1
+      let hasNextPage = true
+
+      while (hasNextPage) {
+        const { docs, hasNextPage: more } = await payload.find({
+          collection: slug,
+          limit: batchSize,
+          page,
+          depth: 0,
+          sort: 'id',
+          overrideAccess: true,
+          pagination: true,
+        })
+
+        for (const doc of docs as Array<Record<string, unknown> & { id: string | number }>) {
+          const values = new Map<string, string>()
+          for (const field of arrayFields) {
+            perField.get(field)!.scanned++
+            const value = doc[field]
+            if (typeof value === 'string') values.set(field, value)
+          }
+          if (values.size > 0) await convertRow(doc.id, values)
+        }
+
+        hasNextPage = more
+        page++
+      }
+    }
+
+    results.push(...perField.values())
   }
 
   return results

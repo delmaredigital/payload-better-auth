@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.2] - 2026-09-04
+
+Performance and correctness of the Postgres census in `migrateStringifiedArrays()`.
+No behaviour change to what it converts. Thanks again to the downstream reporter,
+who read the 0.12.1 implementation and found all three of these.
+
+### Fixed
+
+- **The Postgres census pages instead of materializing the whole result set.** It selected every matching row with no `LIMIT` and built one array before converting any of them. In a pre-0.12 database *every* row is stringified, so the worst case was an entire table in memory — and `oauthAccessTokens` is the table most likely to be large in a real provider. It now pages at `batchSize`.
+
+- **`batchSize` is honoured on Postgres.** It was documented but only ever applied to the SQLite/MongoDB path, so passing it on Postgres silently did nothing.
+
+- **Paging is keyset on `id`, not `OFFSET`.** Converting a row makes it stop matching `jsonb_typeof(...) = 'string'`, so the result set shrinks underneath the walk and an offset would step over rows. Rows that are skipped (a string that doesn't parse to an array) stay matching, which an offset would also mishandle. Advancing past the last handled id is correct for both, and terminates even when every row in a page is skipped.
+
+### Changed
+
+- **All of a table's array columns are censused in one scan.** `oauthClients` carries seven `string[]` columns and was read seven times over; it is now read once, with each column projected through its own `CASE WHEN jsonb_typeof(...)`.
+
+- **One update per row rather than one per converted field.** A row with several stringified columns was written once per column, each firing Payload's hooks again.
+
 ## [0.12.1] - 2026-09-04
 
 `migrateStringifiedArrays()` was a silent no-op on Postgres, and its `converted: 0`
