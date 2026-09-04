@@ -131,6 +131,16 @@ export const Users: CollectionConfig = {
 }
 ```
 
+Every `additionalFields` entry needs a matching field here. Scalars map to the
+obvious Payload type; an array-typed one (`string[]` / `number[]`) needs a field
+that stores an array — `json`, or `select` with `hasMany: true` — because the
+adapter writes real arrays, not serialized ones:
+
+```ts
+// better auth: roles: { type: 'string[]' }
+{ name: 'roles', type: 'json' }
+```
+
 ### 3. Payload Config
 
 ```ts

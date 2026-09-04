@@ -91,6 +91,36 @@ export function resolveIdType(dbType: DbType, options: BetterAuthOptions, explic
   return 'number'
 }
 
+/**
+ * Read-side tolerance for rows written before `supportsArrays: true`.
+ *
+ * Releases up to 0.11.3 reported `supportsArrays: false`, so the adapter factory
+ * JSON.stringify'd every `string[]`/`number[]` value on the way into Payload. Those rows are still on disk holding `'["a","b"]'` where an array
+ * belongs, and the factory only parses them back when `supportsArrays` is false.
+ *
+ * Parsing here keeps those documents readable. A value that is already an array
+ * — everything written from this release onward — passes through untouched, and
+ * a string that does not parse to an array is returned as-is rather than
+ * silently replaced with null.
+ */
+function parseLegacyStringifiedArray({
+  data,
+  fieldAttributes,
+}: {
+  data: unknown
+  fieldAttributes: { type?: unknown }
+}): unknown {
+  if (typeof data !== 'string') return data
+  if (fieldAttributes?.type !== 'string[]' && fieldAttributes?.type !== 'number[]') return data
+
+  try {
+    const parsed: unknown = JSON.parse(data)
+    return Array.isArray(parsed) ? parsed : data
+  } catch {
+    return data
+  }
+}
+
 export type PayloadAdapterConfig = {
   /**
    * The Payload instance or a function that returns it.
@@ -277,9 +307,17 @@ export function payloadAdapter({
       supportsDates: false,
       supportsBooleans: true,
       supportsJSON: true,
-      supportsArrays: false,
+      // Payload stores arrays natively in `json` fields, so `string[]`/`number[]`
+      // values must reach it as real arrays. Leaving this false makes the factory
+      // JSON.stringify them, which Payload rejects ("data must be array") whenever
+      // the target field validates its shape.
+      supportsArrays: true,
       // Payload doesn't expose transaction API at collection level
       transaction: false,
+      // Rows written before arrays were stored natively hold a JSON string where
+      // an array belongs. With supportsArrays: true the factory no longer parses
+      // those, so we do it here on the way out.
+      customTransformOutput: parseLegacyStringifiedArray,
       // Enable debug logs if configured
       debugLogs: enableDebugLogs,
     }

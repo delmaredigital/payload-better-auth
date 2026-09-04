@@ -433,8 +433,10 @@ function mapFieldType(
     case 'object':
       return 'json'
     case 'string[]':
+    case 'number[]':
     case 'array':
-      return 'json' // Payload doesn't have native string array, use JSON
+      // Payload has no native scalar-array field; `json` stores them natively.
+      return 'json'
     default:
       return 'text'
   }

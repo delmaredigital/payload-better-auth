@@ -1023,6 +1023,7 @@ GOOGLE_CLIENT_SECRET=...</code></pre>
 }</code></pre>
           <div class="callout callout-note">
             <p>Plugin-specific fields (e.g., <code>twoFactorEnabled</code> for 2FA) are <strong>automatically added</strong> to your Users collection by <code>betterAuthCollections()</code>.</p>
+            <p>Every <code>additionalFields</code> entry needs a matching field here. An array-typed one (<code>string[]</code> / <code>number[]</code>) needs a field that stores an array &mdash; <code>json</code>, or <code>select</code> with <code>hasMany: true</code> &mdash; because the adapter writes real arrays, not serialized ones.</p>
           </div>
         </div>
 

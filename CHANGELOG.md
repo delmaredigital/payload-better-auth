@@ -9,11 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Array-typed fields reach Payload as arrays, not JSON strings** ([#34](https://github.com/allandelmare/payload-better-auth/issues/34)). Better Auth 1.7 split `supportsArrays` out of `supportsJSON`, and this adapter kept reporting `supportsArrays: false` — so the adapter factory `JSON.stringify`'d every `string[]` / `number[]` value on its way into Payload. A user `additionalFields: { roles: { type: 'string[]' } }` backed by a field that validates its shape failed the write outright (`ValidationError: data must be array`), and everything that did save landed as `'["a","b"]'` where an array belonged: unqueryable, and rendered as a quoted string in the admin UI. That hit the oauth-provider plugin's own generated tables hardest — `redirectUris`, `scopes`, `grantTypes`, `responseTypes`, `contacts` and `resources` are all `string[]`. Payload's `json` field stores arrays natively, so the adapter now says so.
+- **`number[]` fields generate a `json` collection field.** `mapFieldType` handled `string[]` but let `number[]` fall through to `text`, which only worked because arrays were being stringified on the way in. Both now map to `json`. No Better Auth table ships a `number[]` field today, so no generated collection changes shape — this affects `additionalFields` only.
 - **Docs: API keys must be sent as `x-api-key` unless Better Auth is configured otherwise.** The strategy comment and the 0.8.0 changelog entry stated that `betterAuthStrategy` authenticates keys sent via both `x-api-key` and `Authorization: Bearer`. Which header counts as an API key is decided by Better Auth's api-key plugin inside `getSession()`, and by default it reads only `x-api-key`; a `Bearer <key>` request yields no session unless the app sets the plugin's `apiKeyHeaders` or `customAPIKeyGetter` (verified against Better Auth 1.7.1). The code is unchanged — the `authorization` fallback in the strategy and `extractApiKeyFromRequest` still serve apps that configured it — but the comments and docs now say so.
 
 ### Added
 
+- **Read-side tolerance for arrays written by earlier releases.** Rows already on disk hold a JSON string where an array belongs, and the factory only parsed those back while `supportsArrays` was false. The adapter now parses them itself on the way out, so **no migration or backfill is required** — existing documents keep reading correctly and are rewritten as real arrays the next time Better Auth updates them. A value that is already an array passes through untouched, and a string that doesn't parse to an array is returned as-is rather than replaced with `null`.
 - **Tests pin the shape of the user `betterAuthStrategy` returns.** Every non-null return now has assertions for `collection` and `_strategy` (cookie/API-key path and OAuth JWT path), and the OAuth JWT path — previously untested — is covered end to end with a mocked `verifyBearerToken`: issuer/audience/JWKS derivation, `oauthScopes` and organization context from claims, and fail-closed behaviour when `baseURL` is missing, verification fails, or the `sub` has no Payload user. Downstream packages now discriminate on `collection` (payload-puck ≥ 0.9.0), so this is guaranteed behaviour rather than incidental.
+
+### Upgrading
+
+No action for the common case. Generated collections map `string[]` to Payload's `json` field, which accepts both shapes, and the adapter parses older stringified rows on read — so existing documents keep working and are rewritten as real arrays the next time Better Auth updates them.
+
+Three narrow cases do need a look:
+
+- **You hand-declared a `text` field to absorb a stringified array.** It now receives a real array and Payload will reject the write. Change it to `json` (or `select` with `hasMany: true`).
+- **You read those columns outside Better Auth** — `payload.find()` on `oauthClients`, or raw SQL. The column now holds a mix: arrays for new and updated rows, strings for untouched ones. Parse defensively (`Array.isArray(v) ? v : JSON.parse(v)`) rather than assuming either.
+- **You declared a `number[]` field under `session.additionalFields`.** Its generated Payload field changes from `text` to `json`, so it needs a Payload migration. `string[]` was already `json` and is unaffected, and no Better Auth table ships a `number[]` field.
 
 ## [0.11.3] - 2026-09-01
 
