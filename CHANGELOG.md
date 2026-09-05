@@ -13,6 +13,10 @@ Sliding sessions now work through Payload. Thanks to the contributor of
 [#35](https://github.com/delmaredigital/payload-better-auth/pull/35), who traced the
 missing cookie refresh to the strategy and fixed it the way both frameworks intend.
 
+**Nothing in this release is breaking.** This project reserves minor bumps for breaking
+changes while pre-1.0, and this one should have been 0.12.3 — the bump is a versioning
+slip, not a signal. No code, config, or data changes are needed to upgrade.
+
 ### Fixed
 
 - **`betterAuthStrategy` forwards Better Auth's `Set-Cookie` headers** ([#35](https://github.com/delmaredigital/payload-better-auth/pull/35)). Better Auth's `getSession()` extends the session row once `session.updateAge` is reached and issues a refreshed cookie. The strategy called it without `returnHeaders` and threw the headers away, so the database session slid while the browser's cookie kept its original `Max-Age`: anyone whose traffic went only through Payload — the admin panel included — was logged out after `expiresIn` regardless of activity, and expired-cookie clearing and the cookie cache never reached the browser either. The strategy now passes `returnHeaders: true` and returns every `Set-Cookie` through Payload's `responseHeaders`, which Payload applies to REST and GraphQL responses.
