@@ -1123,10 +1123,13 @@ export function betterAuthStrategy(
     authenticate: async ({
       payload,
       headers,
+      canSetHeaders,
     }: {
       payload: Payload
       headers: Headers
+      canSetHeaders?: boolean
     }) => {
+      let responseHeadersResult: { responseHeaders?: Headers } | undefined
       try {
         const payloadWithAuth = payload as PayloadWithAuth
         const auth = payloadWithAuth.betterAuth
@@ -1136,7 +1139,22 @@ export function betterAuthStrategy(
           return { user: null }
         }
 
-        const sessionData = await auth.api.getSession({ headers })
+        const { response: sessionData, headers: sessionHeaders } =
+          await auth.api.getSession({
+            headers,
+            returnHeaders: true,
+            query: canSetHeaders ? undefined : { disableRefresh: true },
+          })
+
+        if (canSetHeaders) {
+          const responseHeaders = new Headers()
+          for (const cookie of sessionHeaders?.getSetCookie() ?? []) {
+            responseHeaders.append('set-cookie', cookie)
+          }
+          if (responseHeaders.has('set-cookie')) {
+            responseHeadersResult = { responseHeaders }
+          }
+        }
 
         if (!sessionData?.user?.id) {
           // No session found — check for OAuth JWT Bearer token
@@ -1217,7 +1235,7 @@ export function betterAuthStrategy(
                     ...(orgRole ? { organizationRole: orgRole } : {}),
                   }
 
-                  return { user: oauthUser }
+                  return { ...(responseHeadersResult ?? {}), user: oauthUser }
                 }
               }
             } catch {
@@ -1227,7 +1245,7 @@ export function betterAuthStrategy(
             }
           }
 
-          return { user: null }
+          return { ...(responseHeadersResult ?? {}), user: null }
         }
 
         const users = await payload.find({
@@ -1238,7 +1256,7 @@ export function betterAuthStrategy(
         })
 
         if (users.docs.length === 0) {
-          return { user: null }
+          return { ...(responseHeadersResult ?? {}), user: null }
         }
 
         // Extract session fields to merge onto user (e.g., activeOrganizationId from org plugin)
@@ -1385,6 +1403,7 @@ export function betterAuthStrategy(
         }
 
         return {
+          ...(responseHeadersResult ?? {}),
           user: {
             ...users.docs[0],
             ...sessionFields, // Merge session fields (activeOrganizationId, etc.)
@@ -1398,7 +1417,7 @@ export function betterAuthStrategy(
         }
       } catch (error) {
         console.error('Better Auth strategy error:', error)
-        return { user: null }
+        return { ...(responseHeadersResult ?? {}), user: null }
       }
     },
   }

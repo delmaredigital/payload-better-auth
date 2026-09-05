@@ -56,13 +56,28 @@ function createMockHeaders(entries: Record<string, string> = {}) {
   } as unknown as Headers
 }
 
-const cookieSession = (userId: string, extra: Record<string, unknown> = {}) => ({
-  api: { getSession: vi.fn(async () => ({ user: { id: userId }, session: { id: 'sess-1', userId, ...extra } })) },
+const cookieSession = (
+  userId: string,
+  extra: Record<string, unknown> = {},
+  setCookies: string[] = []
+) => ({
+  api: {
+    getSession: vi.fn(async () => {
+      const response = { user: { id: userId }, session: { id: 'sess-1', userId, ...extra } }
+      const headers = new Headers()
+      for (const cookie of setCookies) headers.append('set-cookie', cookie)
+      return { response, headers }
+    }),
+  },
   options: { baseURL: 'https://example.com' },
 })
 
 const noSession = (options: Record<string, unknown> | undefined = { baseURL: 'https://example.com' }) => ({
-  api: { getSession: vi.fn(async () => null) },
+  api: {
+    getSession: vi.fn(async () => {
+      return { response: null, headers: new Headers() }
+    }),
+  },
   options,
 })
 
@@ -132,6 +147,40 @@ describe('betterAuthStrategy — user shape on the session (cookie / API key) pa
 
     expect(result).toEqual({ user: null })
   })
+
+  it('forwards Better Auth Set-Cookie headers when Payload can set headers', async () => {
+    const mockPayload = createMockPayload({ users: [testUser] })
+    const mockAuth = cookieSession('user-1', {}, ['a=1; Path=/', 'b=2; Path=/'])
+    mockPayload.betterAuth = mockAuth
+
+    const result = await betterAuthStrategy({ idType: 'text' }).authenticate({
+      payload: mockPayload as any,
+      headers: createMockHeaders({ cookie: 'better-auth.session_token=abc' }),
+      canSetHeaders: true,
+    })
+
+    expect(result.responseHeaders?.getSetCookie()).toEqual(['a=1; Path=/', 'b=2; Path=/'])
+  })
+
+  it('passes the disableRefresh option when Payload cannot set headers', async () => {
+    const mockPayload = createMockPayload({ users: [testUser] })
+    const mockAuth = cookieSession('user-1', {}, ['a=1; Path=/'])
+    mockPayload.betterAuth = mockAuth
+
+    const result = await betterAuthStrategy({ idType: 'text' }).authenticate({
+      payload: mockPayload as any,
+      headers: createMockHeaders({ cookie: 'better-auth.session_token=abc' }),
+      canSetHeaders: false,
+    })
+
+    expect(result.responseHeaders).toBeUndefined()
+    expect(mockAuth.api.getSession).toHaveBeenCalledWith({
+      headers: expect.anything(),
+      returnHeaders: true,
+      query: { disableRefresh: true },
+    })
+  })
+
 })
 
 describe('betterAuthStrategy — OAuth JWT bearer path', () => {

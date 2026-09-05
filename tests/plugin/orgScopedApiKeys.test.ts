@@ -63,10 +63,13 @@ function createMockHeaders(entries: Record<string, string> = {}) {
 function apiKeySession(sessionId: string | number, extra: Record<string, unknown> = {}) {
   return {
     api: {
-      getSession: vi.fn(async () => ({
-        user: { id: 'user-1' },
-        session: { id: sessionId, userId: 'user-1', ...extra },
-      })),
+      getSession: vi.fn(async () => {
+        const response = {
+          user: { id: 'user-1' },
+          session: { id: sessionId, userId: 'user-1', ...extra },
+        }
+        return { response, headers: new Headers() }
+      }),
     },
   }
 }
