@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-09-04
+
+Sliding sessions now work through Payload. Thanks to the contributor of
+[#35](https://github.com/delmaredigital/payload-better-auth/pull/35), who traced the
+missing cookie refresh to the strategy and fixed it the way both frameworks intend.
+
+### Fixed
+
+- **`betterAuthStrategy` forwards Better Auth's `Set-Cookie` headers** ([#35](https://github.com/delmaredigital/payload-better-auth/pull/35)). Better Auth's `getSession()` extends the session row once `session.updateAge` is reached and issues a refreshed cookie. The strategy called it without `returnHeaders` and threw the headers away, so the database session slid while the browser's cookie kept its original `Max-Age`: anyone whose traffic went only through Payload — the admin panel included — was logged out after `expiresIn` regardless of activity, and expired-cookie clearing and the cookie cache never reached the browser either. The strategy now passes `returnHeaders: true` and returns every `Set-Cookie` through Payload's `responseHeaders`, which Payload applies to REST and GraphQL responses.
+
+### Changed
+
+- **Session reads that cannot deliver a cookie no longer extend the session.** When Payload runs the strategy with `canSetHeaders: false` (the admin's server renders, `payload.auth({ headers })` without `canSetHeaders: true`), and in `getServerSession()` / `getServerUser()` and the api-key endpoint guards, `getSession()` is now called with `disableRefresh`. Before, these calls extended the row in the database with no way to tell the browser, so the two expiries drifted apart. Refresh still happens everywhere the cookie can be delivered: through the strategy on REST/GraphQL, on Better Auth's own endpoints, and from `payload.auth({ headers, canSetHeaders: true })` when you forward `responseHeaders` (see README §5).
+
+- **`betterAuthStrategy`'s `authenticate` is typed with Payload's exported `AuthStrategyFunctionArgs`** rather than a hand-written subset, so `canSetHeaders`, `isGraphQL` and `strategyName` follow Payload's contract.
+
+### Upgrading
+
+No action needed. If you call `payload.auth({ headers })` in a Route Handler or Server Action and want the response to carry the refreshed cookie, pass `canSetHeaders: true` and forward `responseHeaders`. Otherwise that call is now a pure read — which is what it effectively was before, minus the stray database write.
+
 ## [0.12.2] - 2026-09-04
 
 Performance and correctness of the Postgres census in `migrateStringifiedArrays()`.

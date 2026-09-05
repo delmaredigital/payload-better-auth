@@ -247,6 +247,17 @@ export default async function Dashboard() {
 }
 ```
 
+Sessions slide the way Better Auth documents (`session.updateAge`): once the refresh window is reached, `getSession()` extends the session row and issues a refreshed cookie. `betterAuthStrategy` forwards that `Set-Cookie` on every Payload REST and GraphQL request, so the browser's cookie moves with the database. Where there is no response to carry a cookie — server components, `getServerSession()`, `payload.auth({ headers })` — the session is read without refreshing it, so the two can never drift apart. To let a Local API call refresh the session, tell Payload it may set headers and forward what it hands back:
+
+```ts
+// app/api/whoami/route.ts
+export async function GET(req: Request) {
+  const payload = await getPayload({ config })
+  const { user, responseHeaders } = await payload.auth({ headers: req.headers, canSetHeaders: true })
+  return Response.json({ user }, { headers: responseHeaders })
+}
+```
+
 **That's it!** The plugin automatically registers auth API endpoints at `/api/auth/*`, injects admin UI components, and handles session management.
 
 > **Using a non-default API route?** The plugin mounts Better Auth at `routes.api` + `authBasePath`, and Better Auth's own router 404s any request outside its `basePath` (default `/api/auth`). If your Payload config sets `routes: { api: '/api/payload' }`, tell Better Auth where it lives:

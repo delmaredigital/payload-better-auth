@@ -61,7 +61,15 @@ export async function getServerSession<TUser = DefaultUser>(
       return null
     }
 
-    const session = await payloadWithAuth.betterAuth.api.getSession({ headers })
+    // Server components (and anything else calling this) have no response to set
+    // cookies on. Better Auth's getSession() would otherwise extend the session row
+    // once `updateAge` is reached and hand back a Set-Cookie we cannot deliver, so
+    // the database expiry would drift away from the cookie the browser holds.
+    // `betterAuthStrategy` makes the same call when Payload's `canSetHeaders` is false.
+    const session = await payloadWithAuth.betterAuth.api.getSession({
+      headers,
+      query: { disableRefresh: true },
+    })
     return session as Session<TUser> | null
   } catch (error) {
     console.error('[session] Error getting session:', error)

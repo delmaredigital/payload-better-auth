@@ -7,7 +7,7 @@
 import type {
   Plugin,
   AuthStrategy,
-  Payload,
+  AuthStrategyFunctionArgs,
   BasePayload,
   Endpoint,
   PayloadHandler,
@@ -252,7 +252,10 @@ export function getApiKeyPermissionsConfig(
 
 // Type for auth api methods we need
 type AuthApi = {
-  getSession: (options: { headers: Headers }) => Promise<{
+  getSession: (options: {
+    headers: Headers
+    query?: { disableRefresh?: boolean; disableCookieCache?: boolean }
+  }) => Promise<{
     user?: { id: string } | null
     session?: Record<string, unknown> | null
   } | null>
@@ -307,8 +310,9 @@ async function handleApiKeyCreate(
   membersCollection = 'members'
 ): Promise<Response> {
   try {
-    // Get the current session to find the user
-    const session = await authApi.getSession({ headers })
+    // Get the current session to find the user. Read-only: this handler answers
+    // with its own JSON Response, so a refreshed cookie would never reach the client.
+    const session = await authApi.getSession({ headers, query: { disableRefresh: true } })
     if (!session?.user?.id) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
@@ -497,8 +501,13 @@ function createAuthEndpointHandler(adminOptions?: BetterAuthPluginAdminOptions):
         req.method === 'GET' && pathname.endsWith('/api-key/list')
 
       if (isApiKeyMutation || isApiKeyList) {
+        // Authorization check only. The Response the client gets comes from Better
+        // Auth's handler below (which does its own session refresh, with cookies
+        // that reach the client) — a Set-Cookie attached here would be dropped, so
+        // don't let this read extend the session row.
         const session = await (auth.api as unknown as AuthApi).getSession({
           headers: req.headers,
+          query: { disableRefresh: true },
         })
         if (!session?.user?.id) {
           return new Response(
@@ -1120,15 +1129,7 @@ export function betterAuthStrategy(
 
   return {
     name: 'better-auth',
-    authenticate: async ({
-      payload,
-      headers,
-      canSetHeaders,
-    }: {
-      payload: Payload
-      headers: Headers
-      canSetHeaders?: boolean
-    }) => {
+    authenticate: async ({ payload, headers, canSetHeaders }: AuthStrategyFunctionArgs) => {
       let responseHeadersResult: { responseHeaders?: Headers } | undefined
       try {
         const payloadWithAuth = payload as PayloadWithAuth

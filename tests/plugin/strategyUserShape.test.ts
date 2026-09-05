@@ -181,6 +181,54 @@ describe('betterAuthStrategy — user shape on the session (cookie / API key) pa
     })
   })
 
+  it('forwards Set-Cookie on a null session too (Better Auth clearing an expired cookie)', async () => {
+    const mockPayload = createMockPayload({ users: [testUser] })
+    const cleared = 'better-auth.session_token=; Max-Age=0; Path=/'
+    mockPayload.betterAuth = {
+      api: {
+        getSession: vi.fn(async () => {
+          const headers = new Headers()
+          headers.append('set-cookie', cleared)
+          return { response: null, headers }
+        }),
+      },
+      options: { baseURL: 'https://example.com' },
+    }
+
+    const result = await betterAuthStrategy({ idType: 'text' }).authenticate({
+      payload: mockPayload as any,
+      headers: createMockHeaders({ cookie: 'better-auth.session_token=stale' }),
+      canSetHeaders: true,
+    })
+
+    expect(result.user).toBeNull()
+    expect(result.responseHeaders?.getSetCookie()).toEqual([cleared])
+  })
+
+  it('tolerates getSession returning no headers object (before-hook short-circuit, e.g. the api-key plugin)', async () => {
+    // Better Auth's dispatch returns `{ headers: undefined, response }` when a
+    // plugin before-hook answers /get-session itself, which the api-key plugin does.
+    const mockPayload = createMockPayload({ users: [testUser] })
+    mockPayload.betterAuth = {
+      api: {
+        getSession: vi.fn(async () => ({
+          response: { user: { id: 'user-1' }, session: { id: 'sess-1', userId: 'user-1' } },
+          headers: undefined,
+        })),
+      },
+      options: { baseURL: 'https://example.com' },
+    }
+
+    const result = await betterAuthStrategy({ idType: 'text' }).authenticate({
+      payload: mockPayload as any,
+      headers: createMockHeaders({ 'x-api-key': 'sk_test_abc' }),
+      canSetHeaders: true,
+    })
+
+    expect(result.user?.id).toBe('user-1')
+    expect(result.responseHeaders).toBeUndefined()
+  })
+
 })
 
 describe('betterAuthStrategy — OAuth JWT bearer path', () => {
