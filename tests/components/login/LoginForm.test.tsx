@@ -30,6 +30,22 @@ describe('LoginForm', () => {
     expect(screen.getByLabelText('Email')).toBeInTheDocument()
   })
 
+  it('hides the email form and submit button when showEmailForm is false', () => {
+    const secondaryMethods = [
+      { key: 'social:acme', label: 'Continue with Acme', onClick: vi.fn(), busy: false },
+    ]
+    render(<LoginForm {...defaultProps} showEmailForm={false} secondaryMethods={secondaryMethods} />)
+    expect(screen.queryByLabelText('Email')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Sign In' })).not.toBeInTheDocument()
+    expect(screen.queryByText('or')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Continue with Acme' })).toBeInTheDocument()
+  })
+
+  it('still renders the error banner when the email form is hidden', () => {
+    render(<LoginForm {...defaultProps} showEmailForm={false} error="Provider down" />)
+    expect(screen.getByRole('alert')).toHaveTextContent('Provider down')
+  })
+
   it('focuses the email field on render', () => {
     render(<LoginForm {...defaultProps} />)
     expect(screen.getByLabelText('Email')).toHaveFocus()

@@ -947,7 +947,7 @@ export function LoginView({
       email={email} onEmailChange={(e) => setEmail(e.target.value)}
       passwordAvailable={passwordAvailable} password={password} onPasswordChange={(e) => setPassword(e.target.value)}
       forgotPasswordAvailable={forgotPasswordAvailable} onForgotPassword={() => switchView('forgotPassword')}
-      onSubmit={primarySubmit} primaryLabel={primaryLabel} actionsDisabled={loading || passkeyLoading || socialLoading !== null}
+      showEmailForm={primaryMethod !== null} onSubmit={primarySubmit} primaryLabel={primaryLabel} actionsDisabled={loading || passkeyLoading || socialLoading !== null}
       secondaryMethods={secondaryMethods}
       showEmptyState={primaryMethod === null && secondaryMethods.length === 0}
       signUpAvailable={signUpAvailable} onCreateAccount={() => switchView('register')}

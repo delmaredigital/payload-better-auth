@@ -12,7 +12,7 @@ export function LoginForm({
   email, onEmailChange,
   passwordAvailable, password, onPasswordChange,
   forgotPasswordAvailable, onForgotPassword,
-  onSubmit, primaryLabel, actionsDisabled,
+  showEmailForm = true, onSubmit, primaryLabel, actionsDisabled,
   secondaryMethods, showEmptyState,
   signUpAvailable, onCreateAccount,
 }: {
@@ -27,6 +27,8 @@ export function LoginForm({
   onPasswordChange: (e: React.ChangeEvent<HTMLInputElement>) => void
   forgotPasswordAvailable: boolean
   onForgotPassword: () => void
+  /** False when no email-based method (password, magic link, email OTP) is enabled: the email form has nothing to submit to. */
+  showEmailForm?: boolean
   onSubmit: (e: React.FormEvent) => void
   primaryLabel: string
   actionsDisabled: boolean
@@ -52,6 +54,7 @@ export function LoginForm({
 
         {successMessage && <AuthBanner kind="success">{successMessage}</AuthBanner>}
 
+        {showEmailForm ? (
         <form onSubmit={onSubmit}>
           <AuthField id="email" label="Email" type="email" value={email} onChange={onEmailChange} autoComplete="email" autoFocus />
 
@@ -93,11 +96,14 @@ export function LoginForm({
             {primaryLabel}
           </AuthButton>
         </form>
+        ) : (
+          error && <AuthBanner kind="error">{error}</AuthBanner>
+        )}
+
+        {showEmailForm && secondaryMethods.length > 0 && <OrDivider />}
 
         {secondaryMethods.length > 0 && (
           <>
-            <OrDivider />
-
             {secondaryMethods.map((method) => (
               <div key={method.key} style={{ marginBottom: 'calc(var(--base) * 0.5)' }}>
                 <AuthButton

@@ -15,6 +15,13 @@ describe('LoginView — social sign-in', () => {
     expect(await screen.findByRole('button', { name: 'Continue with Google' })).toBeInTheDocument()
   })
 
+  it('hides the email form when social is the only enabled method', async () => {
+    renderLogin({ socialProviders: google, enablePassword: false, enableMagicLink: false, enableEmailOtp: false })
+    expect(await screen.findByRole('button', { name: 'Continue with Google' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Email')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Sign In' })).not.toBeInTheDocument()
+  })
+
   it('renders no social buttons by default (socialProviders defaults to [])', async () => {
     renderLogin({})
     await screen.findByLabelText('Email') // wait for the form to mount
