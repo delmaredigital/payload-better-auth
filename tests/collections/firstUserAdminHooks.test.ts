@@ -121,6 +121,15 @@ describe('betterAuthCollections: firstUserAdmin-disabled security warning', () =
     warn.mockRestore()
   })
 
+  it('does NOT emit that warning once acknowledgeRoleGuardDisabled is set', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    betterAuthCollections({ firstUserAdmin: false, acknowledgeRoleGuardDisabled: true })(baseConfig())
+    expect(
+      warn.mock.calls.some((c) => String(c[0]).includes('firstUserAdmin is disabled')),
+    ).toBe(false)
+    warn.mockRestore()
+  })
+
   it('does NOT emit that warning when firstUserAdmin is left at its default', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     betterAuthCollections({})(baseConfig())

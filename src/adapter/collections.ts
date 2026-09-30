@@ -86,6 +86,19 @@ export type BetterAuthCollectionsOptions = {
   firstUserAdmin?: boolean | FirstUserAdminOptions
 
   /**
+   * Silence the startup warning printed when `firstUserAdmin: false` turns off the
+   * plugin's role-forcing guard. Set it only once you have constrained user creation
+   * yourself: the users collection's `access.create` AND the role field's
+   * `access.create` must reject anonymous and non-admin callers.
+   *
+   * Acknowledges that one warning only; it does not change behavior and has no
+   * effect unless `firstUserAdmin` is `false`.
+   *
+   * @default false
+   */
+  acknowledgeRoleGuardDisabled?: boolean
+
+  /**
    * Deny API/admin access to sensitive credential fields on the collections this
    * plugin manages — session tokens, TOTP secrets and backup codes, verification
    * identifiers/values, stored OAuth tokens, hashed passwords and API keys.
@@ -821,6 +834,7 @@ export function betterAuthCollections(
     usePlural = true,
     configureSaveToJWT = true,
     firstUserAdmin,
+    acknowledgeRoleGuardDisabled = false,
     secureSecretFields,
     customizeCollection,
   } = options
@@ -855,13 +869,14 @@ export function betterAuthCollections(
     // constrain create access themselves. Otherwise Payload's auto-REST exposes
     // an anonymous POST /api/<users> that can seed a row with a privileged role.
     // (Fires once at config-build time — Payload builds the config once.)
-    if (firstUserAdmin === false) {
+    if (firstUserAdmin === false && !acknowledgeRoleGuardDisabled) {
       console.warn(
         `[betterAuthCollections] firstUserAdmin is disabled — the plugin's role-forcing ` +
           `guard is OFF for the "${usersSlug}" collection. You are responsible for preventing ` +
           `privilege escalation: ensure the collection's \`access.create\` AND the role field's ` +
           `\`access.create\` reject anonymous/non-admin callers. Otherwise Payload auto-REST ` +
-          `(POST /api/${usersSlug}) may let anyone create a user with an arbitrary role.`
+          `(POST /api/${usersSlug}) may let anyone create a user with an arbitrary role. ` +
+          `Once you have done so, set \`acknowledgeRoleGuardDisabled: true\` to silence this warning.`
       )
     }
 
