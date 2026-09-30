@@ -792,7 +792,7 @@ details .details-body > :first-child { margin-top: 0; }
   <div class="header-brand">
     <span>payload</span>-better-auth
   </div>
-  <span class="header-badge">v0.11.3</span>
+  <span class="header-badge" id="versionBadge">v0.13.1</span>
 
   <div class="search-wrap">
     <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M16 16l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -827,12 +827,14 @@ details .details-body > :first-child { margin-top: 0; }
       <a class="nav-link sub" href="#step-3-payload-config">Payload Config</a>
       <a class="nav-link sub" href="#step-4-client">Client-Side Auth</a>
       <a class="nav-link sub" href="#step-5-server">Server-Side Session</a>
+      <a class="nav-link sub" href="#custom-api-route">Non-default API route</a>
       <a class="nav-link" href="#mongodb">MongoDB Setup</a>
     </div>
 
     <div class="nav-section">
       <div class="nav-section-title">API Reference</div>
       <a class="nav-link" href="#payload-adapter">payloadAdapter</a>
+      <a class="nav-link sub" href="#atomic-operations">Atomic operations</a>
       <a class="nav-link" href="#better-auth-collections">betterAuthCollections</a>
       <a class="nav-link" href="#create-better-auth-plugin">createBetterAuthPlugin</a>
       <a class="nav-link" href="#better-auth-strategy">betterAuthStrategy</a>
@@ -854,6 +856,8 @@ details .details-body > :first-child { margin-top: 0; }
       <a class="nav-link" href="#password-reset">Password Reset</a>
       <a class="nav-link" href="#two-factor">Two-Factor Auth</a>
       <a class="nav-link" href="#passkeys">Passkeys</a>
+      <a class="nav-link" href="#passwordless">Passwordless Login</a>
+      <a class="nav-link" href="#social-login">Social Sign-In</a>
       <a class="nav-link" href="#security-management">Security Management</a>
     </div>
 
@@ -899,6 +903,8 @@ details .details-body > :first-child { margin-top: 0; }
   dryRun: <span class="hl-const">true</span>, <span class="hl-comment">// drop this once the report looks right</span>
 })
 <span class="hl-type">console</span>.<span class="hl-func">table</span>(results)</code></pre>
+
+        <p style="margin-top:8px">Other options: <code>usePlural</code> (must match the adapter; default <code>true</code>), <code>batchSize</code> (rows per page; default <code>100</code>, honoured on Postgres since 0.12.2), and <code>onProgress</code> (called once per converted document).</p>
 
         <p style="margin-top:8px"><strong>On 0.12.0 this reported <code>converted: 0</code> against databases that were not clean.</strong> Payload writes these fields to a <code>jsonb</code> column, so a stringified value is stored as a <em>jsonb string</em>; on read node-postgres parses the jsonb and drizzle's <code>PgJsonb.mapFromDriverValue</code> parses it a second time, so the stored string reaches Payload as an array and is indistinguishable from a native one. 0.12.1 censuses the stored shape in SQL instead. If you ran the 0.12.0 migration, re-run it, and check each row reports <code>observedVia: 'stored-shape'</code>.</p>
 
@@ -1144,12 +1150,31 @@ GOOGLE_CLIENT_SECRET=...</code></pre>
 
   <span class="hl-keyword">return</span> &lt;div&gt;Hello {session.user.name}&lt;/div&gt;
 }</code></pre>
+
+          <p id="sliding-sessions"><strong>Sessions slide the way Better Auth documents</strong> (<code>session.updateAge</code>): once the refresh window is reached, <code>getSession()</code> extends the session row and issues a refreshed cookie. <code>betterAuthStrategy</code> forwards that <code>Set-Cookie</code> on every Payload REST and GraphQL request, so the browser's cookie moves with the database. Where there is no response to carry a cookie &mdash; server components, <code>getServerSession()</code>, <code>payload.auth({ headers })</code> &mdash; the session is read without refreshing it, so the two never drift apart. To let a Local API call refresh the session, tell Payload it may set headers and forward what it hands back:</p>
+          <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// app/api/whoami/route.ts</span>
+<span class="hl-keyword">export async function</span> <span class="hl-func">GET</span>(req: <span class="hl-type">Request</span>) {
+  <span class="hl-keyword">const</span> payload = <span class="hl-keyword">await</span> <span class="hl-func">getPayload</span>({ config })
+  <span class="hl-keyword">const</span> { user, responseHeaders } = <span class="hl-keyword">await</span> payload.<span class="hl-func">auth</span>({ headers: req.headers, canSetHeaders: <span class="hl-const">true</span> })
+  <span class="hl-keyword">return</span> <span class="hl-type">Response</span>.<span class="hl-func">json</span>({ user }, { headers: responseHeaders })
+}</code></pre>
+          <p><em>Since v0.13.0. Before that, the refreshed cookie was dropped and anyone using only Payload (the admin included) was logged out after <code>expiresIn</code> regardless of activity.</em></p>
         </div>
 
       </div>
 
       <div class="callout callout-tip">
         <p><strong>That's it!</strong> The plugin automatically registers auth API endpoints at <code>/api/auth/*</code>, injects admin UI components, and handles session management.</p>
+      </div>
+
+      <div class="callout callout-warn" id="custom-api-route">
+        <p><strong>Using a non-default API route?</strong> The plugin mounts Better Auth at <code>routes.api</code> + <code>authBasePath</code>, and Better Auth's own router 404s any request outside its <code>basePath</code> (default <code>/api/auth</code>). If your Payload config sets <code>routes: { api: '/api/payload' }</code>, tell Better Auth where it lives:</p>
+        <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// inside createAuth</span>
+<span class="hl-func">betterAuth</span>({
+  basePath: <span class="hl-string">'/api/payload/auth'</span>, <span class="hl-comment">// &lt;routes.api&gt; + &lt;authBasePath&gt;</span>
+  <span class="hl-comment">// ...</span>
+})</code></pre>
+        <p>The admin components pick up <code>routes.api</code> automatically, and the plugin logs an error at startup naming the exact value to set if <code>basePath</code> doesn't match the mount.</p>
       </div>
     </div>
 
@@ -1258,6 +1283,24 @@ strategies: [<span class="hl-func">betterAuthStrategy</span>({ idType: <span cla
 })</code></pre>
         </div>
       </details>
+
+      <h4 id="atomic-operations">Atomic operations</h4>
+      <p>Better Auth 1.7 requires every database adapter to implement two atomic primitives, and calls them on paths you are almost certainly using:</p>
+      <table>
+        <thead><tr><th>Primitive</th><th>Used by</th></tr></thead>
+        <tbody>
+          <tr><td><code>consumeOne</code></td><td>Single-use credentials &mdash; email verification, password reset, magic links, email OTP, device-authorization codes</td></tr>
+          <tr><td><code>incrementOne</code></td><td>Guarded counters &mdash; API-key quota and rate limits, two-factor backup codes, team member counts</td></tr>
+        </tbody>
+      </table>
+      <p>Payload's Local API has no <code>DELETE &hellip; RETURNING</code> or <code>SET n = n + d</code>, so the adapter implements both as read-then-write and narrows the race window rather than eliminating it:</p>
+      <ul>
+        <li><strong><code>consumeOne</code></strong> reads the row, then deletes it by id. The row is returned <strong>only if our own delete removed it</strong> &mdash; if a concurrent caller got there first, Payload raises a 404 and the adapter returns <code>null</code>. That is what keeps a magic link or reset token single-use.</li>
+        <li><strong><code>incrementOne</code></strong> reads the row, then writes with a guard that re-asserts both Better Auth's own precondition (e.g. <code>remaining &gt; 0</code>) and the counter values the write was computed from. A racing writer's update matches no row, so the loser re-reads and retries (up to five times) instead of clobbering the winner.</li>
+      </ul>
+      <div class="callout callout-warn">
+        <p><strong>The limit:</strong> Payload resolves a <code>where</code> by finding rows and then mutating them, so a narrow window remains between its internal read and write. Under heavy concurrency on the <em>same row</em>, a quota decrement can be lost or a token consumed twice. This matches the guarantee Better Auth 1.6 provided for these flows and is fine for typical traffic &mdash; but if you need strict cross-process guarantees for API-key quota, enforce it at the database with a <code>CHECK</code> constraint or a unique index rather than relying on the adapter alone.</p>
+      </div>
     </div>
 
     <!-- betterAuthCollections -->
@@ -1403,9 +1446,13 @@ admin: {
         <thead><tr><th>Option</th><th>Type</th><th>Description</th></tr></thead>
         <tbody>
           <tr><td><code>usersCollection</code></td><td><code>string</code></td><td>Collection slug for users (default: <code>'users'</code>)</td></tr>
+          <tr><td><code>membersCollection</code></td><td><code>string</code></td><td>Collection slug for organization members, used for the organization role lookup (default: <code>'members'</code>)</td></tr>
+          <tr><td><code>apiKeysCollection</code></td><td><code>string</code></td><td>Collection slug for API keys, used to read a key's scopes without spending its quota. Must match the generated slug: <code>'apikeys'</code>, or <code>'apikey'</code> with <code>usePlural: false</code> (default: <code>'apikeys'</code>)</td></tr>
           <tr><td><code>idType</code></td><td><code>'number' | 'text'</code></td><td>Coerce IDs. Default <code>'number'</code>. Use <code>'text'</code> for MongoDB.</td></tr>
         </tbody>
       </table>
+      <p><strong>Session refresh.</strong> When Payload lets the strategy set headers (REST and GraphQL requests), it forwards Better Auth's refreshed <code>Set-Cookie</code> through Payload's <code>responseHeaders</code>. When it can't (<code>canSetHeaders: false</code>, e.g. admin server renders), the session is read with <code>disableRefresh</code>. See <a href="#sliding-sessions">sliding sessions</a>.</p>
+      <p><strong>API keys are sent as <code>x-api-key</code>.</strong> That is what Better Auth's api-key plugin reads by default. <code>Authorization: Bearer &lt;key&gt;</code> is only treated as an API key if you configure the plugin's <code>apiKeyHeaders</code> or <code>customAPIKeyGetter</code>; otherwise such a request authenticates as nobody.</p>
     </div>
 
     <!-- Session Helpers -->
@@ -1417,6 +1464,8 @@ admin: {
 
       <h4><code>getServerUser&lt;TUser&gt;(payload, headers)</code></h4>
       <p>Shorthand for <code>session.user</code>.</p>
+
+      <p>Both are read-only: they pass <code>disableRefresh</code>, because a server component has no response to carry a refreshed cookie. See <a href="#sliding-sessions">sliding sessions</a>.</p>
 
       <h4><code>createSessionHelpers&lt;TUser&gt;(options?)</code></h4>
       <p>Create typed session helpers. Define once, import everywhere &mdash; no generics at call sites.</p>
@@ -2108,6 +2157,13 @@ var scrollTopBtn = document.getElementById('scrollTop');
 window.addEventListener('scroll', function() {
   scrollTopBtn.classList.toggle('visible', window.scrollY > 400);
 }, { passive: true });
+</script>
+<script>
+// Show the latest published version; the static text above is only a fallback.
+fetch('https://registry.npmjs.org/@delmaredigital/payload-better-auth/latest')
+  .then((r) => (r.ok ? r.json() : null))
+  .then((d) => { if (d && d.version) document.getElementById('versionBadge').textContent = 'v' + d.version })
+  .catch(() => {})
 </script>
 </body>
 </html>
