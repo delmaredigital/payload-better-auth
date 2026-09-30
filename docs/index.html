@@ -1275,6 +1275,7 @@ strategies: [<span class="hl-func">betterAuthStrategy</span>({ idType: <span cla
           <tr><td><code>usePlural</code></td><td><code>boolean</code></td><td>Pluralize slugs (default: <code>true</code>)</td></tr>
           <tr><td><code>configureSaveToJWT</code></td><td><code>boolean</code></td><td>Auto-configure saveToJWT (default: <code>true</code>)</td></tr>
           <tr><td><code>firstUserAdmin</code></td><td><code>boolean | object</code></td><td>Make first user admin (default: <code>true</code>)</td></tr>
+          <tr><td><code>acknowledgeRoleGuardDisabled</code></td><td><code>boolean</code></td><td>Silence the startup warning printed when <code>firstUserAdmin: false</code> turns the role-forcing guard off (default: <code>false</code>)</td></tr>
           <tr><td><code>secureSecretFields</code></td><td><code>boolean | object</code></td><td>Deny API/admin access to secret fields — session tokens, TOTP secrets, stored OAuth tokens, etc. (default: <code>true</code>)</td></tr>
           <tr><td><code>customizeCollection</code></td><td><code>(key, config) =&gt; config</code></td><td>Customize generated collections</td></tr>
         </tbody>
@@ -1298,7 +1299,15 @@ strategies: [<span class="hl-func">betterAuthStrategy</span>({ idType: <span cla
 })
 
 <span class="hl-comment">// Disable</span>
-<span class="hl-func">betterAuthCollections</span>({ betterAuthOptions, firstUserAdmin: <span class="hl-const">false</span> })</code></pre>
+<span class="hl-func">betterAuthCollections</span>({ betterAuthOptions, firstUserAdmin: <span class="hl-const">false</span> })
+
+<span class="hl-comment">// Disable, and silence the startup warning once creation access is locked down</span>
+<span class="hl-func">betterAuthCollections</span>({
+  betterAuthOptions,
+  firstUserAdmin: <span class="hl-const">false</span>,
+  acknowledgeRoleGuardDisabled: <span class="hl-const">true</span>,
+})</code></pre>
+          <p>Disabling <code>firstUserAdmin</code> removes the guard that forces a safe role on new users, so the plugin warns at startup. Before acknowledging, make sure the users collection's <code>access.create</code> <strong>and</strong> the role field's <code>access.create</code> reject anonymous and non-admin callers — otherwise <code>POST /api/users</code> can create a user with any role. The flag silences that one warning and changes nothing else.</p>
         </div>
       </details>
 
@@ -1798,6 +1807,36 @@ enableSocial: [<span class="hl-string">'github'</span>, <span class="hl-string">
       <div class="callout callout-warn">
         <p><strong>Account creation warning:</strong> A social button on the public admin login lets <em>anyone</em> with that provider account create a (non-admin) user row — the role gate blocks admin <em>access</em>, but the row (and any creation hooks) is still created. Set Better Auth's <code>disableImplicitSignUp</code> (per-provider or global) if you don't want open sign-up. This is why <code>enableSocial</code> defaults to <code>false</code>.</p>
       </div>
+
+      <h4 id="social-admin-only">Only create users who pass the role gate</h4>
+
+      <p>When your own identity provider is the source of truth and only some of its users should reach the admin, a role-less user who clicks "Continue with …" still gets a user row, even though the role gate then shows Access Denied. The plugin can't prevent that: Better Auth creates the row during the OAuth callback, before the admin checks roles. Refuse it in Better Auth instead. If a <code>databaseHooks.user.create.before</code> hook returns <code>false</code>, the user (and the linked account) is never written, and the login page shows the returned <code>unable_to_create_user</code> error.</p>
+
+<pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-keyword">const</span> ADMIN_ROLES = [<span class="hl-string">'admin'</span>, <span class="hl-string">'editor'</span>]
+
+betterAuth({
+  <span class="hl-comment">// Your provider's mapProfileToUser must return the roles, and `role` must be a</span>
+  <span class="hl-comment">// declared user field, so they are already on `user` when the hook runs.</span>
+  databaseHooks: {
+    user: {
+      create: {
+        before: <span class="hl-keyword">async</span> (user, ctx) =&gt; {
+          <span class="hl-comment">// Only gate OAuth sign-ups; leave admin-created users and other flows alone.</span>
+          <span class="hl-keyword">if</span> (!ctx?.path?.includes(<span class="hl-string">'/callback/'</span>)) <span class="hl-keyword">return</span>
+          <span class="hl-keyword">const</span> roles = [user.role].flat().filter(Boolean)
+          <span class="hl-keyword">if</span> (!roles.some((r) =&gt; ADMIN_ROLES.includes(r))) <span class="hl-keyword">return</span> <span class="hl-const">false</span>
+        },
+      },
+    },
+  },
+})</code></pre>
+
+      <ul>
+        <li><strong>Creation only.</strong> The hook never runs for users who already exist. Someone who later loses their role keeps their row (and any content they are linked to as author or editor); the role gate blocks their admin access. Use <code>overrideUserInfo: true</code> on the provider so their roles refresh on each sign-in.</li>
+        <li><strong>Better Auth logs an error</strong> ("Unable to create OAuth user") each time a user is refused. That is expected, not a fault.</li>
+        <li><strong>If the whole provider is admin-only</strong> and you provision users another way, <code>disableImplicitSignUp: true</code> on the provider is simpler: no user is ever created from a sign-in.</li>
+        <li><strong>With <code>firstUserAdmin</code> on</strong>, the plugin promotes the first user <em>after</em> this hook runs, so a first user without a role from the provider is refused here. Seed that first admin through the provider, or create them another way first.</li>
+      </ul>
     </div>
 
     <div class="section" id="security-management">

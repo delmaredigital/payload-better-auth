@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The admin login hides the email form when no email-based method is enabled** ([#39](https://github.com/delmaredigital/payload-better-auth/issues/39)). With password, magic link and email OTP all off (for example a social-only login), the page still showed an email field and a "Sign In" button that could only fail. The form, its button and the "or" divider now render only when one of those methods is on; social and passkey buttons stand alone, and errors still show.
+
+### Added
+
+- **`betterAuthCollections({ acknowledgeRoleGuardDisabled: true })`** ([#38](https://github.com/delmaredigital/payload-better-auth/issues/38)) silences the startup warning printed when `firstUserAdmin: false` turns the role-forcing guard off. It acknowledges that one warning and changes no behavior; set it once the users collection's and role field's `access.create` reject anonymous and non-admin callers.
+
+### Docs
+
+- **Recipe: only create social users who pass the role gate** ([#40](https://github.com/delmaredigital/payload-better-auth/issues/40)). A Better Auth `databaseHooks.user.create.before` hook that returns `false` for OAuth sign-ups without an admin role, so role-less users never get a row while existing users keep theirs.
+
 ## [0.13.0] - 2026-09-04
 
 Sliding sessions now work through Payload. Thanks to the contributor of
