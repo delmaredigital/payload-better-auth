@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Recipe: only create social users who pass the role gate** ([#40](https://github.com/delmaredigital/payload-better-auth/issues/40)). A Better Auth `databaseHooks.user.create.before` hook that returns `false` for OAuth sign-ups without an admin role, so role-less users never get a row while existing users keep theirs.
 
+### Internal
+
+- Development and test dependencies bumped: `payload` / `@payloadcms/next` / `@payloadcms/ui` 3.90, `next` 16.3 ([#42](https://github.com/delmaredigital/payload-better-auth/pull/42)), `vitest` 4.1.11 ([#36](https://github.com/delmaredigital/payload-better-auth/pull/36)). Peer dependency ranges are unchanged.
+
 ## [0.13.0] - 2026-09-04
 
 Sliding sessions now work through Payload. Thanks to the contributor of
