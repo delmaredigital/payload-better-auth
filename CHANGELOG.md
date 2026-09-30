@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Internal
 
-- Development and test dependencies bumped: `payload` / `@payloadcms/next` / `@payloadcms/ui` 3.90, `next` 16.3 ([#42](https://github.com/delmaredigital/payload-better-auth/pull/42)), `vitest` 4.1.11 ([#36](https://github.com/delmaredigital/payload-better-auth/pull/36)). Peer dependency ranges are unchanged.
+- Development and test dependencies bumped: `payload` / `@payloadcms/next` / `@payloadcms/ui` 3.90, `next` 16.3.8, `vitest` 4.1.11 ([#36](https://github.com/delmaredigital/payload-better-auth/pull/36)). Peer dependency ranges are unchanged.
 
 ## [0.13.0] - 2026-09-04
 
