@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-09-30
+
 ### Fixed
 
 - **The admin login hides the email form when no email-based method is enabled** ([#39](https://github.com/delmaredigital/payload-better-auth/issues/39)). With password, magic link and email OTP all off (for example a social-only login), the page still showed an email field and a "Sign In" button that could only fail. The form, its button and the "or" divider now render only when one of those methods is on; social and passkey buttons stand alone, and errors still show.
