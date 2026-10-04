@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`betterAuthStrategy` and the API-key create endpoint pass `overrideAccess: true` to their Local API lookups.** It was already the default on Payload 3; Payload 4 removes the default, so naming it keeps the strategy working on both majors with no behaviour change on either.
+- **`canUpdateOwnFields` reads the configured id field with `Reflect.get`.** Payload 4 types `req.user` as `AuthenticatedUser`, which has no string index signature; `Reflect.get` compiles on both majors.
+- **Generated collections opt out of Payload 4's default versioning.** Payload 4 enables versions on every collection, which would give sessions, accounts, verifications and API keys a `_versions` table keeping up to 100 historical copies — old tokens and password hashes outliving deletion, which the v4 migration guide asks custom auth collections to opt out of. A `versions` set through `customizeCollection` still wins.
+
 ### Internal
 
 - **Prereleases publish under their own npm dist-tag.** A version with a prerelease identifier (e.g. `0.14.0-next.0`) now publishes under that identifier (`next`) and its GitHub release is marked as a prerelease; plain `x.y.z` versions still publish as `latest`. This is groundwork for the Payload 4 line on the `payload-4` branch, which ships under `next` while Payload 4 is in canary. CI also runs on pushes to `payload-4`.
