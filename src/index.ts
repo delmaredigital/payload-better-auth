@@ -41,6 +41,7 @@ export type {
   CollectionHookWithBetterAuth,
   EndpointWithBetterAuth,
   RoleArray,
+  WithRoleField,
 } from './types/betterAuth.js'
 
 // Generated schema types
