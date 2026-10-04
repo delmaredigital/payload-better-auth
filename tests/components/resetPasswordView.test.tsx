@@ -15,12 +15,10 @@ const { searchParamsRef } = vi.hoisted(() => ({
   searchParamsRef: { current: new URLSearchParams() },
 }))
 
-vi.mock('next/navigation.js', () => ({
-  useRouter: () => ({ push, refresh }),
-  useSearchParams: () => searchParamsRef.current,
-}))
 vi.mock('@payloadcms/ui', () => ({
   useConfig: () => ({ config: { routes: { admin: '/admin', api: '/api' } } }),
+  useRouter: () => ({ push, refresh }),
+  useSearchParams: () => searchParamsRef.current,
 }))
 
 const INVALID_TOKEN_MESSAGE = /invalid or missing reset token/i

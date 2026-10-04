@@ -117,6 +117,12 @@
     },
     "@better-auth/passkey": {
       "optional": true
+    },
+    "@payloadcms/next": {
+      "optional": true
+    },
+    "next": {
+      "optional": true
     }
   },
   "devDependencies": {

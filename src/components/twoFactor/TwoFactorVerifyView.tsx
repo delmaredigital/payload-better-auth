@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, type FormEvent } from 'react'
-import { useRouter } from 'next/navigation.js'
-import { useConfig } from '@payloadcms/ui'
+import { useConfig, useRouter } from '@payloadcms/ui'
 import { useAuthMountPath } from '../useAuthMountPath.js'
 
 export type TwoFactorVerifyViewProps = {

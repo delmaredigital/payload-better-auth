@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect, type FormEvent } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation.js'
-import { useConfig } from '@payloadcms/ui'
+import { useConfig, useRouter, useSearchParams } from '@payloadcms/ui'
 import { useAuthMountPath } from '../useAuthMountPath.js'
 
 export type ResetPasswordViewProps = {

@@ -16,9 +16,9 @@ import { resolveLoginViewProps } from '../../../src/components/LoginViewWrapper.
 
 // The wrapper imports LoginView, which pulls the Payload UI tree (and its CSS) into
 // the module graph. The resolver never renders, so stub the leaves.
-vi.mock('next/navigation.js', () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }))
 vi.mock('@payloadcms/ui', () => ({
   useConfig: () => ({ config: { routes: { admin: '/admin', api: '/api' } } }),
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }))
 vi.mock('better-auth/react', () => ({ createAuthClient: () => ({}) }))
 vi.mock('better-auth/client/plugins', () => ({

@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation.js'
-import { useConfig } from '@payloadcms/ui'
+import { useConfig, useRouter } from '@payloadcms/ui'
 
 export type BeforeLoginProps = {
   /** URL to redirect to for login. Defaults to `${routes.admin}/login`. */
