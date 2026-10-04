@@ -20,7 +20,7 @@ import {
   type EnabledPluginsResult,
 } from '../utils/detectEnabledPlugins.js'
 import type { ApiKeyPermissionsConfig } from '../types/apiKey.js'
-import { hasAnyRole, normalizeRoles } from '../utils/access.js'
+import { getRoleField, hasAnyRole, normalizeRoles } from '../utils/access.js'
 
 export type Auth = ReturnType<typeof betterAuth>
 // PayloadWithAuth from types
@@ -538,7 +538,9 @@ function createAuthEndpointHandler(adminOptions?: BetterAuthPluginAdminOptions):
             overrideAccess: true,
           })) as Record<string, unknown> | null
 
-          if (!hasAnyRole(user as { role?: unknown } | null, normalizeRoles(requiredRole))) {
+          // Read roles from the property configured on betterAuthCollections().
+          const roleField = getRoleField(req.payload.config)
+          if (!hasAnyRole(user, normalizeRoles(requiredRole), roleField)) {
             return new Response(
               JSON.stringify({
                 error: 'Forbidden: insufficient permissions to manage API keys',

@@ -80,6 +80,8 @@ export {
 
 // Access control utilities
 export {
+  DEFAULT_ROLE_FIELD,
+  getRoleField,
   normalizeRoles,
   hasAnyRole,
   hasAllRoles,

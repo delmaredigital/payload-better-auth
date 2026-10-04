@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation.js'
 import { createAuthClient } from 'better-auth/react'
 import { twoFactorClient, magicLinkClient, emailOTPClient } from 'better-auth/client/plugins'
-import { hasAnyRole, hasAllRoles, normalizeRoles } from '../utils/access.js'
+import { hasAnyRole, hasAllRoles, normalizeRoles, DEFAULT_ROLE_FIELD } from '../utils/access.js'
 import {
   resolveAvailability,
   pickPrimaryMethod,
@@ -46,6 +46,12 @@ export type LoginViewProps = {
    * Default: false (any matching role grants access)
    */
   requireAllRoles?: boolean
+  /**
+   * User property the role gate reads. The RSC wrapper passes the `roleField`
+   * configured on `betterAuthCollections()`.
+   * @default 'role'
+   */
+  roleField?: string
   /**
    * Enable passkey (WebAuthn) sign-in option.
    * - true: Always show passkey button
@@ -177,9 +183,10 @@ function humanizeSocialError(code: string): string {
  * Check if user has the required role(s)
  */
 function checkUserRoles(
-  user: { role?: unknown } | null | undefined,
+  user: object | null | undefined,
   requiredRole: string | string[] | null | undefined,
-  requireAllRoles: boolean
+  requireAllRoles: boolean,
+  roleField: string
 ): boolean {
   // No role requirement = access granted
   if (!requiredRole) return true
@@ -190,10 +197,10 @@ function checkUserRoles(
   const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole]
 
   if (requireAllRoles) {
-    return hasAllRoles(user, roles)
+    return hasAllRoles(user, roles, roleField)
   }
 
-  return hasAnyRole(user, roles)
+  return hasAnyRole(user, roles, roleField)
 }
 
 /**
@@ -216,6 +223,7 @@ export function LoginView({
   afterLoginPath = '/admin',
   requiredRole = 'admin',
   requireAllRoles = false,
+  roleField = DEFAULT_ROLE_FIELD,
   enablePasskey = 'auto',
   enableSignUp = 'auto',
   // defaultSignUpRole is deprecated and intentionally no longer destructured/used
@@ -325,9 +333,9 @@ export function LoginView({
         if (ignore) return
 
         if (result.data?.user) {
-          const user = result.data.user as { role?: unknown }
+          const user = result.data.user as object
           // User is logged in, check role
-          if (checkUserRoles(user, requiredRole, requireAllRoles)) {
+          if (checkUserRoles(user, requiredRole, requireAllRoles, roleField)) {
             router.push(afterLoginPath)
             return
           } else {
@@ -344,7 +352,7 @@ export function LoginView({
       ignore = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [afterLoginPath, requiredRole, requireAllRoles, router])
+  }, [afterLoginPath, requiredRole, requireAllRoles, roleField, router])
 
   // Surface a social-OAuth error returned on the callback (?error=...), then strip it so a
   // refresh doesn't re-show it. Runs once; independent of the session check (error returns
@@ -372,8 +380,8 @@ export function LoginView({
   ): Promise<'redirected' | 'accessDenied' | 'noSession'> {
     const sessionResult = await client.getSession()
     if (!sessionResult.data?.user) return 'noSession'
-    const user = sessionResult.data.user as { role?: unknown }
-    if (!checkUserRoles(user, requiredRole, requireAllRoles)) {
+    const user = sessionResult.data.user as object
+    if (!checkUserRoles(user, requiredRole, requireAllRoles, roleField)) {
       setAccessDenied(true)
       return 'accessDenied'
     }

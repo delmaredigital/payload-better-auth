@@ -12,8 +12,12 @@ import {
   type DetectedMethods,
   type MethodSetting,
 } from '../utils/loginMethods.js'
+import { getRoleField } from '../utils/access.js'
 
-type LoginConfig = Omit<LoginViewProps, 'authClient' | 'logo' | 'socialProviders'> & {
+type LoginConfig = Omit<
+  LoginViewProps,
+  'authClient' | 'logo' | 'socialProviders' | 'roleField'
+> & {
   enableSocial?: boolean | string[]
 }
 
@@ -63,6 +67,8 @@ export async function resolveLoginViewProps(
     afterLoginPath: loginConfig.afterLoginPath,
     requiredRole: loginConfig.requiredRole,
     requireAllRoles: loginConfig.requireAllRoles,
+    // Set on betterAuthCollections(), not under admin.login: one value for every role check.
+    roleField: getRoleField(payload.config),
     enablePassword: resolve(loginConfig.enablePassword, detected.password),
     enableSignUp: resolve(loginConfig.enableSignUp, detected.signup),
     defaultSignUpRole: loginConfig.defaultSignUpRole,

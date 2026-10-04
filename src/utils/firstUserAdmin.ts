@@ -23,7 +23,11 @@ export type FirstUserAdminOptions = {
   defaultRole?: string
 
   /**
-   * Field name for the role field
+   * Field name for the role field.
+   *
+   * In `betterAuthCollections()`, prefer the top-level `roleField` option: it
+   * sets this and every other role check at once. This spelling is still
+   * accepted there and must match the top-level value when both are set.
    * @default 'role'
    */
   roleField?: string

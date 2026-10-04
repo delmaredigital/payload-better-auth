@@ -37,9 +37,13 @@ const oauthCreds = { clientId: 'client-id', clientSecret: 'client-secret' }
 
 describe('resolveLoginViewProps', () => {
   /** Minimal Payload stand-in: the resolver only reads config.custom, logger and betterAuth. */
-  function fakePayload(betterAuth: unknown, login: Record<string, unknown> = {}) {
+  function fakePayload(
+    betterAuth: unknown,
+    login: Record<string, unknown> = {},
+    extra: Record<string, unknown> = {}
+  ) {
     return {
-      config: { custom: { betterAuth: { login, authBasePath: '/auth' } } },
+      config: { custom: { betterAuth: { login, authBasePath: '/auth', ...extra } } },
       logger: { error: vi.fn() },
       betterAuth,
     }
@@ -87,5 +91,20 @@ describe('resolveLoginViewProps', () => {
     expect(props.enablePassword).toBe(true)
     expect(props.socialProviders).toEqual([])
     expect(payload.logger.error).toHaveBeenCalledTimes(1)
+  })
+
+  it('passes the configured roleField to the login view', async () => {
+    const auth = betterAuth({ ...base, emailAndPassword: { enabled: true } })
+    const payload = fakePayload(auth, {}, { roleField: 'roles' })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const props = await resolveLoginViewProps(payload as any)
+    expect(props.roleField).toBe('roles')
+  })
+
+  it("passes 'role' when no roleField is configured", async () => {
+    const auth = betterAuth({ ...base, emailAndPassword: { enabled: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const props = await resolveLoginViewProps(fakePayload(auth) as any)
+    expect(props.roleField).toBe('role')
   })
 })
