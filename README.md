@@ -164,6 +164,27 @@ adapter writes real arrays, not serialized ones:
 { name: 'roles', type: 'json' }
 ```
 
+### Naming the role field
+
+The plugin reads roles from `user.role` by default. To keep them somewhere else,
+such as a `roles` array, set `roleField` once on `betterAuthCollections()`:
+
+```ts
+betterAuthCollections({ betterAuthOptions, roleField: 'roles' })
+```
+
+The first-user-admin guard, the saveToJWT field list, the access helpers, the
+admin login role gate and the API-key management gate all read that value.
+`firstUserAdmin.roleField` is the older spelling of the same setting and still
+works. For types, wrap the generated user: `WithRoleField<User, 'roles', string[]>`.
+
+Better Auth's `fieldName` mapping (`role: { type: 'string', fieldName: 'roles' }`)
+renames where the value is stored, and the adapter handles it. Here that stored
+name is also the Payload field name, so Payload-side checks see `user.roles` while
+Better Auth's session user keeps `role`. Use `fieldName` when you want the column
+renamed under Better Auth's key; use `roleField` when the property itself is
+called something else.
+
 > Upgrading from 0.11.x with the oauth-provider plugin or an array-typed
 > `additionalField`? Those columns hold JSON strings and need converting once —
 > see [Migrating stringified arrays](#migrating-stringified-arrays-0120).

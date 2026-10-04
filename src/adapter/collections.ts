@@ -68,8 +68,8 @@ export type BetterAuthCollectionsOptions = {
    * `firstUserAdmin.roleField` is the older spelling of this same setting and is
    * still accepted. Passing both with different values throws.
    *
-   * Only the database column differs? Use Better Auth's `fieldName` mapping on
-   * the `role` field instead; the property the plugin reads stays `role`.
+   * Better Auth's `fieldName` mapping renames the stored field, which here is
+   * also the Payload field name; it does not change Better Auth's own key.
    *
    * @default 'role'
    */

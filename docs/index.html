@@ -1317,6 +1317,7 @@ strategies: [<span class="hl-func">betterAuthStrategy</span>({ idType: <span cla
           <tr><td><code>access</code></td><td><code>CollectionConfig['access']</code></td><td>Custom access control for generated collections</td></tr>
           <tr><td><code>usePlural</code></td><td><code>boolean</code></td><td>Pluralize slugs (default: <code>true</code>)</td></tr>
           <tr><td><code>configureSaveToJWT</code></td><td><code>boolean</code></td><td>Auto-configure saveToJWT (default: <code>true</code>)</td></tr>
+          <tr><td><code>roleField</code></td><td><code>string</code></td><td>User property that holds the role(s), read by every role check in the plugin (default: <code>'role'</code>). See <a href="#role-field">Naming the role field</a>.</td></tr>
           <tr><td><code>firstUserAdmin</code></td><td><code>boolean | object</code></td><td>Make first user admin (default: <code>true</code>)</td></tr>
           <tr><td><code>acknowledgeRoleGuardDisabled</code></td><td><code>boolean</code></td><td>Silence the startup warning printed when <code>firstUserAdmin: false</code> turns the role-forcing guard off (default: <code>false</code>)</td></tr>
           <tr><td><code>secureSecretFields</code></td><td><code>boolean | object</code></td><td>Deny API/admin access to secret fields — session tokens, TOTP secrets, stored OAuth tokens, etc. (default: <code>true</code>)</td></tr>
@@ -1337,8 +1338,8 @@ strategies: [<span class="hl-func">betterAuthStrategy</span>({ idType: <span cla
   firstUserAdmin: {
     adminRole: <span class="hl-string">'super-admin'</span>,
     defaultRole: <span class="hl-string">'member'</span>,
-    roleField: <span class="hl-string">'userRole'</span>,
   },
+  roleField: <span class="hl-string">'userRole'</span>, <span class="hl-comment">// firstUserAdmin.roleField also works</span>
 })
 
 <span class="hl-comment">// Disable</span>
@@ -1515,6 +1516,29 @@ admin: {
     requiredRole: <span class="hl-const">null</span>,                              <span class="hl-comment">// Disable checking</span>
   },
 }</code></pre>
+
+      <h3 id="role-field">Naming the role field</h3>
+      <p>Role checks read <code>user.role</code> by default. To store roles under another property, such as a <code>roles</code> array, set <code>roleField</code> once on <code>betterAuthCollections()</code>. The plugin publishes it on <code>config.custom.betterAuth.roleField</code>, where every role check reads it: the first-user-admin guard, the saveToJWT field list, the access helpers, the admin login role gate and the API-key management gate.</p>
+
+      <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-comment">// Better Auth</span>
+user: { additionalFields: { roles: { type: <span class="hl-string">'string[]'</span>, input: <span class="hl-const">false</span> } } }
+
+<span class="hl-comment">// Users collection</span>
+{ name: <span class="hl-string">'roles'</span>, type: <span class="hl-string">'json'</span> }
+
+<span class="hl-comment">// Payload config</span>
+<span class="hl-func">betterAuthCollections</span>({ betterAuthOptions, roleField: <span class="hl-string">'roles'</span> })</code></pre>
+
+      <ul>
+        <li><code>firstUserAdmin.roleField</code> is the older spelling of the same setting and still works. Setting both to different values throws at startup.</li>
+        <li><code>hasAnyRole(user, roles, 'roles')</code> and <code>hasAllRoles</code> take the field as a third argument; they have no config to read. The other access helpers read it from the request's Payload config, and accept <code>roleField</code> to override.</li>
+        <li>Types: <code>WithRoleField&lt;User, 'roles', string[]&gt;</code> moves the generated <code>role</code> property to the configured name.</li>
+        <li><code>firstUserAdminHooks()</code> runs inside Better Auth, outside the Payload config, so pass it <code>roleField</code> directly if you use it.</li>
+      </ul>
+
+      <div class="callout callout-tip">
+        <p><strong>Only the column name differs?</strong> Better Auth's <code>fieldName</code> mapping (<code>role: { type: 'string', fieldName: 'roles' }</code>) renames where the value is stored, and the adapter handles it. In this plugin the stored name is also the Payload field name, so Payload-side checks see <code>user.roles</code> while Better Auth's session user keeps <code>role</code>. Use <code>fieldName</code> for a column rename under Better Auth's key; use <code>roleField</code> when the property itself has another name.</p>
+      </div>
 
       <h3>Disabling Auto-Injection</h3>
       <pre><span class="lang-tag">ts</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code><span class="hl-func">createBetterAuthPlugin</span>({

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`betterAuthCollections({ roleField })`** ([#41](https://github.com/delmaredigital/payload-better-auth/issues/41)) names the user property that holds roles, for example `roles` as a `string[]`. It defaults to `role`, and the plugin publishes it on `config.custom.betterAuth.roleField`. The first-user-admin guard, the saveToJWT field list, the access helpers (`isAdmin`, `isAdminField`, `isAdminOrSelf`, `canUpdateOwnFields`, `hasRole`, `hasRoleField`, `requireAllRoles`), the admin login role gate and the API-key management gate all read that one value. `firstUserAdmin.roleField` is the older spelling of the same setting and still works; setting both to different values throws at startup. `hasAnyRole` / `hasAllRoles` take an optional third `roleField` argument, the access helpers accept a `roleField` override, and `getRoleField(config)`, `DEFAULT_ROLE_FIELD` and the `WithRoleField<User, 'roles', string[]>` type are exported.
+
+### Fixed
+
+- **`firstUserAdmin.roleField` now applies to the "is the creator an admin?" check.** The first-user-admin hook wrote the configured field but decided whether the creating user was an admin by reading `role`, so with a custom field an admin creating users from the Payload admin had their chosen role replaced by `defaultRole`.
+
 ### Internal
 
 - **Prereleases publish under their own npm dist-tag.** A version with a prerelease identifier (e.g. `0.14.0-next.0`) now publishes under that identifier (`next`) and its GitHub release is marked as a prerelease; plain `x.y.z` versions still publish as `latest`. This is groundwork for the Payload 4 line on the `payload-4` branch, which ships under `next` while Payload 4 is in canary. CI also runs on pushes to `payload-4`.
