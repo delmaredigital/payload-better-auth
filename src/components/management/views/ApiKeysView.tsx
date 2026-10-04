@@ -1,5 +1,5 @@
 import type { AdminViewProps, Locale } from 'payload'
-import { DefaultTemplate } from '@payloadcms/next/templates'
+import { DefaultTemplate } from '@payloadcms/ui/rsc'
 import { getVisibleEntities } from '@payloadcms/ui/shared'
 import { ApiKeysManagementClient, type OrganizationOption } from '../ApiKeysManagementClient.js'
 import { getApiKeyPermissionsConfig } from '../../../plugin/index.js'

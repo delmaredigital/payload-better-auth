@@ -22,9 +22,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 20 is the floor declared in package.json `engines`; 24 is what the
-        # publish job builds with. Both are tested so the engines claim is real.
-        node: ['20', '24']
+        # Payload 4 requires Node >=24.15.0, which is also the floor in
+        # package.json `engines` and what the publish job builds with.
+        node: ['24']
 
     steps:
       - uses: actions/checkout@v4

@@ -200,7 +200,7 @@ export function TwoFactorManagementClient({
   return (
     <div className="field-type two-factor-management">
       {error && (
-        <Banner type="error">{error}</Banner>
+        <Banner type="danger">{error}</Banner>
       )}
 
       {step === 'status' && (
@@ -209,8 +209,8 @@ export function TwoFactorManagementClient({
             {isEnabled ? 'Two-factor authentication is enabled.' : 'Two-factor authentication is not enabled.'}
           </p>
           <Button
-            buttonStyle={isEnabled ? 'error' : 'secondary'}
-            size="small"
+            buttonStyle={isEnabled ? 'destructive' : 'secondary'}
+            size="medium"
             onClick={isEnabled ? handleDisableClick : handleEnableClick}
             disabled={actionLoading}
           >
@@ -246,7 +246,7 @@ export function TwoFactorManagementClient({
           <div style={{ display: 'flex', gap: 'calc(var(--base) * 0.5)' }}>
             <Button
               buttonStyle="primary"
-              size="small"
+              size="medium"
               onClick={handlePasswordContinue}
               disabled={actionLoading || !password}
             >
@@ -256,7 +256,7 @@ export function TwoFactorManagementClient({
             </Button>
             <Button
               buttonStyle="secondary"
-              size="small"
+              size="medium"
               onClick={() => setStep('status')}
             >
               Cancel
@@ -337,7 +337,7 @@ export function TwoFactorManagementClient({
             <br />
             <Button
               buttonStyle="primary"
-              size="small"
+              size="medium"
               onClick={handleVerify}
               disabled={actionLoading || verificationCode.length !== 6}
             >
@@ -349,7 +349,7 @@ export function TwoFactorManagementClient({
 
       {step === 'backup' && (
         <div>
-          <Banner type="info">
+          <Banner type="default">
             Save these backup codes in a safe place. You can use them to sign in if you lose access to your authenticator app.
           </Banner>
 
@@ -387,7 +387,7 @@ export function TwoFactorManagementClient({
           <div style={{ display: 'flex', gap: 'calc(var(--base) * 0.5)' }}>
             <Button
               buttonStyle="secondary"
-              size="small"
+              size="medium"
               icon={<CopyIcon />}
               onClick={() => navigator.clipboard.writeText(backupCodes.join('\n'))}
             >
@@ -395,7 +395,7 @@ export function TwoFactorManagementClient({
             </Button>
             <Button
               buttonStyle="primary"
-              size="small"
+              size="medium"
               onClick={handleBackupContinue}
             >
               I've Saved My Codes
