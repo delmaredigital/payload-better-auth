@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Internal
+
+- **Prereleases publish under their own npm dist-tag.** A version with a prerelease identifier (e.g. `0.14.0-next.0`) now publishes under that identifier (`next`) and its GitHub release is marked as a prerelease; plain `x.y.z` versions still publish as `latest`. This is groundwork for the Payload 4 line on the `payload-4` branch, which ships under `next` while Payload 4 is in canary. CI also runs on pushes to `payload-4`.
+
 ## [0.13.1] - 2026-09-30
 
 ### Fixed
