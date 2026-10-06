@@ -47,8 +47,10 @@ export type LoginViewProps = {
    */
   requireAllRoles?: boolean
   /**
-   * User property the role gate reads. The RSC wrapper passes the `roleField`
-   * configured on `betterAuthCollections()`.
+   * User property the role gate reads on Better Auth's session user. The RSC
+   * wrapper derives it from the `roleField` configured on
+   * `betterAuthCollections()`, translating it to the schema key when
+   * `fieldName` renames the stored field.
    * @default 'role'
    */
   roleField?: string

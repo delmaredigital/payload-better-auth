@@ -13,6 +13,7 @@ import { betterAuth } from 'better-auth'
 import { memoryAdapter } from 'better-auth/adapters/memory'
 import { genericOAuth } from 'better-auth/plugins/generic-oauth'
 import { resolveLoginViewProps } from '../../../src/components/LoginViewWrapper.js'
+import { hasAnyRole } from '../../../src/utils/access.js'
 
 // The wrapper imports LoginView, which pulls the Payload UI tree (and its CSS) into
 // the module graph. The resolver never renders, so stub the leaves.
@@ -106,5 +107,46 @@ describe('resolveLoginViewProps', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const props = await resolveLoginViewProps(fakePayload(auth) as any)
     expect(props.roleField).toBe('role')
+  })
+
+  it('maps roleField to the session key when fieldName renames it (real session)', async () => {
+    // The stored/Payload field is `roles`, but the session user keys the field
+    // by its Better Auth schema key, `role`. A hand-built session object hides
+    // this — so sign in against a real betterAuth() and read its session.
+    const auth = betterAuth({
+      ...base,
+      // The memory adapter creates tables lazily on insert but throws reading
+      // an absent one, and sign-up reads `user` first — seed the tables.
+      database: memoryAdapter({ user: [], session: [], account: [], verification: [] }),
+      emailAndPassword: { enabled: true },
+      user: {
+        additionalFields: {
+          role: { type: 'string', fieldName: 'roles' },
+        },
+      },
+    } as Parameters<typeof betterAuth>[0])
+    const payload = fakePayload(auth, {}, { roleField: 'roles' })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const props = await resolveLoginViewProps(payload as any)
+    expect(props.roleField).toBe('role')
+
+    const { headers } = await auth.api.signUpEmail({
+      body: {
+        name: 'Admin',
+        email: 'admin@example.com',
+        password: 'pw12345678',
+        role: 'admin',
+      },
+      returnHeaders: true,
+    })
+    const session = await auth.api.getSession({
+      headers: new Headers({ cookie: headers.get('set-cookie') ?? '' }),
+    })
+    const sessionUser = session?.user as Record<string, unknown>
+    // Real session output: the role sits on `role`, never on `roles`.
+    expect(sessionUser.role).toBe('admin')
+    expect(sessionUser.roles).toBeUndefined()
+    // The gate LoginView runs must pass a real admin with this prop value.
+    expect(hasAnyRole(sessionUser, ['admin'], props.roleField!)).toBe(true)
   })
 })
