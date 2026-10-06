@@ -236,6 +236,28 @@ describe('betterAuthCollections roleField', () => {
     expect(roles).toMatchObject({ saveToJWT: true })
   })
 
+  it('sets saveToJWT on a role field the consumer defined themselves', () => {
+    // `usersCollection` declares `{ name: 'roles', type: 'json' }` — the field
+    // exists, so augmentation skips it; without the patch it never reaches JWT.
+    const config = buildCollectionsConfig({ roleField: 'roles' })
+    const users = config.collections!.find((c) => c.slug === 'users')!
+    const roles = users.fields.find((f) => 'name' in f && f.name === 'roles')
+    expect(roles).toMatchObject({ saveToJWT: true })
+  })
+
+  it('respects an explicit saveToJWT on the consumer-defined role field', () => {
+    const plugin = betterAuthCollections({ betterAuthOptions, roleField: 'roles' })
+    const config = plugin({
+      collections: [
+        { ...usersCollection, fields: [{ name: 'roles', type: 'json', saveToJWT: false }] },
+      ],
+    } as unknown as Config)
+    const roles = config.collections![0].fields.find(
+      (f) => 'name' in f && f.name === 'roles'
+    )
+    expect(roles).toMatchObject({ saveToJWT: false })
+  })
+
   it('the first-user-admin hook writes the configured field', async () => {
     const config = buildCollectionsConfig({ roleField: 'roles' })
     const users = config.collections!.find((c) => c.slug === 'users')!

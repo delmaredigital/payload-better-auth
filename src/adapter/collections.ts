@@ -688,6 +688,58 @@ function collectFieldNames(fields: Field[], names: Set<string>): void {
 }
 
 /**
+ * Set `saveToJWT` on the role field when the consumer defined it themselves.
+ * The missing-fields pass never touches existing fields, so a hand-written
+ * `{ name: 'roles', type: 'json' }` would keep roles out of the JWT — and out
+ * of `req.user` on session login — unless it opted in. An explicit
+ * `saveToJWT` (true or false) always wins. Recurses through the containers
+ * whose children live at the parent data level, matching
+ * `getExistingFieldNames`.
+ */
+function withRoleFieldSaveToJWT(fields: Field[], roleField: string): Field[] {
+  let changed = false
+  const next = fields.map((field) => {
+    if (
+      'name' in field &&
+      field.name === roleField &&
+      !('saveToJWT' in field && field.saveToJWT !== undefined)
+    ) {
+      changed = true
+      return { ...field, saveToJWT: true }
+    }
+    if (field.type === 'row' || field.type === 'collapsible') {
+      const inner = withRoleFieldSaveToJWT(field.fields, roleField)
+      if (inner !== field.fields) {
+        changed = true
+        return { ...field, fields: inner }
+      }
+      return field
+    }
+    if (field.type === 'tabs') {
+      let tabsChanged = false
+      const tabs = field.tabs.map((tab) => {
+        // Named tabs namespace their children under tab.name — a role field
+        // there is not `user[roleField]`, so leave it alone.
+        if ('name' in tab && tab.name) return tab
+        const inner = withRoleFieldSaveToJWT(tab.fields as Field[], roleField)
+        if (inner !== tab.fields) {
+          tabsChanged = true
+          return { ...tab, fields: inner }
+        }
+        return tab
+      })
+      if (tabsChanged) {
+        changed = true
+        return { ...field, tabs }
+      }
+      return field
+    }
+    return field
+  })
+  return changed ? next : fields
+}
+
+/**
  * Augment an existing collection with missing fields from Better Auth schema.
  * This ensures user-defined collections (like 'users') get plugin fields automatically.
  */
@@ -791,8 +843,15 @@ export function augmentCollectionWithMissingFields(
     }
   }
 
-  // Return original if no fields to add
-  if (missingFields.length === 0) {
+  // The role field already existing on the consumer's collection means the
+  // loop above skipped it; give it the same saveToJWT the generated field gets.
+  const fields =
+    modelKey === 'user' && configureSaveToJWT
+      ? withRoleFieldSaveToJWT(collection.fields, roleField)
+      : collection.fields
+
+  // Return original if no fields to add and none patched
+  if (missingFields.length === 0 && fields === collection.fields) {
     return collection
   }
 
@@ -809,7 +868,7 @@ export function augmentCollectionWithMissingFields(
   // Return augmented collection
   return {
     ...collection,
-    fields: [...collection.fields, ...addedFields],
+    fields: [...fields, ...addedFields],
   }
 }
 
