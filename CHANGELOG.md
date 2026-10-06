@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`firstUserAdmin.roleField` now applies to the "is the creator an admin?" check.** The first-user-admin hook wrote the configured field but decided whether the creating user was an admin by reading `role`, so with a custom field an admin creating users from the Payload admin had their chosen role replaced by `defaultRole`.
 
+- **The admin login gate handles a `fieldName`-renamed role field.** `roleField` names the stored field, but Better Auth's session user keys the field by its schema name (`role: { fieldName: 'roles' }` still exposes `user.role`), so the gate read a property that never existed and denied real admins. The login wrapper now derives the session key from the Better Auth schema.
+
+- **A consumer-defined role field now gets `saveToJWT`.** When the users collection already declared the role field, augmentation skipped it and roles never reached the JWT (or `req.user`). It is set unless the field sets `saveToJWT` explicitly.
+
 ### Internal
 
 - **Prereleases publish under their own npm dist-tag.** A version with a prerelease identifier (e.g. `0.14.0-next.0`) now publishes under that identifier (`next`) and its GitHub release is marked as a prerelease; plain `x.y.z` versions still publish as `latest`. This is groundwork for the Payload 4 line on the `payload-4` branch, which ships under `next` while Payload 4 is in canary. CI also runs on pushes to `payload-4`.

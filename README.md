@@ -181,9 +181,23 @@ works. For types, wrap the generated user: `WithRoleField<User, 'roles', string[
 Better Auth's `fieldName` mapping (`role: { type: 'string', fieldName: 'roles' }`)
 renames where the value is stored, and the adapter handles it. Here that stored
 name is also the Payload field name, so Payload-side checks see `user.roles` while
-Better Auth's session user keeps `role`. Use `fieldName` when you want the column
-renamed under Better Auth's key; use `roleField` when the property itself is
-called something else.
+Better Auth's session user keeps `role`. Set `roleField` to the stored name
+(`'roles'`); the admin login gate translates it to the session key on its own.
+Use `fieldName` when you want the column renamed under Better Auth's key; use
+`roleField` when the property itself is called something else.
+
+Called directly, `hasAnyRole(user, roles)` and `hasAllRoles(user, roles)` still
+default to `role` for backward compatibility — with a custom field, pass the
+name as the third argument (`hasAnyRole(user, ['admin'], 'roles')`) or the check
+reads the wrong property. The access helpers (`isAdmin`, `hasRole`,
+`isAdminOrSelf`, …) do this for you: they read the configured `roleField` off
+the request's Payload config and also accept a `roleField` option of their own.
+
+`roleField` is published by `betterAuthCollections()`, so setups that skip
+it have no configured value and every gate falls back to `role`. To use another
+name there, either set it on your Payload config yourself
+(`custom: { betterAuth: { roleField: 'roles' } }`) or pass `roleField` to each
+helper and the `roleField` prop to a standalone `LoginView`.
 
 > Upgrading from 0.11.x with the oauth-provider plugin or an array-typed
 > `additionalField`? Those columns hold JSON strings and need converting once —

@@ -1537,7 +1537,7 @@ user: { additionalFields: { roles: { type: <span class="hl-string">'string[]'</s
       </ul>
 
       <div class="callout callout-tip">
-        <p><strong>Only the column name differs?</strong> Better Auth's <code>fieldName</code> mapping (<code>role: { type: 'string', fieldName: 'roles' }</code>) renames where the value is stored, and the adapter handles it. In this plugin the stored name is also the Payload field name, so Payload-side checks see <code>user.roles</code> while Better Auth's session user keeps <code>role</code>. Use <code>fieldName</code> for a column rename under Better Auth's key; use <code>roleField</code> when the property itself has another name.</p>
+        <p><strong>Only the column name differs?</strong> Better Auth's <code>fieldName</code> mapping (<code>role: { type: 'string', fieldName: 'roles' }</code>) renames where the value is stored, and the adapter handles it. In this plugin the stored name is also the Payload field name, so Payload-side checks see <code>user.roles</code> while Better Auth's session user keeps <code>role</code> — the admin login gate translates <code>roleField</code> to the session key on its own. Use <code>fieldName</code> for a column rename under Better Auth's key; use <code>roleField</code> when the property itself has another name.</p>
       </div>
 
       <h3>Disabling Auto-Injection</h3>
