@@ -152,7 +152,7 @@ export function PasskeysManagementClient({
 
   return (
     <div className="field-type passkeys-management">
-      {error && <Banner type="error">{error}</Banner>}
+      {error && <Banner type="danger">{error}</Banner>}
       {success && <Banner type="success">{success}</Banner>}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--base)' }}>
@@ -162,7 +162,7 @@ export function PasskeysManagementClient({
         {!showRegisterForm && (
           <Button
             buttonStyle="secondary"
-            size="small"
+            size="medium"
             icon={<PlusIcon />}
             onClick={() => setShowRegisterForm(true)}
           >
@@ -201,7 +201,7 @@ export function PasskeysManagementClient({
           <div style={{ display: 'flex', gap: 'calc(var(--base) * 0.5)' }}>
             <Button
               buttonStyle="primary"
-              size="small"
+              size="medium"
               onClick={handleRegister}
               disabled={registering}
             >
@@ -209,7 +209,7 @@ export function PasskeysManagementClient({
             </Button>
             <Button
               buttonStyle="secondary"
-              size="small"
+              size="medium"
               onClick={() => setShowRegisterForm(false)}
             >
               Cancel
@@ -255,8 +255,8 @@ export function PasskeysManagementClient({
               </div>
 
               <Button
-                buttonStyle="error"
-                size="small"
+                buttonStyle="destructive"
+                size="medium"
                 icon={<XIcon />}
                 onClick={() => handleDelete(pk.id)}
                 disabled={deleting === pk.id}

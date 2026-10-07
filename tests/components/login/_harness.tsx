@@ -6,11 +6,9 @@ import { LoginView, type LoginViewProps } from '../../../src/components/LoginVie
 const push = vi.fn()
 const refresh = vi.fn()
 
-vi.mock('next/navigation.js', () => ({
-  useRouter: () => ({ push, refresh }),
-}))
 vi.mock('@payloadcms/ui', () => ({
   useConfig: () => ({ config: { routes: { admin: '/admin', api: '/api' } } }),
+  useRouter: () => ({ push, refresh }),
 }))
 // Defensive: code paths that build a client shouldn't pull real better-auth internals.
 vi.mock('better-auth/react', () => ({ createAuthClient: () => makeClient() }))

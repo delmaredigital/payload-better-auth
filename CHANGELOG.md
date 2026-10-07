@@ -5,7 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+### Breaking
+
+- **Payload 4.** Peer ranges for `payload`, `@payloadcms/next` and `@payloadcms/ui` move from `>=3.69.0 <4` to `>=4.0.0-canary.37 <5`. The admin components use props and an import path that exist only in Payload 4, so one release cannot serve both majors. Payload 3 users stay on 0.13.x.
+- **Node >=24.15.0**, the floor Payload 4 declares in `engines`.
+
+### Changed
+
+- `DefaultTemplate` is imported from `@payloadcms/ui/rsc`. Payload 4 removed `@payloadcms/next/templates`, so the API-keys, passkeys and two-factor management views failed to resolve at runtime.
+- `@payloadcms/ui` v4 prop renames in `PasskeysManagementClient` and `TwoFactorManagementClient`: `Button` `size="small"` → `"medium"` (v4 offers `medium | large`), `buttonStyle="error"` → `"destructive"`; `Banner` `type="error"` → `"danger"`, `type="info"` → `"default"`.
+- `betterAuthStrategy` and the API-key create endpoint pass `overrideAccess: true` to their Local API lookups. Payload 4 changed the Local API default to `false`; the strategy runs before `req.user` exists, so every lookup was access-checked as anonymous, threw `Forbidden`, and the strategy returned no user. Found by booting against Postgres; the strategy tests' mock `find` now rejects calls without it.
+- `canUpdateOwnFields` reads the configured id field with `Reflect.get`. Payload 4 types `req.user` as `AuthenticatedUser`, which has no string index signature.
+- `next` and `@payloadcms/next` are optional peer dependencies now — only the admin views that render Next-managed pages need them. Client components navigate through `@payloadcms/ui`'s router hooks (`useRouter`, `useSearchParams`) instead of `next/navigation`, so the components no longer import Next's navigation module.
+- Version floors follow the Payload 4 migration guide: `next >= 16.2.6` (peer) and `typescript >= 6.0.3` (dev).
 
 ## [0.13.2] - 2026-10-07
 

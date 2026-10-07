@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, type FormEvent } from 'react'
-import { useRouter } from 'next/navigation.js'
+import { useConfig, useRouter } from '@payloadcms/ui'
 import { createAuthClient } from 'better-auth/react'
 import { twoFactorClient, magicLinkClient, emailOTPClient } from 'better-auth/client/plugins'
 import { hasAnyRole, hasAllRoles, normalizeRoles, DEFAULT_ROLE_FIELD } from '../utils/access.js'
@@ -12,7 +12,6 @@ import {
   DEFAULT_OTP_LENGTHS,
   type OtpLengths,
 } from '../utils/loginMethods.js'
-import { useConfig } from '@payloadcms/ui'
 import { useAuthClientBaseURL } from './useAuthMountPath.js'
 import { LoadingScreen } from './login/LoadingScreen.js'
 import { AccessDeniedScreen } from './login/AccessDeniedScreen.js'
