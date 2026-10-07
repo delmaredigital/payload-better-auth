@@ -16,6 +16,30 @@ export type RoleArray<O extends readonly string[] = readonly ['user']> =
   | null
 
 /**
+ * Move a user type's `role` property to the name set with `roleField`.
+ *
+ * The exported `User` type is generated from Better Auth's schema with the
+ * default `role`. Wrap it when you configure another name:
+ *
+ * @example
+ * ```ts
+ * import type { User, WithRoleField } from '@delmaredigital/payload-better-auth'
+ *
+ * type AppUser = WithRoleField<User, 'roles', string[]>
+ * // { ...; roles?: string[] } with no `role`
+ * ```
+ *
+ * @template T - The user type (e.g. `User`)
+ * @template K - The configured `roleField`
+ * @template V - The value type of that field (default: `string | string[]`)
+ */
+export type WithRoleField<
+  T,
+  K extends string = 'role',
+  V = string | string[],
+> = Omit<T, 'role'> & { [P in K]?: V }
+
+/**
  * Override role field in a type with configured roles.
  */
 type OverrideRole<T, O extends readonly string[]> = T extends object

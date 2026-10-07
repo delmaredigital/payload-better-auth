@@ -52,7 +52,7 @@ export function makeClient(overrides: Record<string, unknown> = {}) {
 // an object → the mount role-gate runs (used for the access-denied case).
 export function renderLogin(
   props: Partial<LoginViewProps> = {},
-  sessionUser: { role?: unknown } | null = null,
+  sessionUser: Record<string, unknown> | null = null,
   clientOverrides: Record<string, unknown> = {},
 ) {
   push.mockClear()

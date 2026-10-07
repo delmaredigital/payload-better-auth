@@ -1,4 +1,6 @@
 import type { AdminViewProps } from 'payload'
+import { getAuthTables } from 'better-auth/db'
+import type { BetterAuthOptions } from 'better-auth'
 import { LoginView, type LoginViewProps } from './LoginView.js'
 import type { PayloadWithAuth } from '../types/betterAuth.js'
 import type { AuthContextLike } from '../utils/loginMethods.js'
@@ -12,8 +14,12 @@ import {
   type DetectedMethods,
   type MethodSetting,
 } from '../utils/loginMethods.js'
+import { getRoleField } from '../utils/access.js'
 
-type LoginConfig = Omit<LoginViewProps, 'authClient' | 'logo' | 'socialProviders'> & {
+type LoginConfig = Omit<
+  LoginViewProps,
+  'authClient' | 'logo' | 'socialProviders' | 'roleField'
+> & {
   enableSocial?: boolean | string[]
 }
 
@@ -59,10 +65,16 @@ export async function resolveLoginViewProps(
   const resolve = (setting: MethodSetting | undefined, detectedValue: boolean) =>
     resolveAvailability(setting ?? 'auto', detectedValue)
 
+  // Set on betterAuthCollections(), not under admin.login: one value for every
+  // role check. The login gate reads Better Auth's session user, so translate
+  // the stored name to the session key when `fieldName` renames the field.
+  const roleField = sessionRoleKey(authOptions, getRoleField(payload.config))
+
   return {
     afterLoginPath: loginConfig.afterLoginPath,
     requiredRole: loginConfig.requiredRole,
     requireAllRoles: loginConfig.requireAllRoles,
+    roleField,
     enablePassword: resolve(loginConfig.enablePassword, detected.password),
     enableSignUp: resolve(loginConfig.enableSignUp, detected.signup),
     defaultSignUpRole: loginConfig.defaultSignUpRole,
@@ -104,6 +116,28 @@ const FALLBACK_DETECTED: DetectedMethods = {
   // backup-code escape hatch is safe to keep; the emailed code needs otpOptions.
   twoFactorBackupCode: true,
   twoFactorEmailOtp: false,
+}
+
+/**
+ * Translate `roleField` to the key the Better Auth session user actually
+ * carries. `roleField` names the stored field — on the Payload document AND in
+ * Better Auth's schema when `fieldName` remaps it (`role: { fieldName:
+ * 'roles' }` stores `roles`). The session user, though, keys additional fields
+ * by their schema key (`role`), so the login gate must read that key or a
+ * renamed role field locks real admins out. When no schema field stores under
+ * `roleField` — a Payload-only role field, say — the name passes through.
+ */
+function sessionRoleKey(authOptions: unknown, roleField: string): string {
+  if (!authOptions) return roleField
+  try {
+    const userTable = getAuthTables(authOptions as BetterAuthOptions).user
+    for (const [key, fieldDef] of Object.entries(userTable?.fields ?? {})) {
+      if ((fieldDef.fieldName ?? key) === roleField) return key
+    }
+  } catch {
+    // Schema not derivable from these options — keep the configured name.
+  }
+  return roleField
 }
 
 /**

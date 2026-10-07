@@ -15,7 +15,7 @@ import type {
 import type { BetterAuthOptions } from 'better-auth'
 import { getAuthTables } from 'better-auth/db'
 import type { FirstUserAdminOptions } from '../utils/firstUserAdmin.js'
-import { isAdmin, hasAnyRole } from '../utils/access.js'
+import { isAdmin, hasAnyRole, DEFAULT_ROLE_FIELD } from '../utils/access.js'
 
 export type { FirstUserAdminOptions }
 
@@ -57,6 +57,23 @@ export type BetterAuthCollectionsOptions = {
    * Default: true
    */
   configureSaveToJWT?: boolean
+
+  /**
+   * Name of the user property that holds the role(s), e.g. `'roles'` for an
+   * array field. Set it once here; every part of the plugin reads it: the
+   * first-user-admin guard, the saveToJWT field list, the access helpers
+   * (`isAdmin`, `hasRole`, ...), the admin login role gate and the API-key
+   * management gate.
+   *
+   * `firstUserAdmin.roleField` is the older spelling of this same setting and is
+   * still accepted. Passing both with different values throws.
+   *
+   * Better Auth's `fieldName` mapping renames the stored field, which here is
+   * also the Payload field name; it does not change Better Auth's own key.
+   *
+   * @default 'role'
+   */
+  roleField?: string
 
   /**
    * Automatically make the first registered user an admin.
@@ -267,7 +284,7 @@ export function createFirstUserAdminHooks(
 
     // Honor an incoming role only for an authenticated admin; otherwise force
     // the default. Applied in both the success and error branches (fail closed).
-    const byAdmin = hasAnyRole(req?.user as { role?: unknown } | null, [adminRole])
+    const byAdmin = hasAnyRole(req?.user, [adminRole], roleField)
     const resolvedRole = byAdmin ? (data[roleField] ?? defaultRole) : defaultRole
 
     try {
@@ -371,7 +388,11 @@ function injectFirstUserAdminHook(
  * Determine if a field should be saved to JWT.
  * Session-critical fields are included, large data fields are excluded.
  */
-function getSaveToJWT(modelKey: string, fieldName: string): boolean | undefined {
+function getSaveToJWT(
+  modelKey: string,
+  fieldName: string,
+  roleField: string = DEFAULT_ROLE_FIELD
+): boolean | undefined {
   // Session fields - include core session data.
   // Use an EXACT allowlist, not suffix matching: a suffix match on 'token' etc.
   // would auto-include any future session field ending in 'Token' (e.g. a
@@ -390,7 +411,7 @@ function getSaveToJWT(modelKey: string, fieldName: string): boolean | undefined 
 
   // User fields - include essential auth data
   if (modelKey === 'user') {
-    const includeFields = ['role', 'email', 'emailVerified', 'name', 'twoFactorEnabled', 'banned']
+    const includeFields = [roleField, 'email', 'emailVerified', 'name', 'twoFactorEnabled', 'banned']
     const excludeFields = ['image', 'password', 'banReason']
 
     if (includeFields.includes(fieldName)) {
@@ -472,7 +493,8 @@ function generateCollection(
   usePlural: boolean,
   adminGroup: string,
   customAccess?: BetterAuthCollectionsOptions['access'],
-  configureSaveToJWT = true
+  configureSaveToJWT = true,
+  roleField: string = DEFAULT_ROLE_FIELD
 ): CollectionConfig {
   // Use modelName from schema if set, otherwise apply pluralization to modelKey
   const baseName = table.modelName ?? modelKey
@@ -503,7 +525,7 @@ function generateCollection(
       }
 
       const relFieldName = fieldName.replace(/(_id|Id)$/, '')
-      const saveToJWT = configureSaveToJWT ? getSaveToJWT(modelKey, relFieldName) : undefined
+      const saveToJWT = configureSaveToJWT ? getSaveToJWT(modelKey, relFieldName, roleField) : undefined
 
       fields.push({
         name: relFieldName,
@@ -516,7 +538,7 @@ function generateCollection(
       continue
     }
 
-    const saveToJWT = configureSaveToJWT ? getSaveToJWT(modelKey, fieldName) : undefined
+    const saveToJWT = configureSaveToJWT ? getSaveToJWT(modelKey, fieldName, roleField) : undefined
     const field: Record<string, unknown> = {
       name: fieldName,
       type: fieldType,
@@ -673,6 +695,58 @@ function collectFieldNames(fields: Field[], names: Set<string>): void {
 }
 
 /**
+ * Set `saveToJWT` on the role field when the consumer defined it themselves.
+ * The missing-fields pass never touches existing fields, so a hand-written
+ * `{ name: 'roles', type: 'json' }` would keep roles out of the JWT — and out
+ * of `req.user` on session login — unless it opted in. An explicit
+ * `saveToJWT` (true or false) always wins. Recurses through the containers
+ * whose children live at the parent data level, matching
+ * `getExistingFieldNames`.
+ */
+function withRoleFieldSaveToJWT(fields: Field[], roleField: string): Field[] {
+  let changed = false
+  const next = fields.map((field) => {
+    if (
+      'name' in field &&
+      field.name === roleField &&
+      !('saveToJWT' in field && field.saveToJWT !== undefined)
+    ) {
+      changed = true
+      return { ...field, saveToJWT: true }
+    }
+    if (field.type === 'row' || field.type === 'collapsible') {
+      const inner = withRoleFieldSaveToJWT(field.fields, roleField)
+      if (inner !== field.fields) {
+        changed = true
+        return { ...field, fields: inner }
+      }
+      return field
+    }
+    if (field.type === 'tabs') {
+      let tabsChanged = false
+      const tabs = field.tabs.map((tab) => {
+        // Named tabs namespace their children under tab.name — a role field
+        // there is not `user[roleField]`, so leave it alone.
+        if ('name' in tab && tab.name) return tab
+        const inner = withRoleFieldSaveToJWT(tab.fields as Field[], roleField)
+        if (inner !== tab.fields) {
+          tabsChanged = true
+          return { ...tab, fields: inner }
+        }
+        return tab
+      })
+      if (tabsChanged) {
+        changed = true
+        return { ...field, tabs }
+      }
+      return field
+    }
+    return field
+  })
+  return changed ? next : fields
+}
+
+/**
  * Augment an existing collection with missing fields from Better Auth schema.
  * This ensures user-defined collections (like 'users') get plugin fields automatically.
  */
@@ -682,7 +756,8 @@ export function augmentCollectionWithMissingFields(
   usePlural: boolean,
   modelKey: string,
   configureSaveToJWT = true,
-  secretFields?: string[]
+  secretFields?: string[],
+  roleField: string = DEFAULT_ROLE_FIELD
 ): CollectionConfig {
   const existingFieldNames = getExistingFieldNames(collection.fields)
   const missingFields: Field[] = []
@@ -722,7 +797,7 @@ export function augmentCollectionWithMissingFields(
         relationTo = extractRelationTarget(fieldKey, usePlural)
       }
 
-      const saveToJWT = configureSaveToJWT ? getSaveToJWT(modelKey, payloadFieldName) : undefined
+      const saveToJWT = configureSaveToJWT ? getSaveToJWT(modelKey, payloadFieldName, roleField) : undefined
 
       missingFields.push({
         name: payloadFieldName,
@@ -736,7 +811,7 @@ export function augmentCollectionWithMissingFields(
         ...(saveToJWT !== undefined && { saveToJWT }),
       } as Field)
     } else {
-      const saveToJWT = configureSaveToJWT ? getSaveToJWT(modelKey, payloadFieldName) : undefined
+      const saveToJWT = configureSaveToJWT ? getSaveToJWT(modelKey, payloadFieldName, roleField) : undefined
       // Fields managed exclusively by Better Auth should be read-only in the admin UI
       const readOnlyFields = ['twoFactorEnabled']
       const isReadOnly = readOnlyFields.includes(payloadFieldName)
@@ -775,8 +850,15 @@ export function augmentCollectionWithMissingFields(
     }
   }
 
-  // Return original if no fields to add
-  if (missingFields.length === 0) {
+  // The role field already existing on the consumer's collection means the
+  // loop above skipped it; give it the same saveToJWT the generated field gets.
+  const fields =
+    modelKey === 'user' && configureSaveToJWT
+      ? withRoleFieldSaveToJWT(collection.fields, roleField)
+      : collection.fields
+
+  // Return original if no fields to add and none patched
+  if (missingFields.length === 0 && fields === collection.fields) {
     return collection
   }
 
@@ -793,7 +875,7 @@ export function augmentCollectionWithMissingFields(
   // Return augmented collection
   return {
     ...collection,
-    fields: [...collection.fields, ...addedFields],
+    fields: [...fields, ...addedFields],
   }
 }
 
@@ -842,19 +924,27 @@ export function betterAuthCollections(
     configureSaveToJWT = true,
     firstUserAdmin,
     acknowledgeRoleGuardDisabled = false,
+    roleField: roleFieldOption,
     secureSecretFields,
     customizeCollection,
   } = options
 
   const secretFieldsByModel = resolveSecretFields(secureSecretFields)
 
-  // Parse firstUserAdmin option (defaults to true)
+  const roleField = resolveRoleField(
+    roleFieldOption,
+    typeof firstUserAdmin === 'object' ? firstUserAdmin.roleField : undefined
+  )
+
+  // Parse firstUserAdmin option (defaults to true). The guard always uses the
+  // resolved roleField, so it can't drift from the rest of the plugin.
   const firstUserAdminOptions: FirstUserAdminOptions | null =
     firstUserAdmin === false
       ? null
-      : typeof firstUserAdmin === 'object'
-        ? firstUserAdmin
-        : {} // true or undefined = enabled with defaults
+      : {
+          ...(typeof firstUserAdmin === 'object' ? firstUserAdmin : {}),
+          roleField,
+        }
 
   return (incomingConfig: Config): Config => {
     const existingCollections = new Map(
@@ -903,7 +993,8 @@ export function betterAuthCollections(
           usePlural,
           modelKey,
           configureSaveToJWT,
-          secretFieldsByModel?.[modelKey]
+          secretFieldsByModel?.[modelKey],
+          roleField
         )
 
         // Inject first-user-admin hook for user collection
@@ -929,7 +1020,8 @@ export function betterAuthCollections(
         usePlural,
         adminGroup,
         access,
-        configureSaveToJWT
+        configureSaveToJWT,
+        roleField
       )
 
       // Lock secret fields before customizeCollection, so the callback stays
@@ -961,6 +1053,41 @@ export function betterAuthCollections(
     return {
       ...incomingConfig,
       collections: [...finalCollections, ...generatedCollections],
+      // Publish the role field so the main plugin, the login view and the access
+      // helpers read the same name at runtime.
+      custom: {
+        ...incomingConfig.custom,
+        betterAuth: {
+          ...(incomingConfig.custom?.betterAuth as Record<string, unknown> | undefined),
+          roleField,
+        },
+      },
     }
   }
+}
+
+/**
+ * Resolve the single role-field setting from `roleField` and its older
+ * spelling `firstUserAdmin.roleField`. Disagreeing values would leave the
+ * first-user guard and the access checks reading different properties, so
+ * they throw instead.
+ */
+function resolveRoleField(topLevel?: string, legacy?: string): string {
+  for (const [name, value] of [
+    ['roleField', topLevel],
+    ['firstUserAdmin.roleField', legacy],
+  ] as const) {
+    if (value !== undefined && (typeof value !== 'string' || value.trim() === '')) {
+      throw new Error(
+        `[betterAuthCollections] \`${name}\` must be a non-empty string; got ${JSON.stringify(value)}.`
+      )
+    }
+  }
+  if (topLevel !== undefined && legacy !== undefined && topLevel !== legacy) {
+    throw new Error(
+      `[betterAuthCollections] \`roleField\` ("${topLevel}") and \`firstUserAdmin.roleField\` ` +
+        `("${legacy}") disagree. They are the same setting; set \`roleField\` only.`
+    )
+  }
+  return topLevel ?? legacy ?? DEFAULT_ROLE_FIELD
 }

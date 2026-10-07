@@ -32,6 +32,12 @@ export type RoleCheckConfig = {
    * @default ['admin']
    */
   adminRoles?: string[]
+  /**
+   * User property that holds the role(s). Leave unset to use the `roleField`
+   * configured on `betterAuthCollections()` (read from the request's Payload
+   * config), which falls back to `'role'`.
+   */
+  roleField?: string
 }
 
 export type SelfAccessConfig = RoleCheckConfig & {
@@ -53,6 +59,34 @@ export type FieldUpdateConfig = SelfAccessConfig & {
    * The user collection slug for password verification.
    */
   userSlug?: string
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Role Field
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** The user property role checks read when no `roleField` is configured. */
+export const DEFAULT_ROLE_FIELD = 'role'
+
+/**
+ * Read the configured role field from a Payload config.
+ *
+ * `betterAuthCollections({ roleField })` stores the value at
+ * `config.custom.betterAuth.roleField`; every role check in the plugin reads it
+ * from there so the name is set once.
+ *
+ * @param config - A Payload config (or sanitized config), or undefined
+ * @returns The configured field name, or `'role'`
+ */
+export function getRoleField(config: { custom?: Record<string, unknown> } | undefined | null): string {
+  const betterAuth = config?.custom?.betterAuth as { roleField?: unknown } | undefined
+  const roleField = betterAuth?.roleField
+  return typeof roleField === 'string' && roleField ? roleField : DEFAULT_ROLE_FIELD
+}
+
+/** Resolve the role field for a request: explicit option, then config, then `'role'`. */
+function roleFieldFor(req: PayloadRequest, explicit?: string): string {
+  return explicit || getRoleField(req.payload?.config)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -91,6 +125,7 @@ export function normalizeRoles(role: unknown): string[] {
  *
  * @param user - The user object
  * @param roles - Roles to check for
+ * @param roleField - User property holding the role(s) (default: `'role'`)
  * @returns True if user has at least one matching role
  *
  * @example
@@ -98,14 +133,15 @@ export function normalizeRoles(role: unknown): string[] {
  * const user = { role: ['admin', 'editor'] }
  * hasAnyRole(user, ['admin']) // true
  * hasAnyRole(user, ['superadmin']) // false
+ * hasAnyRole({ roles: ['admin'] }, ['admin'], 'roles') // true
  * ```
  */
 export function hasAnyRole(
-  user: { role?: unknown } | null | undefined,
-  roles: string[]
+  user: object | null | undefined,
+  roles: string[],
+  roleField: string = DEFAULT_ROLE_FIELD
 ): boolean {
-  if (!user?.role) return false
-  const userRoles = normalizeRoles(user.role)
+  const userRoles = readUserRoles(user, roleField)
   return userRoles.some((role) => roles.includes(role))
 }
 
@@ -114,6 +150,7 @@ export function hasAnyRole(
  *
  * @param user - The user object
  * @param roles - Roles to check for
+ * @param roleField - User property holding the role(s) (default: `'role'`)
  * @returns True if user has all matching roles
  *
  * @example
@@ -124,12 +161,19 @@ export function hasAnyRole(
  * ```
  */
 export function hasAllRoles(
-  user: { role?: unknown } | null | undefined,
-  roles: string[]
+  user: object | null | undefined,
+  roles: string[],
+  roleField: string = DEFAULT_ROLE_FIELD
 ): boolean {
-  if (!user?.role) return false
-  const userRoles = normalizeRoles(user.role)
+  const userRoles = readUserRoles(user, roleField)
+  if (userRoles.length === 0) return false
   return roles.every((role) => userRoles.includes(role))
+}
+
+/** The user's roles under `roleField`, normalized; empty when absent. */
+function readUserRoles(user: object | null | undefined, roleField: string): string[] {
+  if (!user) return []
+  return normalizeRoles((user as Record<string, unknown>)[roleField])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -147,10 +191,10 @@ export function hasAllRoles(
 export function hasAdminRoles(
   config: RoleCheckConfig = {}
 ): (args: { req: PayloadRequest }) => boolean {
-  const { adminRoles = ['admin'] } = config
+  const { adminRoles = ['admin'], roleField } = config
 
   return ({ req }) => {
-    return hasAnyRole(req.user as { role?: unknown } | null, adminRoles)
+    return hasAnyRole(req.user, adminRoles, roleFieldFor(req, roleField))
   }
 }
 
@@ -220,8 +264,8 @@ export function isAdminField(config: RoleCheckConfig = {}): FieldAccess {
  * ```
  */
 export function isAdminOrSelf(config: SelfAccessConfig = {}): Access {
-  const { adminRoles = ['admin'], idField = 'id' } = config
-  const checkAdmin = hasAdminRoles({ adminRoles })
+  const { adminRoles = ['admin'], idField = 'id', roleField } = config
+  const checkAdmin = hasAdminRoles({ adminRoles, roleField })
 
   return ({ req }) => {
     // Admins can access everything
@@ -268,8 +312,9 @@ export function canUpdateOwnFields(config: FieldUpdateConfig = {}): Access {
     allowedFields = ['name'],
     idField = 'id',
     userSlug = 'users',
+    roleField,
   } = config
-  const checkAdmin = hasAdminRoles({ adminRoles })
+  const checkAdmin = hasAdminRoles({ adminRoles, roleField })
 
   void userSlug // retained for backward-compatible config shape; no longer used
 
@@ -348,6 +393,8 @@ export function isAuthenticatedField(): FieldAccess {
  * Access control: Allow users with any of the specified roles.
  *
  * @param roles - Roles that have access
+ * @param roleField - User property holding the role(s). Defaults to the
+ *   configured `roleField`, then `'role'`.
  * @returns Payload access function
  *
  * @example
@@ -358,9 +405,9 @@ export function isAuthenticatedField(): FieldAccess {
  * }
  * ```
  */
-export function hasRole(roles: string[]): Access {
+export function hasRole(roles: string[], roleField?: string): Access {
   return ({ req }) => {
-    return hasAnyRole(req.user as { role?: unknown } | null, roles)
+    return hasAnyRole(req.user, roles, roleFieldFor(req, roleField))
   }
 }
 
@@ -368,11 +415,13 @@ export function hasRole(roles: string[]): Access {
  * Field access control: Allow users with any of the specified roles.
  *
  * @param roles - Roles that have access
+ * @param roleField - User property holding the role(s). Defaults to the
+ *   configured `roleField`, then `'role'`.
  * @returns Payload field access function
  */
-export function hasRoleField(roles: string[]): FieldAccess {
+export function hasRoleField(roles: string[], roleField?: string): FieldAccess {
   return ({ req }) => {
-    return hasAnyRole(req.user as { role?: unknown } | null, roles)
+    return hasAnyRole(req.user, roles, roleFieldFor(req, roleField))
   }
 }
 
@@ -380,6 +429,8 @@ export function hasRoleField(roles: string[]): FieldAccess {
  * Access control: Allow users with all of the specified roles.
  *
  * @param roles - All roles required for access
+ * @param roleField - User property holding the role(s). Defaults to the
+ *   configured `roleField`, then `'role'`.
  * @returns Payload access function
  *
  * @example
@@ -389,8 +440,8 @@ export function hasRoleField(roles: string[]): FieldAccess {
  * }
  * ```
  */
-export function requireAllRoles(roles: string[]): Access {
+export function requireAllRoles(roles: string[], roleField?: string): Access {
   return ({ req }) => {
-    return hasAllRoles(req.user as { role?: unknown } | null, roles)
+    return hasAllRoles(req.user, roles, roleFieldFor(req, roleField))
   }
 }
