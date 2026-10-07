@@ -326,6 +326,7 @@ async function handleApiKeyCreate(
       try {
         const memberships = await payload.find({
           collection: membersCollection,
+          overrideAccess: true,
           where: {
             and: [
               { user: { equals: session.user.id } },
@@ -1192,6 +1193,7 @@ export function betterAuthStrategy(
               if (jwtPayload?.sub) {
                 const users = await payload.find({
                   collection: usersCollection,
+                  overrideAccess: true,
                   where: { id: { equals: jwtPayload.sub } },
                   limit: 1,
                   depth: 0,
@@ -1210,6 +1212,7 @@ export function betterAuthStrategy(
                     try {
                       const memberships = await payload.find({
                         collection: membersCollection,
+                        overrideAccess: true,
                         where: {
                           and: [
                             { user: { equals: jwtPayload.sub } },
@@ -1253,6 +1256,7 @@ export function betterAuthStrategy(
 
         const users = await payload.find({
           collection: usersCollection,
+          overrideAccess: true,
           where: { id: { equals: sessionData.user.id } },
           limit: 1,
           depth: 0,
@@ -1292,6 +1296,7 @@ export function betterAuthStrategy(
           try {
             const memberships = await payload.find({
               collection: membersCollection,
+              overrideAccess: true,
               where: {
                 and: [
                   { user: { equals: sessionData.user.id } },
@@ -1350,6 +1355,7 @@ export function betterAuthStrategy(
             // finds no row.
             const apiKeyRows = await payload.find({
               collection: apiKeysCollection,
+              overrideAccess: true,
               where: {
                 and: [
                   { id: { equals: apiKeyId } },
@@ -1380,6 +1386,7 @@ export function betterAuthStrategy(
                   try {
                     const memberships = await payload.find({
                       collection: membersCollection,
+                      overrideAccess: true,
                       where: {
                         and: [
                           { user: { equals: sessionData.user.id } },

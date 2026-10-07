@@ -594,6 +594,13 @@ function generateCollection(
     fields,
     ...(indexes.length > 0 && { indexes }),
     timestamps: true,
+    // Payload 4 enables versions on every collection by default, which would
+    // give sessions, accounts, verifications and API keys a `_versions` table
+    // keeping up to 100 historical copies — old tokens and password hashes
+    // outliving deletion. The v4 migration guide asks custom auth collections
+    // to opt out. Inert on Payload 3, and a `versions` set through
+    // `customizeCollection` (which runs after this) still wins.
+    versions: false,
   }
 }
 

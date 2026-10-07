@@ -328,7 +328,7 @@ export function canUpdateOwnFields(config: FieldUpdateConfig = {}): Access {
     // Must be updating own record. Normalize types: ids may be numbers (SERIAL)
     // or strings (UUID/text) and can arrive as either across the two idTypes, so
     // a strict `!==` would wrongly deny (or, if coerced elsewhere, allow).
-    const userId = req.user[idField]
+    const userId: unknown = Reflect.get(req.user, idField)
     if (userId == null || id == null || String(userId) !== String(id) || !data) {
       return false
     }

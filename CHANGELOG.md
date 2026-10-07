@@ -13,10 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`betterAuthStrategy` and the API-key create endpoint pass `overrideAccess: true` to their Local API lookups.** It was already the default on Payload 3; Payload 4 removes the default, so naming it keeps the strategy working on both majors with no behaviour change on either.
+- **`canUpdateOwnFields` reads the configured id field with `Reflect.get`.** Payload 4 types `req.user` as `AuthenticatedUser`, which has no string index signature; `Reflect.get` compiles on both majors.
+- **Generated collections opt out of Payload 4's default versioning.** Payload 4 enables versions on every collection, which would give sessions, accounts, verifications and API keys a `_versions` table keeping up to 100 historical copies — old tokens and password hashes outliving deletion, which the v4 migration guide asks custom auth collections to opt out of. A `versions` set through `customizeCollection` still wins. One edge case: a `customizeCollection` callback now receives `versions: false` where it used to receive `undefined`, so a callback written as `versions: collection.versions ?? true` now leaves versioning off; set `versions: true` explicitly if you want it.
 - **`firstUserAdmin.roleField` now applies to the "is the creator an admin?" check.** The first-user-admin hook wrote the configured field but decided whether the creating user was an admin by reading `role`, so with a custom field an admin creating users from the Payload admin had their chosen role replaced by `defaultRole`.
-
-- **The admin login gate handles a `fieldName`-renamed role field.** `roleField` names the stored field, but Better Auth's session user keys the field by its schema name (`role: { fieldName: 'roles' }` still exposes `user.role`), so the gate read a property that never existed and denied real admins. The login wrapper now derives the session key from the Better Auth schema.
-
 - **A consumer-defined role field now gets `saveToJWT`.** When the users collection already declared the role field, augmentation skipped it and roles never reached the JWT (or `req.user`). It is set unless the field sets `saveToJWT` explicitly.
 
 ### Internal
