@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.2] - 2026-10-07
+
+A configurable role field, and lookups that keep working on Payload 4. Thanks to @mikevocalz for [#44](https://github.com/delmaredigital/payload-better-auth/pull/44) and [#45](https://github.com/delmaredigital/payload-better-auth/pull/45), and to @gregorbg for the request in [#41](https://github.com/delmaredigital/payload-better-auth/issues/41).
+
 ### Added
 
 - **`betterAuthCollections({ roleField })`** ([#41](https://github.com/delmaredigital/payload-better-auth/issues/41)) names the user property that holds roles, for example `roles` as a `string[]`. It defaults to `role`, and the plugin publishes it on `config.custom.betterAuth.roleField`. The first-user-admin guard, the saveToJWT field list, the access helpers (`isAdmin`, `isAdminField`, `isAdminOrSelf`, `canUpdateOwnFields`, `hasRole`, `hasRoleField`, `requireAllRoles`), the admin login role gate and the API-key management gate all read that one value. `firstUserAdmin.roleField` is the older spelling of the same setting and still works; setting both to different values throws at startup. `hasAnyRole` / `hasAllRoles` take an optional third `roleField` argument, the access helpers accept a `roleField` override, and `getRoleField(config)`, `DEFAULT_ROLE_FIELD` and the `WithRoleField<User, 'roles', string[]>` type are exported.
