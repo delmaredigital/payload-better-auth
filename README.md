@@ -46,7 +46,7 @@ For AI-assisted exploration: [DeepWiki](https://deepwiki.com/delmaredigital/payl
 ## Install
 
 ```bash
-pnpm add @delmaredigital/payload-better-auth better-auth
+pnpm add @delmaredigital/payload-better-auth@next better-auth
 ```
 
 **Requirements:** `payload` >= 4.0.0-canary.37 · `better-auth` >= 1.7.0 · `react` >= 19.2.1 · Node >= 24.15. Works with either Payload 4 admin adapter, `@payloadcms/next` or `@payloadcms/tanstack-start`: the admin components navigate through `@payloadcms/ui`'s router hooks, so `next` is an optional peer.
