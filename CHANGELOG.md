@@ -5,19 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.14.0-next.0] - 2026-10-07
+
+The first Payload 4 prerelease, published under the `next` npm tag while Payload 4 is in beta: `pnpm add @delmaredigital/payload-better-auth@next`. Payload 3 users stay on 0.13.x (`latest`). Thanks to @mikevocalz for the port in [#43](https://github.com/delmaredigital/payload-better-auth/pull/43).
+
+The Payload 4 fixes that also work on Payload 3 (explicit `overrideAccess: true`, `Reflect.get` for the id field, `versions: false` on generated collections) shipped in 0.13.2 and are included here.
+
 ### Breaking
 
 - **Payload 4.** Peer ranges for `payload`, `@payloadcms/next` and `@payloadcms/ui` move from `>=3.69.0 <4` to `>=4.0.0-canary.37 <5`. The admin components use props and an import path that exist only in Payload 4, so one release cannot serve both majors. Payload 3 users stay on 0.13.x.
 - **Node >=24.15.0**, the floor Payload 4 declares in `engines`.
+- **`next >= 16.2.6`** (peer), the floor the Payload 4 migration guide sets. TypeScript `>= 6.0.3` is used to build.
 
 ### Changed
 
 - `DefaultTemplate` is imported from `@payloadcms/ui/rsc`. Payload 4 removed `@payloadcms/next/templates`, so the API-keys, passkeys and two-factor management views failed to resolve at runtime.
 - `@payloadcms/ui` v4 prop renames in `PasskeysManagementClient` and `TwoFactorManagementClient`: `Button` `size="small"` → `"medium"` (v4 offers `medium | large`), `buttonStyle="error"` → `"destructive"`; `Banner` `type="error"` → `"danger"`, `type="info"` → `"default"`.
-- `betterAuthStrategy` and the API-key create endpoint pass `overrideAccess: true` to their Local API lookups. Payload 4 changed the Local API default to `false`; the strategy runs before `req.user` exists, so every lookup was access-checked as anonymous, threw `Forbidden`, and the strategy returned no user. Found by booting against Postgres; the strategy tests' mock `find` now rejects calls without it.
-- `canUpdateOwnFields` reads the configured id field with `Reflect.get`. Payload 4 types `req.user` as `AuthenticatedUser`, which has no string index signature.
 - `next` and `@payloadcms/next` are optional peer dependencies now — only the admin views that render Next-managed pages need them. Client components navigate through `@payloadcms/ui`'s router hooks (`useRouter`, `useSearchParams`) instead of `next/navigation`, so the components no longer import Next's navigation module.
-- Version floors follow the Payload 4 migration guide: `next >= 16.2.6` (peer) and `typescript >= 6.0.3` (dev).
+
+### Known issues
+
+- **The plugin's admin screens (passkeys, two-factor, API keys) are unstyled in places.** They still use Payload 3's `--theme-*` CSS variables, which Payload 4 retires. Sign-in, sessions and access control are unaffected.
 
 ## [0.13.2] - 2026-10-07
 
