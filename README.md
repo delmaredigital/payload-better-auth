@@ -10,71 +10,28 @@ Better Auth adapter and plugins for Payload CMS. Enables seamless integration be
   <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fdelmaredigital%2Fdd-starter&project-name=my-payload-site&build-command=pnpm%20run%20ci&env=PAYLOAD_SECRET,BETTER_AUTH_SECRET&stores=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22productSlug%22%3A%22neon%22%2C%22integrationSlug%22%3A%22neon%22%7D%2C%7B%22type%22%3A%22blob%22%7D%5D"><img src="https://vercel.com/button" alt="Deploy with Vercel" height="32"></a>
 </p>
 
-> ⚠️ **Upgrading to 0.12? Array-typed fields changed shape on disk. Use 0.12.1 or later.**
->
-> Releases up to 0.11.3 reported `supportsArrays: false` to Better Auth, so every `string[]` / `number[]` value was `JSON.stringify`'d on its way into Payload — those columns hold `'["a","b"]'` where an array belongs. 0.12.0 stores arrays natively, so existing rows need converting once.
->
-> **If you don't use the oauth-provider plugin and have no array-typed `additionalFields`, there is nothing to do** — nothing else in Better Auth uses an array field.
->
-> Otherwise run the migration, **then verify, then remove any workaround of your own** — in that order:
->
-> ```ts
-> import { migrateStringifiedArrays } from '@delmaredigital/payload-better-auth'
->
-> const results = await migrateStringifiedArrays({
->   payload,
->   betterAuthOptions,
->   dryRun: true, // drop this once the report looks right
-> })
-> console.table(results)
-> ```
->
-> **On 0.12.0 this reported `converted: 0` against databases that were not clean** — on Postgres the ORM parses stored strings into arrays on read, hiding them. 0.12.1 censuses the stored shape in SQL instead. If you ran the 0.12.0 migration, re-run it on 0.12.1, and check each row says `observedVia: 'stored-shape'`.
->
-> Confirm with the database itself before dropping any tolerant parsing you added — `SELECT jsonb_typeof(scopes), count(*) FROM oauth_access_tokens GROUP BY 1;` should show no `string` rows. Full details: [Migrating stringified arrays](#migrating-stringified-arrays-0120).
+## Payload 4
 
-> ⚠️ **Upgrading to 0.11? Better Auth 1.7 is now required, and it needs a database migration.**
+**Payload 4 is in beta, and we're supporting it early.** This plugin is a thin adapter. It talks to Payload only through its public Local API and admin UI exports, so a new Payload major means a small set of mechanical changes rather than a rewrite. We follow Payload's canary releases as they land, and we intend to have a stable release ready when Payload 4.0 ships.
+
+| You run | Install | npm tag |
+|---|---|---|
+| Payload 3 (`>=3.69 <4`) | `pnpm add @delmaredigital/payload-better-auth` | `latest` (0.13.x) |
+| Payload 4 beta (`>=4.0.0-canary.37`) | `pnpm add @delmaredigital/payload-better-auth@next` | `next` (0.14.0-next.x) |
+
+**Trying it on Payload 4:**
+
+- **Requirements:** `payload` / `@payloadcms/ui` `>=4.0.0-canary.37`, `next` `>=16.2.6`, Node `>=24.15`, plus the rest of [Payload's v4 migration guide](https://github.com/payloadcms/payload/blob/main/docs/migration-guide/v4.mdx). Better Auth requirements are unchanged.
+- **Pin an exact version** (e.g. `@delmaredigital/payload-better-auth@0.14.0-next.0`). Prereleases follow Payload's canaries and can change from one build to the next.
+- **Already handled, on both majors:** the plugin's Local API lookups pass `overrideAccess: true` explicitly (Payload 4 flips the default to `false`), and its generated auth collections opt out of Payload 4's default versioning, so you get no `_versions` tables holding old sessions, tokens or password hashes.
+- **Known gap:** the plugin's admin screens (passkeys, two-factor, API keys) still use Payload 3's `--theme-*` CSS variables, which Payload 4 retires, so their styling is off. Sign-in, sessions and access control are unaffected.
+- **Where the work happens:** the [`payload-4`](https://github.com/delmaredigital/payload-better-auth/tree/payload-4) branch. Please report problems in an [issue](https://github.com/delmaredigital/payload-better-auth/issues) with "Payload 4" in the title.
+
+The `next` line is a prerelease. For production, stay on `latest` until Payload 4.0 is stable; at that point the Payload 4 line becomes `latest`, and 0.13.x stays installable for Payload 3.
+
+> **Upgrading from 0.12 to 0.13?** No code, config or data changes are needed; 0.13.0 is not breaking, despite the minor bump. One behavior to know: `payload.auth({ headers })` no longer extends the session unless you pass `canSetHeaders: true` and forward `responseHeaders`, so a call that can't deliver a refreshed cookie is now a pure read. 0.13.2 adds the optional [`roleField`](#naming-the-role-field) setting.
 >
-> 1. **Upgrade the peers together** — `better-auth@^1.7`, plus `@better-auth/api-key` / `@better-auth/passkey` at the same major if you use them. 1.6 is no longer supported: 1.7 requires two new adapter methods, and a 1.6 install would throw at runtime.
-> 2. **Generate the migration, then edit it to backfill `issuer`.** Better Auth 1.7 keys provider identities on `(issuer, accountId)` instead of `providerId`, so the accounts collection gains a **required** `issuer` field plus a unique index. `payload migrate:create` will emit an `ADD COLUMN … NOT NULL` that **fails on a populated table** — split it into add-nullable → backfill → enforce:
->
->    ```sql
->    ALTER TABLE accounts ADD COLUMN issuer varchar;
->
->    -- Email/password rows
->    UPDATE accounts SET issuer = 'local:credential' WHERE provider_id = 'credential';
->    -- OAuth rows: the issuer each provider DECLARES (see the warning below)
->    UPDATE accounts SET issuer = 'https://accounts.google.com' WHERE provider_id = 'google';
->    UPDATE accounts SET issuer = 'https://www.facebook.com'    WHERE provider_id = 'facebook';
->    -- Only providers that declare no issuer of their own get the synthetic form
->    UPDATE accounts SET issuer = 'local:oauth:' || provider_id WHERE issuer IS NULL;
->
->    -- Must return zero rows, or the unique index will fail
->    SELECT issuer, account_id, COUNT(*)
->    FROM accounts GROUP BY issuer, account_id HAVING COUNT(*) > 1;
->
->    ALTER TABLE accounts ALTER COLUMN issuer SET NOT NULL;
->    -- then the unique index exactly as Payload generated it
->    ```
->
->    ⚠️ **`local:oauth:<providerId>` is the fallback, not the rule.** It applies only where a provider declares no issuer of its own. In Better Auth 1.7.1 seven built-ins DO declare one and must not get the synthetic form: **google** (`https://accounts.google.com`), **facebook** (`https://www.facebook.com`), **apple** (`https://appleid.apple.com`), **line**, **cognito**, **paybin** and **microsoft** — plus every generic-OAuth/OIDC provider (Okta, Auth0, Keycloak). Read the value rather than guessing it:
->
->    ```sh
->    node -e "import('better-auth/social-providers').then(m => console.log(m.google({clientId:'x',clientSecret:'y'}).accountIssuer))"
->    ```
->
->    Backfilling those rows with `local:oauth:…` files them under a key Better Auth never queries. Sign-in does not find the row, takes the new-identity path and writes a **second** account row; the unique index permits it because the pair differs. Nothing fails, and the damage is silent until a user is asked to link an account they already have.
->
->    ✅ **Facebook's `account_id` does NOT move**, despite an `accountSubject` that reads like it changed. 1.7 declares `"sub" in profile ? profile.sub : profile.id` — the same branch 1.6 took inside `getUserInfo` (Limited Login yields `sub`, the Graph `/me?fields=…` path yields `id`). Facebook rows need only the `issuer` update; rows with no stored `id_token` came via Graph. Only a Limited Login / `configId` consumer needs to look further.
->
->    ⚠️ **Microsoft Entra ID needs a row-by-row backfill, and its `account_id` moves too.** Its issuer is per-tenant (`https://login.microsoftonline.com/<tid>/v2.0`), so there is no constant to write — and 1.7 keys the subject on the `oid` claim where 1.6 stored `sub`, so every existing Entra `account_id` is also wrong. Both values are in the `id_token` already stored on the row: decode the claims segment (base64url) and take `iss` and `oid` from it. Decode only — do not verify the signature. This reads a claim out of a row already in your own database, not a token presented by a caller, so there is nothing to authenticate; stored `id_token`s are short-lived and long expired, so verification would fail regardless. If a row has no usable `id_token`, it cannot be repaired this way — decide per row (delete it and let the user re-link, or look the `oid` up through Graph) rather than guessing a value.
->
->    Names above assume the plugin's Postgres defaults (pluralized slug, snake_case columns); adjust for `usePlural: false` or MongoDB.
-> 3. **Apply the migration** and verify sign-in for each provider you support.
->
-> No application-code changes are required for the common setup — the adapter, generated collections, and admin UI absorb the rest of 1.7. If you use OAuth JWT bearer auth, database `joins`, or a proxy with a dynamic `baseURL`, see the [CHANGELOG](./CHANGELOG.md#0110---2026-08-19) for the smaller items.
->
-> 📦 **Coming from 0.10 or earlier?** One more behavioral change worth knowing before you get to the above: since 0.10, **secret fields on the plugin's managed collections are locked by default** (`secureSecretFields` on `betterAuthCollections()`). Session tokens, TOTP secrets and backup codes, stored OAuth tokens, hashed passwords and API keys, JWKS private keys and OAuth client secrets are no longer readable through Payload's REST/GraphQL API. That only matters if you read them there, or via a Local API call passing `overrideAccess: false` — opt out with `secureSecretFields: false`, or unlock per model. Every release from 0.7 to 0.9 carried its own breaking change on top of that: read the [CHANGELOG](./CHANGELOG.md) and apply each migration between your version and this one.
+> **Upgrading from 0.11 or earlier?** Read the [upgrade guide](https://delmaredigital.github.io/payload-better-auth/#upgrading) before you bump. 0.11 requires Better Auth 1.7 and a database migration that backfills `account.issuer`, and 0.12 changed how array fields are stored ([migration steps](#migrating-stringified-arrays-0120)). Every release's details are in the [CHANGELOG](CHANGELOG.md).
 
 ---
 
