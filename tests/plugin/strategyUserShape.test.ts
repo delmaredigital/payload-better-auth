@@ -25,7 +25,13 @@ function createMockPayload(options: {
 } = {}) {
   const { users = [], members = [], usersCollection = 'users' } = options
   return {
-    find: vi.fn(async ({ collection, where }: { collection: string; where: any }) => {
+    find: vi.fn(async ({ collection, where, overrideAccess }: { collection: string; where: any; overrideAccess?: boolean }) => {
+      // Payload 4's Local API defaults overrideAccess to false. The strategy runs
+      // before req.user exists, so a lookup without it is access-checked as an
+      // anonymous user and rejected. Mirror that here.
+      if (overrideAccess !== true) {
+        throw new Error('Forbidden: You are not allowed to perform this action.')
+      }
       if (collection === usersCollection) {
         const idFilter = where?.id?.equals
         return { docs: idFilter !== undefined ? users.filter((u) => u.id === idFilter) : users }
