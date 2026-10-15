@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0-next.2] - 2026-10-15
+
 ### Fixed
 
 - **Admin components styled again on Payload 4** ([#46](https://github.com/delmaredigital/payload-better-auth/issues/46)). Payload 4 removed the CSS variables the components were styled with, and an undefined variable fails silently, so the custom login, password-reset, two-factor and passkey / two-factor / API-key management screens rendered unstyled: no spacing, borders, input boxes, button fills or error colors. It wasn't only the `--theme-*` colors. `--base` (all spacing), `--style-radius-*` and the font-size variables were gone too. All inline styles now go through one token module (`src/components/theme.ts`), which maps them to Payload 4's semantic `--color-*`, `--field-color-*`, `--radius-*` and `--text-*` tokens, so light and dark mode follow the admin theme. Spacing keeps Payload 3's 20px unit. Font sizes now resolve to real tokens; the old `--font-size-*` names never existed in Payload 3 either, so headings and small text pick up their intended sizes for the first time.
