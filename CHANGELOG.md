@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Payload 4 betas now satisfy the peer range** ([#47](https://github.com/delmaredigital/payload-better-auth/issues/47)). Semver sorts prerelease tags alphabetically, so `4.0.0-beta.*` came before `4.0.0-canary.37` and fell outside `>=4.0.0-canary.37 <5`. npm refused to install (`ERESOLVE`) and pnpm printed a peer warning. The range for `payload`, `@payloadcms/next` and `@payloadcms/ui` is now `>=4.0.0-beta.0 <4.0.0-canary.0 || >=4.0.0-canary.37 <5`. That covers the betas, canary.37 and later, the RCs and GA, and still leaves out the canaries before canary.37, which lack the admin APIs the plugin uses. Built and tested against `4.0.0-beta.1`.
+
 ## [0.14.0-next.0] - 2026-10-07
 
 The first Payload 4 prerelease, published under the `next` npm tag while Payload 4 is in beta: `pnpm add @delmaredigital/payload-better-auth@next`. Payload 3 users stay on 0.13.x (`latest`). Thanks to @mikevocalz for the port in [#43](https://github.com/delmaredigital/payload-better-auth/pull/43).

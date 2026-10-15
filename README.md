@@ -12,17 +12,17 @@ Better Auth adapter and plugins for Payload CMS. Enables seamless integration be
 
 ## Payload 4
 
-**Payload 4 is in beta, and we're supporting it early.** This plugin is a thin adapter. It talks to Payload only through its public Local API and admin UI exports, so a new Payload major means a small set of mechanical changes rather than a rewrite. We follow Payload's canary releases as they land, and we intend to have a stable release ready when Payload 4.0 ships.
+**Payload 4 is in beta, and we're supporting it early.** This plugin is a thin adapter. It talks to Payload only through its public Local API and admin UI exports, so a new Payload major means a small set of mechanical changes rather than a rewrite. We follow Payload's beta and canary releases as they land, and we intend to have a stable release ready when Payload 4.0 ships.
 
 | You run | Install | npm tag |
 |---|---|---|
 | Payload 3 (`>=3.69 <4`) | `pnpm add @delmaredigital/payload-better-auth` | `latest` (0.13.x) |
-| Payload 4 beta (`>=4.0.0-canary.37`) | `pnpm add @delmaredigital/payload-better-auth@next` | `next` (0.14.0-next.x) |
+| Payload 4 beta (`>=4.0.0-beta.0`, or canary `>=4.0.0-canary.37`) | `pnpm add @delmaredigital/payload-better-auth@next` | `next` (0.14.0-next.x) |
 
 **Trying it on Payload 4:**
 
-- **Requirements:** `payload` / `@payloadcms/ui` `>=4.0.0-canary.37`, `next` `>=16.2.6`, Node `>=24.15`, plus the rest of [Payload's v4 migration guide](https://github.com/payloadcms/payload/blob/main/docs/migration-guide/v4.mdx). Better Auth requirements are unchanged.
-- **Pin an exact version** (e.g. `@delmaredigital/payload-better-auth@0.14.0-next.0`). Prereleases follow Payload's canaries and can change from one build to the next.
+- **Requirements:** `payload` / `@payloadcms/ui` `>=4.0.0-beta.0` (or canary `>=4.0.0-canary.37`), `next` `>=16.2.6`, Node `>=24.15`, plus the rest of [Payload's v4 migration guide](https://github.com/payloadcms/payload/blob/main/docs/migration-guide/v4.mdx). Better Auth requirements are unchanged.
+- **Pin an exact version** (e.g. `@delmaredigital/payload-better-auth@0.14.0-next.0`). Prereleases follow Payload's betas and canaries and can change from one build to the next.
 - **Already handled, on both majors:** the plugin's Local API lookups pass `overrideAccess: true` explicitly (Payload 4 flips the default to `false`), and its generated auth collections opt out of Payload 4's default versioning, so you get no `_versions` tables holding old sessions, tokens or password hashes.
 - **Known gap:** the plugin's admin screens (passkeys, two-factor, API keys) still use Payload 3's `--theme-*` CSS variables, which Payload 4 retires, so their styling is off. Sign-in, sessions and access control are unaffected.
 - **Where the work happens:** the [`payload-4`](https://github.com/delmaredigital/payload-better-auth/tree/payload-4) branch. Please report problems in an [issue](https://github.com/delmaredigital/payload-better-auth/issues) with "Payload 4" in the title.
@@ -49,7 +49,7 @@ For AI-assisted exploration: [DeepWiki](https://deepwiki.com/delmaredigital/payl
 pnpm add @delmaredigital/payload-better-auth@next better-auth
 ```
 
-**Requirements:** `payload` >= 4.0.0-canary.37 · `better-auth` >= 1.7.0 · `react` >= 19.2.1 · Node >= 24.15. Works with either Payload 4 admin adapter, `@payloadcms/next` or `@payloadcms/tanstack-start`: the admin components navigate through `@payloadcms/ui`'s router hooks, so `next` is an optional peer.
+**Requirements:** `payload` >= 4.0.0-beta.0 (or canary >= 4.0.0-canary.37) · `better-auth` >= 1.7.0 · `react` >= 19.2.1 · Node >= 24.15. Works with either Payload 4 admin adapter, `@payloadcms/next` or `@payloadcms/tanstack-start`: the admin components navigate through `@payloadcms/ui`'s router hooks, so `next` is an optional peer.
 
 On Payload 3, use the 0.13.x line.
 
