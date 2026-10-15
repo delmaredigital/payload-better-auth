@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { AuthCard } from './AuthCard.js'
+import { color, font, radius, space } from '../theme.js'
 
 export function EmailSentScreen({
   icon,
@@ -20,12 +21,12 @@ export function EmailSentScreen({
         style={{
           width: '64px',
           height: '64px',
-          background: 'var(--theme-success-100)',
+          background: color.successBg,
           borderRadius: '50%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          margin: '0 auto calc(var(--base) * 1.5)',
+          margin: `0 auto ${space(1.5)}`,
           fontSize: '28px',
         }}
       >
@@ -34,10 +35,10 @@ export function EmailSentScreen({
 
       <h1
         style={{
-          color: 'var(--theme-text)',
-          fontSize: 'var(--font-size-h3)',
+          color: color.text,
+          fontSize: font.h3,
           fontWeight: 600,
-          margin: '0 0 calc(var(--base) * 0.5) 0',
+          margin: `0 0 ${space(0.5)} 0`,
         }}
       >
         Check Your Email
@@ -45,10 +46,10 @@ export function EmailSentScreen({
 
       <p
         style={{
-          color: 'var(--theme-text)',
+          color: color.text,
           opacity: 0.7,
-          fontSize: 'var(--font-size-small)',
-          marginBottom: 'calc(var(--base) * 1.5)',
+          fontSize: font.small,
+          marginBottom: space(1.5),
         }}
       >
         {message}
@@ -57,10 +58,10 @@ export function EmailSentScreen({
       {note && (
         <p
           style={{
-            color: 'var(--theme-text)',
+            color: color.text,
             opacity: 0.6,
-            fontSize: 'var(--font-size-small)',
-            marginBottom: 'calc(var(--base) * 1.5)',
+            fontSize: font.small,
+            marginBottom: space(1.5),
           }}
         >
           {note}
@@ -71,12 +72,12 @@ export function EmailSentScreen({
         type="button"
         onClick={onBack}
         style={{
-          padding: 'calc(var(--base) * 0.75) calc(var(--base) * 1.5)',
-          background: 'var(--theme-elevation-150)',
+          padding: `${space(0.75)} ${space(1.5)}`,
+          background: color.surfaceRaised,
           border: 'none',
-          borderRadius: 'var(--style-radius-s)',
-          color: 'var(--theme-text)',
-          fontSize: 'var(--font-size-base)',
+          borderRadius: radius.small,
+          color: color.text,
+          fontSize: font.base,
           cursor: 'pointer',
         }}
       >

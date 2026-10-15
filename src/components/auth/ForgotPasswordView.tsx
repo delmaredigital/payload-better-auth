@@ -4,6 +4,7 @@ import { useConfig } from '@payloadcms/ui'
 import { useState, useRef, type FormEvent } from 'react'
 import { createAuthClient } from 'better-auth/react'
 import { useAuthClientBaseURL } from '../useAuthMountPath.js'
+import { color, font, radius, space } from '../theme.js'
 
 export type ForgotPasswordViewProps = {
   /** Optional pre-configured auth client */
@@ -88,15 +89,15 @@ export function ForgotPasswordView({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'var(--theme-bg)',
-          padding: 'var(--base)',
+          background: color.bg,
+          padding: space(),
         }}
       >
         <div
           style={{
-            background: 'var(--theme-elevation-50)',
-            padding: 'calc(var(--base) * 2)',
-            borderRadius: 'var(--style-radius-m)',
+            background: color.surface,
+            padding: space(2),
+            borderRadius: radius.medium,
             boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
             width: '100%',
             maxWidth: '400px',
@@ -104,17 +105,17 @@ export function ForgotPasswordView({
           }}
         >
           {logo && (
-            <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
+            <div style={{ marginBottom: space(1.5) }}>
               {logo}
             </div>
           )}
 
           <h1
             style={{
-              color: 'var(--theme-text)',
-              fontSize: 'var(--font-size-h3)',
+              color: color.text,
+              fontSize: font.h3,
               fontWeight: 600,
-              margin: '0 0 var(--base) 0',
+              margin: `0 0 ${space()} 0`,
             }}
           >
             Check Your Email
@@ -122,10 +123,10 @@ export function ForgotPasswordView({
 
           <p
             style={{
-              color: 'var(--theme-text)',
+              color: color.text,
               opacity: 0.8,
-              marginBottom: 'calc(var(--base) * 1.5)',
-              fontSize: 'var(--font-size-small)',
+              marginBottom: space(1.5),
+              fontSize: font.small,
             }}
           >
             {successMessage}
@@ -134,8 +135,8 @@ export function ForgotPasswordView({
           <a
             href={loginPath}
             style={{
-              color: 'var(--theme-elevation-800)',
-              fontSize: 'var(--font-size-small)',
+              color: color.text,
+              fontSize: font.small,
               textDecoration: 'underline',
             }}
           >
@@ -153,15 +154,15 @@ export function ForgotPasswordView({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'var(--theme-bg)',
-        padding: 'var(--base)',
+        background: color.bg,
+        padding: space(),
       }}
     >
       <div
         style={{
-          background: 'var(--theme-elevation-50)',
-          padding: 'calc(var(--base) * 2)',
-          borderRadius: 'var(--style-radius-m)',
+          background: color.surface,
+          padding: space(2),
+          borderRadius: radius.medium,
           boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
           width: '100%',
           maxWidth: '400px',
@@ -171,7 +172,7 @@ export function ForgotPasswordView({
           <div
             style={{
               textAlign: 'center',
-              marginBottom: 'calc(var(--base) * 1.5)',
+              marginBottom: space(1.5),
             }}
           >
             {logo}
@@ -180,12 +181,12 @@ export function ForgotPasswordView({
 
         <h1
           style={{
-            color: 'var(--theme-text)',
-            fontSize: 'var(--font-size-h3)',
+            color: color.text,
+            fontSize: font.h3,
             fontWeight: 600,
-            marginBottom: 'calc(var(--base) * 0.5)',
+            marginBottom: space(0.5),
             textAlign: 'center',
-            margin: '0 0 calc(var(--base) * 0.5) 0',
+            margin: `0 0 ${space(0.5)} 0`,
           }}
         >
           {title}
@@ -193,25 +194,25 @@ export function ForgotPasswordView({
 
         <p
           style={{
-            color: 'var(--theme-text)',
+            color: color.text,
             opacity: 0.7,
-            fontSize: 'var(--font-size-small)',
+            fontSize: font.small,
             textAlign: 'center',
-            marginBottom: 'calc(var(--base) * 1.5)',
+            marginBottom: space(1.5),
           }}
         >
           Enter your email and we'll send you a reset link.
         </p>
 
         <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
+          <div style={{ marginBottom: space(1.5) }}>
             <label
               htmlFor="email"
               style={{
                 display: 'block',
-                color: 'var(--theme-text)',
-                marginBottom: 'calc(var(--base) * 0.5)',
-                fontSize: 'var(--font-size-small)',
+                color: color.text,
+                marginBottom: space(0.5),
+                fontSize: font.small,
                 fontWeight: 500,
               }}
             >
@@ -226,12 +227,12 @@ export function ForgotPasswordView({
               autoComplete="email"
               style={{
                 width: '100%',
-                padding: 'calc(var(--base) * 0.75)',
-                background: 'var(--theme-input-bg)',
-                border: '1px solid var(--theme-elevation-150)',
-                borderRadius: 'var(--style-radius-s)',
-                color: 'var(--theme-text)',
-                fontSize: 'var(--font-size-base)',
+                padding: space(0.75),
+                background: color.inputBg,
+                border: `1px solid ${color.inputBorder}`,
+                borderRadius: radius.small,
+                color: color.text,
+                fontSize: font.base,
                 outline: 'none',
                 boxSizing: 'border-box',
               }}
@@ -241,13 +242,13 @@ export function ForgotPasswordView({
           {error && (
             <div
               style={{
-                color: 'var(--theme-error-500)',
-                marginBottom: 'var(--base)',
-                fontSize: 'var(--font-size-small)',
-                padding: 'calc(var(--base) * 0.5)',
-                background: 'var(--theme-error-50)',
-                borderRadius: 'var(--style-radius-s)',
-                border: '1px solid var(--theme-error-200)',
+                color: color.danger,
+                marginBottom: space(),
+                fontSize: font.small,
+                padding: space(0.5),
+                background: color.dangerBg,
+                borderRadius: radius.small,
+                border: `1px solid ${color.dangerBorder}`,
               }}
             >
               {error}
@@ -259,17 +260,17 @@ export function ForgotPasswordView({
             disabled={loading}
             style={{
               width: '100%',
-              padding: 'calc(var(--base) * 0.75)',
-              background: 'var(--theme-elevation-800)',
+              padding: space(0.75),
+              background: color.inverse,
               border: 'none',
-              borderRadius: 'var(--style-radius-s)',
-              color: 'var(--theme-elevation-50)',
-              fontSize: 'var(--font-size-base)',
+              borderRadius: radius.small,
+              color: color.onInverse,
+              fontSize: font.base,
               fontWeight: 500,
               cursor: loading ? 'not-allowed' : 'pointer',
               opacity: loading ? 0.7 : 1,
               transition: 'opacity 150ms ease',
-              marginBottom: 'var(--base)',
+              marginBottom: space(),
             }}
           >
             {loading ? 'Sending...' : 'Send Reset Link'}
@@ -279,9 +280,9 @@ export function ForgotPasswordView({
             <a
               href={loginPath}
               style={{
-                color: 'var(--theme-text)',
+                color: color.text,
                 opacity: 0.7,
-                fontSize: 'var(--font-size-small)',
+                fontSize: font.small,
                 textDecoration: 'underline',
               }}
             >

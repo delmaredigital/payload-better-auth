@@ -3,6 +3,7 @@ import { AuthCard } from './AuthCard.js'
 import { OtpInput } from './OtpInput.js'
 import { AuthBanner } from './AuthBanner.js'
 import { AuthButton } from './AuthButton.js'
+import { color, font, space } from '../theme.js'
 
 export function EmailOtpForm({ email, code, onCodeChange, onSubmit, onBack, loading, error, logo, codeLength = 6 }: {
   email: string
@@ -21,10 +22,10 @@ export function EmailOtpForm({ email, code, onCodeChange, onSubmit, onBack, load
 
         <h1
           style={{
-            color: 'var(--theme-text)',
-            fontSize: 'var(--font-size-h3)',
+            color: color.text,
+            fontSize: font.h3,
             fontWeight: 600,
-            margin: '0 0 calc(var(--base) * 0.5) 0',
+            margin: `0 0 ${space(0.5)} 0`,
             textAlign: 'center',
           }}
         >
@@ -33,25 +34,25 @@ export function EmailOtpForm({ email, code, onCodeChange, onSubmit, onBack, load
 
         <p
           style={{
-            color: 'var(--theme-text)',
+            color: color.text,
             opacity: 0.7,
-            fontSize: 'var(--font-size-small)',
+            fontSize: font.small,
             textAlign: 'center',
-            marginBottom: 'calc(var(--base) * 1.5)',
+            marginBottom: space(1.5),
           }}
         >
           We&apos;ve sent a verification code to <strong>{email}</strong>
         </p>
 
         <form onSubmit={onSubmit}>
-          <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
+          <div style={{ marginBottom: space(1.5) }}>
             <label
               htmlFor="email-otp-code"
               style={{
                 display: 'block',
-                color: 'var(--theme-text)',
-                marginBottom: 'calc(var(--base) * 0.5)',
-                fontSize: 'var(--font-size-small)',
+                color: color.text,
+                marginBottom: space(0.5),
+                fontSize: font.small,
                 fontWeight: 500,
               }}
             >
@@ -72,13 +73,13 @@ export function EmailOtpForm({ email, code, onCodeChange, onSubmit, onBack, load
           onClick={onBack}
           style={{
             width: '100%',
-            marginTop: 'var(--base)',
-            padding: 'calc(var(--base) * 0.5)',
+            marginTop: space(),
+            padding: space(0.5),
             background: 'transparent',
             border: 'none',
-            color: 'var(--theme-text)',
+            color: color.text,
             opacity: 0.7,
-            fontSize: 'var(--font-size-small)',
+            fontSize: font.small,
             cursor: 'pointer',
           }}
         >

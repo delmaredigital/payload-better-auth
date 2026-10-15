@@ -1,3 +1,4 @@
+import { color } from '../theme.js'
 export function LoadingScreen() {
   return (
     <div
@@ -6,10 +7,10 @@ export function LoadingScreen() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'var(--theme-bg)',
+        background: color.bg,
       }}
     >
-      <div style={{ color: 'var(--theme-text)', opacity: 0.7 }}>
+      <div style={{ color: color.text, opacity: 0.7 }}>
         Loading...
       </div>
     </div>

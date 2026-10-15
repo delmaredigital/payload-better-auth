@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { useConfig, useRouter } from '@payloadcms/ui'
+import { color } from './theme.js'
 
 export type BeforeLoginProps = {
   /** URL to redirect to for login. Defaults to `${routes.admin}/login`. */
@@ -33,8 +34,8 @@ export function BeforeLogin({ loginUrl }: BeforeLoginProps = {}) {
         minHeight: '100vh',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'var(--theme-bg)',
-        color: 'var(--theme-text)',
+        background: color.bg,
+        color: color.text,
       }}
     >
       <div>Redirecting to login...</div>

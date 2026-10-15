@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AuthField } from '../../../src/components/login/AuthField.js'
+import { space } from '../../../src/components/theme.js'
 
 describe('AuthField', () => {
   it('renders a labeled input that resolves via getByLabelText', () => {
@@ -68,11 +69,11 @@ describe('AuthField', () => {
     expect((capturedRef as HTMLInputElement | null)?.id).toBe('ref-field')
   })
 
-  it('uses var(--base) as the default wrapper marginBottom', () => {
+  it('uses one spacing unit as the default wrapper marginBottom', () => {
     const { container } = render(
       <AuthField id="x" label="X" type="text" value="" onChange={() => {}} />
     )
-    expect((container.firstChild as HTMLElement).style.marginBottom).toBe('var(--base)')
+    expect((container.firstChild as HTMLElement).style.marginBottom).toBe(space())
   })
 
   it('honors a custom marginBottom prop on the wrapper div', () => {
@@ -83,10 +84,10 @@ describe('AuthField', () => {
         type="text"
         value=""
         onChange={() => {}}
-        marginBottom="calc(var(--base) * 1.5)"
+        marginBottom="2rem"
       />
     )
-    expect((container.firstChild as HTMLElement).style.marginBottom).toBe('calc(var(--base) * 1.5)')
+    expect((container.firstChild as HTMLElement).style.marginBottom).toBe('2rem')
   })
 
   it('focuses the input when autoFocus is true', () => {

@@ -5,6 +5,7 @@ import { useConfig } from '@payloadcms/ui'
 import { QRCodeSVG } from 'qrcode.react'
 import { useAuthMountPath } from '../useAuthMountPath.js'
 import { extractTotpSecret } from '../../utils/totp.js'
+import { color, font, radius, space } from '../theme.js'
 
 export type TwoFactorSetupViewProps = {
   /** Custom logo element */
@@ -184,32 +185,32 @@ export function TwoFactorSetupView({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'var(--theme-bg)',
-          padding: 'var(--base)',
+          background: color.bg,
+          padding: space(),
         }}
       >
         <div
           style={{
-            background: 'var(--theme-elevation-50)',
-            padding: 'calc(var(--base) * 2)',
-            borderRadius: 'var(--style-radius-m)',
+            background: color.surface,
+            padding: space(2),
+            borderRadius: radius.medium,
             boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
             width: '100%',
             maxWidth: '400px',
           }}
         >
           {logo && (
-            <div style={{ textAlign: 'center', marginBottom: 'calc(var(--base) * 1.5)' }}>
+            <div style={{ textAlign: 'center', marginBottom: space(1.5) }}>
               {logo}
             </div>
           )}
 
           <h1
             style={{
-              color: 'var(--theme-text)',
-              fontSize: 'var(--font-size-h3)',
+              color: color.text,
+              fontSize: font.h3,
               fontWeight: 600,
-              margin: '0 0 calc(var(--base) * 0.5) 0',
+              margin: `0 0 ${space(0.5)} 0`,
               textAlign: 'center',
             }}
           >
@@ -218,25 +219,25 @@ export function TwoFactorSetupView({
 
           <p
             style={{
-              color: 'var(--theme-text)',
+              color: color.text,
               opacity: 0.7,
-              fontSize: 'var(--font-size-small)',
+              fontSize: font.small,
               textAlign: 'center',
-              marginBottom: 'calc(var(--base) * 1.5)',
+              marginBottom: space(1.5),
             }}
           >
             Confirm your password to start setting up two-factor authentication.
           </p>
 
           <form onSubmit={handlePasswordSubmit}>
-            <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
+            <div style={{ marginBottom: space(1.5) }}>
               <label
                 htmlFor="password"
                 style={{
                   display: 'block',
-                  color: 'var(--theme-text)',
-                  marginBottom: 'calc(var(--base) * 0.5)',
-                  fontSize: 'var(--font-size-small)',
+                  color: color.text,
+                  marginBottom: space(0.5),
+                  fontSize: font.small,
                   fontWeight: 500,
                 }}
               >
@@ -252,12 +253,12 @@ export function TwoFactorSetupView({
                 autoFocus
                 style={{
                   width: '100%',
-                  padding: 'calc(var(--base) * 0.75)',
-                  background: 'var(--theme-input-bg)',
-                  border: '1px solid var(--theme-elevation-150)',
-                  borderRadius: 'var(--style-radius-s)',
-                  color: 'var(--theme-text)',
-                  fontSize: 'var(--font-size-base)',
+                  padding: space(0.75),
+                  background: color.inputBg,
+                  border: `1px solid ${color.inputBorder}`,
+                  borderRadius: radius.small,
+                  color: color.text,
+                  fontSize: font.base,
                   outline: 'none',
                   boxSizing: 'border-box',
                 }}
@@ -267,13 +268,13 @@ export function TwoFactorSetupView({
             {error && (
               <div
                 style={{
-                  color: 'var(--theme-error-500)',
-                  marginBottom: 'var(--base)',
-                  fontSize: 'var(--font-size-small)',
-                  padding: 'calc(var(--base) * 0.5)',
-                  background: 'var(--theme-error-50)',
-                  borderRadius: 'var(--style-radius-s)',
-                  border: '1px solid var(--theme-error-200)',
+                  color: color.danger,
+                  marginBottom: space(),
+                  fontSize: font.small,
+                  padding: space(0.5),
+                  background: color.dangerBg,
+                  borderRadius: radius.small,
+                  border: `1px solid ${color.dangerBorder}`,
                 }}
               >
                 {error}
@@ -285,12 +286,12 @@ export function TwoFactorSetupView({
               disabled={loading || password.length === 0}
               style={{
                 width: '100%',
-                padding: 'calc(var(--base) * 0.75)',
-                background: 'var(--theme-elevation-800)',
+                padding: space(0.75),
+                background: color.inverse,
                 border: 'none',
-                borderRadius: 'var(--style-radius-s)',
-                color: 'var(--theme-elevation-50)',
-                fontSize: 'var(--font-size-base)',
+                borderRadius: radius.small,
+                color: color.onInverse,
+                fontSize: font.base,
                 fontWeight: 500,
                 cursor: loading || password.length === 0 ? 'not-allowed' : 'pointer',
                 opacity: loading || password.length === 0 ? 0.7 : 1,
@@ -315,32 +316,32 @@ export function TwoFactorSetupView({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'var(--theme-bg)',
-          padding: 'var(--base)',
+          background: color.bg,
+          padding: space(),
         }}
       >
         <div
           style={{
-            background: 'var(--theme-elevation-50)',
-            padding: 'calc(var(--base) * 2)',
-            borderRadius: 'var(--style-radius-m)',
+            background: color.surface,
+            padding: space(2),
+            borderRadius: radius.medium,
             boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
             width: '100%',
             maxWidth: '400px',
           }}
         >
           {logo && (
-            <div style={{ textAlign: 'center', marginBottom: 'calc(var(--base) * 1.5)' }}>
+            <div style={{ textAlign: 'center', marginBottom: space(1.5) }}>
               {logo}
             </div>
           )}
 
           <h1
             style={{
-              color: 'var(--theme-text)',
-              fontSize: 'var(--font-size-h3)',
+              color: color.text,
+              fontSize: font.h3,
               fontWeight: 600,
-              margin: '0 0 calc(var(--base) * 0.5) 0',
+              margin: `0 0 ${space(0.5)} 0`,
               textAlign: 'center',
             }}
           >
@@ -349,11 +350,11 @@ export function TwoFactorSetupView({
 
           <p
             style={{
-              color: 'var(--theme-text)',
+              color: color.text,
               opacity: 0.7,
-              fontSize: 'var(--font-size-small)',
+              fontSize: font.small,
               textAlign: 'center',
-              marginBottom: error ? 'var(--base)' : 0,
+              marginBottom: error ? space() : 0,
             }}
           >
             {error ? 'Two-factor setup could not be started.' : 'Preparing two-factor setup…'}
@@ -363,13 +364,13 @@ export function TwoFactorSetupView({
             <>
               <div
                 style={{
-                  color: 'var(--theme-error-500)',
-                  marginBottom: 'var(--base)',
-                  fontSize: 'var(--font-size-small)',
-                  padding: 'calc(var(--base) * 0.5)',
-                  background: 'var(--theme-error-50)',
-                  borderRadius: 'var(--style-radius-s)',
-                  border: '1px solid var(--theme-error-200)',
+                  color: color.danger,
+                  marginBottom: space(),
+                  fontSize: font.small,
+                  padding: space(0.5),
+                  background: color.dangerBg,
+                  borderRadius: radius.small,
+                  border: `1px solid ${color.dangerBorder}`,
                 }}
               >
                 {error}
@@ -381,12 +382,12 @@ export function TwoFactorSetupView({
                 disabled={loading}
                 style={{
                   width: '100%',
-                  padding: 'calc(var(--base) * 0.75)',
-                  background: 'var(--theme-elevation-800)',
+                  padding: space(0.75),
+                  background: color.inverse,
                   border: 'none',
-                  borderRadius: 'var(--style-radius-s)',
-                  color: 'var(--theme-elevation-50)',
-                  fontSize: 'var(--font-size-base)',
+                  borderRadius: radius.small,
+                  color: color.onInverse,
+                  fontSize: font.base,
                   fontWeight: 500,
                   cursor: loading ? 'not-allowed' : 'pointer',
                   opacity: loading ? 0.7 : 1,
@@ -411,15 +412,15 @@ export function TwoFactorSetupView({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'var(--theme-bg)',
-          padding: 'var(--base)',
+          background: color.bg,
+          padding: space(),
         }}
       >
         <div
           style={{
-            background: 'var(--theme-elevation-50)',
-            padding: 'calc(var(--base) * 2)',
-            borderRadius: 'var(--style-radius-m)',
+            background: color.surface,
+            padding: space(2),
+            borderRadius: radius.medium,
             boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
             width: '100%',
             maxWidth: '400px',
@@ -427,17 +428,17 @@ export function TwoFactorSetupView({
           }}
         >
           {logo && (
-            <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
+            <div style={{ marginBottom: space(1.5) }}>
               {logo}
             </div>
           )}
 
           <h1
             style={{
-              color: 'var(--theme-success-500)',
-              fontSize: 'var(--font-size-h3)',
+              color: color.success,
+              fontSize: font.h3,
               fontWeight: 600,
-              margin: '0 0 var(--base) 0',
+              margin: `0 0 ${space()} 0`,
             }}
           >
             Two-Factor Enabled!
@@ -445,10 +446,10 @@ export function TwoFactorSetupView({
 
           <p
             style={{
-              color: 'var(--theme-text)',
+              color: color.text,
               opacity: 0.8,
-              marginBottom: 'calc(var(--base) * 1.5)',
-              fontSize: 'var(--font-size-small)',
+              marginBottom: space(1.5),
+              fontSize: font.small,
             }}
           >
             Your account is now protected with two-factor authentication.
@@ -458,12 +459,12 @@ export function TwoFactorSetupView({
             href={resolvedAfterSetupPath}
             style={{
               display: 'inline-block',
-              padding: 'calc(var(--base) * 0.75) calc(var(--base) * 1.5)',
-              background: 'var(--theme-elevation-800)',
+              padding: `${space(0.75)} ${space(1.5)}`,
+              background: color.inverse,
               border: 'none',
-              borderRadius: 'var(--style-radius-s)',
-              color: 'var(--theme-elevation-50)',
-              fontSize: 'var(--font-size-base)',
+              borderRadius: radius.small,
+              color: color.onInverse,
+              fontSize: font.base,
               fontWeight: 500,
               textDecoration: 'none',
             }}
@@ -484,15 +485,15 @@ export function TwoFactorSetupView({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'var(--theme-bg)',
-          padding: 'var(--base)',
+          background: color.bg,
+          padding: space(),
         }}
       >
         <div
           style={{
-            background: 'var(--theme-elevation-50)',
-            padding: 'calc(var(--base) * 2)',
-            borderRadius: 'var(--style-radius-m)',
+            background: color.surface,
+            padding: space(2),
+            borderRadius: radius.medium,
             boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
             width: '100%',
             maxWidth: '450px',
@@ -502,7 +503,7 @@ export function TwoFactorSetupView({
             <div
               style={{
                 textAlign: 'center',
-                marginBottom: 'calc(var(--base) * 1.5)',
+                marginBottom: space(1.5),
               }}
             >
               {logo}
@@ -511,10 +512,10 @@ export function TwoFactorSetupView({
 
           <h1
             style={{
-              color: 'var(--theme-text)',
-              fontSize: 'var(--font-size-h3)',
+              color: color.text,
+              fontSize: font.h3,
               fontWeight: 600,
-              margin: '0 0 calc(var(--base) * 0.5) 0',
+              margin: `0 0 ${space(0.5)} 0`,
               textAlign: 'center',
             }}
           >
@@ -523,11 +524,11 @@ export function TwoFactorSetupView({
 
           <p
             style={{
-              color: 'var(--theme-text)',
+              color: color.text,
               opacity: 0.7,
-              fontSize: 'var(--font-size-small)',
+              fontSize: font.small,
               textAlign: 'center',
-              marginBottom: 'calc(var(--base) * 1.5)',
+              marginBottom: space(1.5),
             }}
           >
             Store these codes safely. You can use them to access your account if you lose your authenticator.
@@ -535,27 +536,27 @@ export function TwoFactorSetupView({
 
           <div
             style={{
-              background: 'var(--theme-elevation-100)',
-              padding: 'var(--base)',
-              borderRadius: 'var(--style-radius-s)',
-              marginBottom: 'calc(var(--base) * 1.5)',
+              background: color.surfaceRaised,
+              padding: space(),
+              borderRadius: radius.small,
+              marginBottom: space(1.5),
               fontFamily: 'monospace',
-              fontSize: 'var(--font-size-small)',
+              fontSize: font.small,
             }}
           >
             <div
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: 'calc(var(--base) * 0.5)',
+                gap: space(0.5),
               }}
             >
               {backupCodes.map((code, index) => (
                 <div
                   key={index}
                   style={{
-                    color: 'var(--theme-text)',
-                    padding: 'calc(var(--base) * 0.25)',
+                    color: color.text,
+                    padding: space(0.25),
                   }}
                 >
                   {code}
@@ -567,20 +568,20 @@ export function TwoFactorSetupView({
           <div
             style={{
               display: 'flex',
-              gap: 'calc(var(--base) * 0.5)',
-              marginBottom: 'var(--base)',
+              gap: space(0.5),
+              marginBottom: space(),
             }}
           >
             <button
               onClick={() => void handleCopyCodes()}
               style={{
                 flex: 1,
-                padding: 'calc(var(--base) * 0.5)',
-                background: 'var(--theme-elevation-150)',
+                padding: space(0.5),
+                background: color.surfaceRaised,
                 border: 'none',
-                borderRadius: 'var(--style-radius-s)',
-                color: 'var(--theme-text)',
-                fontSize: 'var(--font-size-small)',
+                borderRadius: radius.small,
+                color: color.text,
+                fontSize: font.small,
                 cursor: 'pointer',
               }}
             >
@@ -594,12 +595,12 @@ export function TwoFactorSetupView({
               onClick={handleDownloadCodes}
               style={{
                 flex: 1,
-                padding: 'calc(var(--base) * 0.5)',
-                background: 'var(--theme-elevation-150)',
+                padding: space(0.5),
+                background: color.surfaceRaised,
                 border: 'none',
-                borderRadius: 'var(--style-radius-s)',
-                color: 'var(--theme-text)',
-                fontSize: 'var(--font-size-small)',
+                borderRadius: radius.small,
+                color: color.text,
+                fontSize: font.small,
                 cursor: 'pointer',
               }}
             >
@@ -611,12 +612,12 @@ export function TwoFactorSetupView({
             onClick={handleBackupContinue}
             style={{
               width: '100%',
-              padding: 'calc(var(--base) * 0.75)',
-              background: 'var(--theme-elevation-800)',
+              padding: space(0.75),
+              background: color.inverse,
               border: 'none',
-              borderRadius: 'var(--style-radius-s)',
-              color: 'var(--theme-elevation-50)',
-              fontSize: 'var(--font-size-base)',
+              borderRadius: radius.small,
+              color: color.onInverse,
+              fontSize: font.base,
               fontWeight: 500,
               cursor: 'pointer',
             }}
@@ -636,15 +637,15 @@ export function TwoFactorSetupView({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'var(--theme-bg)',
-        padding: 'var(--base)',
+        background: color.bg,
+        padding: space(),
       }}
     >
       <div
         style={{
-          background: 'var(--theme-elevation-50)',
-          padding: 'calc(var(--base) * 2)',
-          borderRadius: 'var(--style-radius-m)',
+          background: color.surface,
+          padding: space(2),
+          borderRadius: radius.medium,
           boxShadow: '0 2px 20px rgba(0, 0, 0, 0.1)',
           width: '100%',
           maxWidth: '400px',
@@ -654,7 +655,7 @@ export function TwoFactorSetupView({
           <div
             style={{
               textAlign: 'center',
-              marginBottom: 'calc(var(--base) * 1.5)',
+              marginBottom: space(1.5),
             }}
           >
             {logo}
@@ -663,10 +664,10 @@ export function TwoFactorSetupView({
 
         <h1
           style={{
-            color: 'var(--theme-text)',
-            fontSize: 'var(--font-size-h3)',
+            color: color.text,
+            fontSize: font.h3,
             fontWeight: 600,
-            margin: '0 0 calc(var(--base) * 0.5) 0',
+            margin: `0 0 ${space(0.5)} 0`,
             textAlign: 'center',
           }}
         >
@@ -675,11 +676,11 @@ export function TwoFactorSetupView({
 
         <p
           style={{
-            color: 'var(--theme-text)',
+            color: color.text,
             opacity: 0.7,
-            fontSize: 'var(--font-size-small)',
+            fontSize: font.small,
             textAlign: 'center',
-            marginBottom: 'calc(var(--base) * 1.5)',
+            marginBottom: space(1.5),
           }}
         >
           Scan the QR code with your authenticator app, then enter the code below.
@@ -689,7 +690,7 @@ export function TwoFactorSetupView({
           <div
             style={{
               textAlign: 'center',
-              marginBottom: 'calc(var(--base) * 1.5)',
+              marginBottom: space(1.5),
             }}
           >
             {/*
@@ -704,8 +705,8 @@ export function TwoFactorSetupView({
               marginSize={2}
               title="QR code for authenticator app"
               style={{
-                border: '1px solid var(--theme-elevation-150)',
-                borderRadius: 'var(--style-radius-s)',
+                border: `1px solid ${color.border}`,
+                borderRadius: radius.small,
               }}
             />
           </div>
@@ -714,16 +715,16 @@ export function TwoFactorSetupView({
         {secret && (
           <div
             style={{
-              marginBottom: 'calc(var(--base) * 1.5)',
+              marginBottom: space(1.5),
               textAlign: 'center',
             }}
           >
             <p
               style={{
-                color: 'var(--theme-text)',
+                color: color.text,
                 opacity: 0.7,
-                fontSize: 'var(--font-size-small)',
-                marginBottom: 'calc(var(--base) * 0.5)',
+                fontSize: font.small,
+                marginBottom: space(0.5),
               }}
             >
               Or enter this code manually:
@@ -731,12 +732,12 @@ export function TwoFactorSetupView({
             <code
               style={{
                 display: 'inline-block',
-                padding: 'calc(var(--base) * 0.5)',
-                background: 'var(--theme-elevation-100)',
-                borderRadius: 'var(--style-radius-s)',
+                padding: space(0.5),
+                background: color.surfaceRaised,
+                borderRadius: radius.small,
                 fontFamily: 'monospace',
-                fontSize: 'var(--font-size-small)',
-                color: 'var(--theme-text)',
+                fontSize: font.small,
+                color: color.text,
                 wordBreak: 'break-all',
               }}
             >
@@ -746,14 +747,14 @@ export function TwoFactorSetupView({
         )}
 
         <form onSubmit={handleVerify}>
-          <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
+          <div style={{ marginBottom: space(1.5) }}>
             <label
               htmlFor="code"
               style={{
                 display: 'block',
-                color: 'var(--theme-text)',
-                marginBottom: 'calc(var(--base) * 0.5)',
-                fontSize: 'var(--font-size-small)',
+                color: color.text,
+                marginBottom: space(0.5),
+                fontSize: font.small,
                 fontWeight: 500,
               }}
             >
@@ -771,12 +772,12 @@ export function TwoFactorSetupView({
               placeholder="000000"
               style={{
                 width: '100%',
-                padding: 'calc(var(--base) * 0.75)',
-                background: 'var(--theme-input-bg)',
-                border: '1px solid var(--theme-elevation-150)',
-                borderRadius: 'var(--style-radius-s)',
-                color: 'var(--theme-text)',
-                fontSize: 'var(--font-size-h4)',
+                padding: space(0.75),
+                background: color.inputBg,
+                border: `1px solid ${color.inputBorder}`,
+                borderRadius: radius.small,
+                color: color.text,
+                fontSize: font.h4,
                 fontFamily: 'monospace',
                 textAlign: 'center',
                 letterSpacing: '0.5em',
@@ -789,13 +790,13 @@ export function TwoFactorSetupView({
           {error && (
             <div
               style={{
-                color: 'var(--theme-error-500)',
-                marginBottom: 'var(--base)',
-                fontSize: 'var(--font-size-small)',
-                padding: 'calc(var(--base) * 0.5)',
-                background: 'var(--theme-error-50)',
-                borderRadius: 'var(--style-radius-s)',
-                border: '1px solid var(--theme-error-200)',
+                color: color.danger,
+                marginBottom: space(),
+                fontSize: font.small,
+                padding: space(0.5),
+                background: color.dangerBg,
+                borderRadius: radius.small,
+                border: `1px solid ${color.dangerBorder}`,
               }}
             >
               {error}
@@ -807,12 +808,12 @@ export function TwoFactorSetupView({
             disabled={loading || verificationCode.length !== 6}
             style={{
               width: '100%',
-              padding: 'calc(var(--base) * 0.75)',
-              background: 'var(--theme-elevation-800)',
+              padding: space(0.75),
+              background: color.inverse,
               border: 'none',
-              borderRadius: 'var(--style-radius-s)',
-              color: 'var(--theme-elevation-50)',
-              fontSize: 'var(--font-size-base)',
+              borderRadius: radius.small,
+              color: color.onInverse,
+              fontSize: font.base,
               fontWeight: 500,
               cursor: loading || verificationCode.length !== 6 ? 'not-allowed' : 'pointer',
               opacity: loading || verificationCode.length !== 6 ? 0.7 : 1,

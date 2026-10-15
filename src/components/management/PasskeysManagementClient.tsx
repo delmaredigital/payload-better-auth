@@ -7,6 +7,7 @@ import { XIcon } from '@payloadcms/ui/icons/X'
 import { createAuthClient } from 'better-auth/react'
 import { twoFactorClient } from 'better-auth/client/plugins'
 import { useAuthClientBaseURL } from '../useAuthMountPath.js'
+import { color, font, radius, space } from '../theme.js'
 
 type PasskeyItem = {
   id: string
@@ -155,7 +156,7 @@ export function PasskeysManagementClient({
       {error && <Banner type="danger">{error}</Banner>}
       {success && <Banner type="success">{success}</Banner>}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--base)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: space() }}>
         <p className="field-description" style={{ margin: 0 }}>
           Passkeys provide secure, passwordless sign-in using your device&apos;s biometrics or security keys.
         </p>
@@ -172,9 +173,9 @@ export function PasskeysManagementClient({
       </div>
 
       {showRegisterForm && (
-        <div style={{ marginBottom: 'var(--base)' }}>
-          <div style={{ marginBottom: 'var(--base)' }}>
-            <label className="field-label" style={{ marginBottom: 'calc(var(--base) * 0.5)', display: 'block' }}>
+        <div style={{ marginBottom: space() }}>
+          <div style={{ marginBottom: space() }}>
+            <label className="field-label" style={{ marginBottom: space(0.5), display: 'block' }}>
               Name (optional)
             </label>
             <input
@@ -185,20 +186,20 @@ export function PasskeysManagementClient({
               placeholder="e.g., MacBook Pro, iPhone"
               style={{
                 width: '100%',
-                padding: 'var(--base)',
-                background: 'var(--theme-input-bg)',
-                border: '1px solid var(--theme-border-color)',
-                borderRadius: 'var(--style-radius-s)',
-                color: 'var(--theme-text)',
-                fontSize: 'var(--base-body-size)',
+                padding: space(),
+                background: color.inputBg,
+                border: `1px solid ${color.inputBorder}`,
+                borderRadius: radius.small,
+                color: color.text,
+                fontSize: font.base,
                 boxSizing: 'border-box',
               }}
             />
-            <p className="field-description" style={{ marginTop: 'calc(var(--base) * 0.25)' }}>
+            <p className="field-description" style={{ marginTop: space(0.25) }}>
               Your browser will prompt you to use your device&apos;s biometrics or security key.
             </p>
           </div>
-          <div style={{ display: 'flex', gap: 'calc(var(--base) * 0.5)' }}>
+          <div style={{ display: 'flex', gap: space(0.5) }}>
             <Button
               buttonStyle="primary"
               size="medium"
@@ -225,8 +226,8 @@ export function PasskeysManagementClient({
       ) : (
         <div
           style={{
-            border: '1px solid var(--theme-border-color)',
-            borderRadius: 'var(--style-radius-s)',
+            border: `1px solid ${color.border}`,
+            borderRadius: radius.small,
             overflow: 'hidden',
           }}
         >
@@ -237,18 +238,18 @@ export function PasskeysManagementClient({
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: 'var(--base)',
+                padding: space(),
                 borderBottom:
                   index < passkeys.length - 1
-                    ? '1px solid var(--theme-border-color)'
+                    ? `1px solid ${color.border}`
                     : 'none',
               }}
             >
               <div>
-                <div style={{ color: 'var(--theme-text)', fontWeight: 500 }}>
+                <div style={{ color: color.text, fontWeight: 500 }}>
                   {pk.name || 'Passkey'}
                 </div>
-                <p className="field-description" style={{ margin: 'calc(var(--base) * 0.25) 0 0 0' }}>
+                <p className="field-description" style={{ margin: `${space(0.25)} 0 0 0` }}>
                   Created: {formatDate(pk.createdAt)}
                   {pk.lastUsedAt && ` | Last used: ${formatDate(pk.lastUsedAt)}`}
                 </p>

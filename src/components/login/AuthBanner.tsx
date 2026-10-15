@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
+import { color, font, radius, space } from '../theme.js'
 
 export function AuthBanner({ kind, children }: { kind: 'error' | 'success'; children: ReactNode }) {
   const palette = kind === 'error'
-    ? { color: 'var(--theme-error-500)', background: 'var(--theme-error-50)', border: '1px solid var(--theme-error-200)' }
-    : { color: 'var(--theme-success-500)', background: 'var(--theme-success-50)', border: '1px solid var(--theme-success-200)' }
+    ? { color: color.danger, background: color.dangerBg, border: `1px solid ${color.dangerBorder}` }
+    : { color: color.success, background: color.successBg, border: `1px solid ${color.successBorder}` }
   return (
-    <div role="alert" aria-live="polite" style={{ marginBottom: 'var(--base)', fontSize: 'var(--font-size-small)', padding: 'calc(var(--base) * 0.5)', borderRadius: 'var(--style-radius-s)', ...palette }}>
+    <div role="alert" aria-live="polite" style={{ marginBottom: space(), fontSize: font.small, padding: space(0.5), borderRadius: radius.small, ...palette }}>
       {children}
     </div>
   )

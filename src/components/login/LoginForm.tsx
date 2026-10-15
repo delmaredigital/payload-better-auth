@@ -6,6 +6,7 @@ import { AuthBanner } from './AuthBanner.js'
 import { AuthButton } from './AuthButton.js'
 import { AuthField } from './AuthField.js'
 import { OrDivider } from './OrDivider.js'
+import { color, font, space } from '../theme.js'
 
 export function LoginForm({
   logo, title, successMessage, error,
@@ -42,11 +43,11 @@ export function LoginForm({
 
         <h1
           style={{
-            color: 'var(--theme-text)',
-            fontSize: 'var(--font-size-h3)',
+            color: color.text,
+            fontSize: font.h3,
             fontWeight: 600,
             textAlign: 'center',
-            margin: '0 0 calc(var(--base) * 1.5) 0',
+            margin: `0 0 ${space(1.5)} 0`,
           }}
         >
           {title}
@@ -65,7 +66,7 @@ export function LoginForm({
           {forgotPasswordAvailable && (
             <div
               style={{
-                marginBottom: 'calc(var(--base) * 1.5)',
+                marginBottom: space(1.5),
                 textAlign: 'right',
               }}
             >
@@ -75,10 +76,10 @@ export function LoginForm({
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: 'var(--theme-text)',
+                  color: color.text,
                   opacity: 0.7,
                   cursor: 'pointer',
-                  fontSize: 'var(--font-size-small)',
+                  fontSize: font.small,
                   padding: 0,
                   textDecoration: 'underline',
                 }}
@@ -105,7 +106,7 @@ export function LoginForm({
         {secondaryMethods.length > 0 && (
           <>
             {secondaryMethods.map((method) => (
-              <div key={method.key} style={{ marginBottom: 'calc(var(--base) * 0.5)' }}>
+              <div key={method.key} style={{ marginBottom: space(0.5) }}>
                 <AuthButton
                   variant="secondary"
                   icon={method.icon}
@@ -122,10 +123,10 @@ export function LoginForm({
         {showEmptyState && (
           <p
             style={{
-              marginTop: 'var(--base)',
+              marginTop: space(),
               textAlign: 'center',
-              fontSize: 'var(--font-size-small)',
-              color: 'var(--theme-text)',
+              fontSize: font.small,
+              color: color.text,
               opacity: 0.7,
             }}
           >
@@ -136,10 +137,10 @@ export function LoginForm({
         {signUpAvailable && (
           <div
             style={{
-              marginTop: 'calc(var(--base) * 1.5)',
+              marginTop: space(1.5),
               textAlign: 'center',
-              fontSize: 'var(--font-size-small)',
-              color: 'var(--theme-text)',
+              fontSize: font.small,
+              color: color.text,
               opacity: 0.8,
             }}
           >
@@ -150,7 +151,7 @@ export function LoginForm({
               style={{
                 background: 'none',
                 border: 'none',
-                color: 'var(--theme-elevation-800)',
+                color: color.text,
                 cursor: 'pointer',
                 fontSize: 'inherit',
                 textDecoration: 'underline',

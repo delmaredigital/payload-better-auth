@@ -3,6 +3,7 @@ import { AuthCard } from './AuthCard.js'
 import { AuthField } from './AuthField.js'
 import { AuthBanner } from './AuthBanner.js'
 import { AuthButton } from './AuthButton.js'
+import { color, font, space } from '../theme.js'
 
 export function ForgotPasswordForm({ email, onEmailChange, onSubmit, onBack, loading, error, logo }: {
   email: string
@@ -18,10 +19,10 @@ export function ForgotPasswordForm({ email, onEmailChange, onSubmit, onBack, loa
 
         <h1
           style={{
-            color: 'var(--theme-text)',
-            fontSize: 'var(--font-size-h3)',
+            color: color.text,
+            fontSize: font.h3,
             fontWeight: 600,
-            margin: '0 0 calc(var(--base) * 0.5) 0',
+            margin: `0 0 ${space(0.5)} 0`,
             textAlign: 'center',
           }}
         >
@@ -30,18 +31,18 @@ export function ForgotPasswordForm({ email, onEmailChange, onSubmit, onBack, loa
 
         <p
           style={{
-            color: 'var(--theme-text)',
+            color: color.text,
             opacity: 0.7,
-            fontSize: 'var(--font-size-small)',
+            fontSize: font.small,
             textAlign: 'center',
-            marginBottom: 'calc(var(--base) * 1.5)',
+            marginBottom: space(1.5),
           }}
         >
           Enter your email and we&apos;ll send you a link to reset your password
         </p>
 
         <form onSubmit={onSubmit}>
-          <AuthField id="forgot-email" label="Email" type="email" value={email} onChange={onEmailChange} autoComplete="email" marginBottom="calc(var(--base) * 1.5)" autoFocus />
+          <AuthField id="forgot-email" label="Email" type="email" value={email} onChange={onEmailChange} autoComplete="email" marginBottom={space(1.5)} autoFocus />
 
           {error && <AuthBanner kind="error">{error}</AuthBanner>}
 
@@ -55,13 +56,13 @@ export function ForgotPasswordForm({ email, onEmailChange, onSubmit, onBack, loa
           onClick={onBack}
           style={{
             width: '100%',
-            marginTop: 'var(--base)',
-            padding: 'calc(var(--base) * 0.5)',
+            marginTop: space(),
+            padding: space(0.5),
             background: 'transparent',
             border: 'none',
-            color: 'var(--theme-text)',
+            color: color.text,
             opacity: 0.7,
-            fontSize: 'var(--font-size-small)',
+            fontSize: font.small,
             cursor: 'pointer',
           }}
         >

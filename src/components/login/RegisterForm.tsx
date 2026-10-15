@@ -5,6 +5,7 @@ import { AuthCard } from './AuthCard.js'
 import { AuthBanner } from './AuthBanner.js'
 import { AuthButton } from './AuthButton.js'
 import { AuthField } from './AuthField.js'
+import { color, font, space } from '../theme.js'
 
 export function RegisterForm({
   name,
@@ -40,10 +41,10 @@ export function RegisterForm({
 
         <h1
           style={{
-            color: 'var(--theme-text)',
-            fontSize: 'var(--font-size-h3)',
+            color: color.text,
+            fontSize: font.h3,
             fontWeight: 600,
-            margin: '0 0 calc(var(--base) * 1.5) 0',
+            margin: `0 0 ${space(1.5)} 0`,
             textAlign: 'center',
           }}
         >
@@ -54,7 +55,7 @@ export function RegisterForm({
           <AuthField id="name" label="Name" type="text" value={name} onChange={onNameChange} autoComplete="name" autoFocus />
           <AuthField id="register-email" label="Email" type="email" value={email} onChange={onEmailChange} autoComplete="email" />
           <AuthField id="register-password" label="Password" type="password" value={password} onChange={onPasswordChange} autoComplete="new-password" />
-          <AuthField id="confirm-password" label="Confirm Password" type="password" value={confirmPassword} onChange={onConfirmPasswordChange} autoComplete="new-password" marginBottom="calc(var(--base) * 1.5)" />
+          <AuthField id="confirm-password" label="Confirm Password" type="password" value={confirmPassword} onChange={onConfirmPasswordChange} autoComplete="new-password" marginBottom={space(1.5)} />
 
           {error && <AuthBanner kind="error">{error}</AuthBanner>}
 
@@ -65,10 +66,10 @@ export function RegisterForm({
 
         <div
           style={{
-            marginTop: 'calc(var(--base) * 1.5)',
+            marginTop: space(1.5),
             textAlign: 'center',
-            fontSize: 'var(--font-size-small)',
-            color: 'var(--theme-text)',
+            fontSize: font.small,
+            color: color.text,
             opacity: 0.8,
           }}
         >
@@ -79,7 +80,7 @@ export function RegisterForm({
             style={{
               background: 'none',
               border: 'none',
-              color: 'var(--theme-elevation-800)',
+              color: color.text,
               cursor: 'pointer',
               fontSize: 'inherit',
               textDecoration: 'underline',

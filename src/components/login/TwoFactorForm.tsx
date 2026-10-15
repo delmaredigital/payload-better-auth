@@ -3,6 +3,7 @@ import { AuthCard } from './AuthCard.js'
 import { OtpInput } from './OtpInput.js'
 import { AuthBanner } from './AuthBanner.js'
 import { AuthButton } from './AuthButton.js'
+import { color, font, radius, space } from '../theme.js'
 
 /** Second-factor entry modes the form can render. */
 export type TwoFactorMethod = 'totp' | 'backup' | 'emailOtp'
@@ -32,11 +33,11 @@ function copyFor(method: TwoFactorMethod, codeLength: number): { hint: string; l
 const linkStyle: React.CSSProperties = {
   background: 'transparent',
   border: 'none',
-  color: 'var(--theme-text)',
+  color: color.text,
   cursor: 'pointer',
-  fontSize: 'var(--font-size-small)',
+  fontSize: font.small,
   opacity: 0.7,
-  padding: 'calc(var(--base) * 0.25)',
+  padding: space(0.25),
   textDecoration: 'underline',
 }
 
@@ -111,10 +112,10 @@ export function TwoFactorForm({
 
         <h1
           style={{
-            color: 'var(--theme-text)',
-            fontSize: 'var(--font-size-h3)',
+            color: color.text,
+            fontSize: font.h3,
             fontWeight: 600,
-            margin: '0 0 calc(var(--base) * 0.5) 0',
+            margin: `0 0 ${space(0.5)} 0`,
             textAlign: 'center',
           }}
         >
@@ -123,25 +124,25 @@ export function TwoFactorForm({
 
         <p
           style={{
-            color: 'var(--theme-text)',
+            color: color.text,
             opacity: 0.7,
-            fontSize: 'var(--font-size-small)',
+            fontSize: font.small,
             textAlign: 'center',
-            marginBottom: 'calc(var(--base) * 1.5)',
+            marginBottom: space(1.5),
           }}
         >
           {hint}
         </p>
 
         <form onSubmit={onSubmit}>
-          <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
+          <div style={{ marginBottom: space(1.5) }}>
             <label
               htmlFor="totp-code"
               style={{
                 display: 'block',
-                color: 'var(--theme-text)',
-                marginBottom: 'calc(var(--base) * 0.5)',
-                fontSize: 'var(--font-size-small)',
+                color: color.text,
+                marginBottom: space(0.5),
+                fontSize: font.small,
                 fontWeight: 500,
               }}
             >
@@ -158,12 +159,12 @@ export function TwoFactorForm({
                 required
                 style={{
                   width: '100%',
-                  padding: 'calc(var(--base) * 0.75)',
-                  background: 'var(--theme-input-bg)',
-                  border: '1px solid var(--theme-elevation-150)',
-                  borderRadius: 'var(--style-radius-s)',
-                  color: 'var(--theme-text)',
-                  fontSize: 'var(--font-size-base)',
+                  padding: space(0.75),
+                  background: color.inputBg,
+                  border: `1px solid ${color.inputBorder}`,
+                  borderRadius: radius.small,
+                  color: color.text,
+                  fontSize: font.base,
                   outline: 'none',
                   boxSizing: 'border-box',
                 }}
@@ -185,8 +186,8 @@ export function TwoFactorForm({
             style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: 'calc(var(--base) * 0.25)',
-              marginTop: 'var(--base)',
+              gap: space(0.25),
+              marginTop: space(),
               textAlign: 'center',
             }}
           >
@@ -228,13 +229,13 @@ export function TwoFactorForm({
           onClick={onBack}
           style={{
             width: '100%',
-            marginTop: 'var(--base)',
-            padding: 'calc(var(--base) * 0.5)',
+            marginTop: space(),
+            padding: space(0.5),
             background: 'transparent',
             border: 'none',
-            color: 'var(--theme-text)',
+            color: color.text,
             opacity: 0.7,
-            fontSize: 'var(--font-size-small)',
+            fontSize: font.small,
             cursor: 'pointer',
           }}
         >

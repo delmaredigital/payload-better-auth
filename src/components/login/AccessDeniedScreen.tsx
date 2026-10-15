@@ -1,24 +1,25 @@
 import { AuthCard } from './AuthCard.js'
+import { color, font, radius, space } from '../theme.js'
 
 export function AccessDeniedScreen({ onSignOut }: { onSignOut: () => void }) {
   return (
     <AuthCard center>
         <h1
           style={{
-            color: 'var(--theme-error-500)',
-            fontSize: 'var(--font-size-h3)',
+            color: color.danger,
+            fontSize: font.h3,
             fontWeight: 600,
-            margin: '0 0 var(--base) 0',
+            margin: `0 0 ${space()} 0`,
           }}
         >
           Access Denied
         </h1>
         <p
           style={{
-            color: 'var(--theme-text)',
+            color: color.text,
             opacity: 0.8,
-            marginBottom: 'calc(var(--base) * 1.5)',
-            fontSize: 'var(--font-size-small)',
+            marginBottom: space(1.5),
+            fontSize: font.small,
           }}
         >
           You don't have permission to access the admin panel.
@@ -27,12 +28,12 @@ export function AccessDeniedScreen({ onSignOut }: { onSignOut: () => void }) {
         <button
           onClick={onSignOut}
           style={{
-            padding: 'calc(var(--base) * 0.75) calc(var(--base) * 1.5)',
-            background: 'var(--theme-elevation-150)',
+            padding: `${space(0.75)} ${space(1.5)}`,
+            background: color.surfaceRaised,
             border: 'none',
-            borderRadius: 'var(--style-radius-s)',
-            color: 'var(--theme-text)',
-            fontSize: 'var(--font-size-base)',
+            borderRadius: radius.small,
+            color: color.text,
+            fontSize: font.base,
             cursor: 'pointer',
           }}
         >
