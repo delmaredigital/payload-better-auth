@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.40.0-next.0] - 2026-10-22
+
+The Payload 4 prerelease line, renumbered from `0.14.0-next.x` so it can never collide with the Payload 3 line (0.14.0 shipped on `latest` today). Everything in [0.14.0](#0140---2026-10-22) below is included; this entry lists only what differs on the Payload 4 line.
+
+### BREAKING
+
+- **Peer floors raised for security fixes:** `better-auth`, `@better-auth/api-key`, `@better-auth/passkey` `>=1.7.7` and `next` `>=16.4.1 <17`, for the reasons given under 0.14.0. **Node `>=24.22.1`** (was `>=24.15.0`): the first 24.x with the October 2026 Node.js security fixes. The Payload range is unchanged; Payload's October advisories are fixed from `4.0.0-canary.34`, below this line's existing floor.
+- **Databases that ran the 0.11.0 `account.issuer` migration need the cleanup migration** described under 0.14.0 before upgrading Better Auth past 1.7.2.
+
+### Internal
+
+- Dev dependencies: Better Auth 1.7.12, Next 16.4.2, Vite 7.3.7, Vitest 4.1.12. Payload stays on 4.0.0-beta.1. Schema snapshots were generated on this branch against Payload 4; the daily Better Auth canary also runs here.
+
 ## [0.14.0] - 2026-10-22
 
 Security floors. The minor bump is for the raised peer and Node requirements below; the plugin's own code is unchanged apart from tests and a comment. There is no migration and no API change.
