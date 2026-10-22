@@ -18,7 +18,7 @@ Better Auth adapter and plugins for Payload CMS. Enables seamless integration be
 
 | You run | Install | npm tag |
 |---|---|---|
-| Payload 3 (`>=3.69 <4`) | `pnpm add @delmaredigital/payload-better-auth` | `latest` (0.13.x) |
+| Payload 3 (`>=3.90 <4`) | `pnpm add @delmaredigital/payload-better-auth` | `latest` (0.14.x) |
 | Payload 4 beta (`>=4.0.0-canary.37`) | `pnpm add @delmaredigital/payload-better-auth@next` | `next` (0.40.0-next.x) |
 
 **Trying it on Payload 4:**
@@ -29,7 +29,7 @@ Better Auth adapter and plugins for Payload CMS. Enables seamless integration be
 - **Known gap:** the plugin's admin screens (passkeys, two-factor, API keys) still use Payload 3's `--theme-*` CSS variables, which Payload 4 retires, so their styling is off. Sign-in, sessions and access control are unaffected.
 - **Where the work happens:** the [`payload-4`](https://github.com/delmaredigital/payload-better-auth/tree/payload-4) branch. Please report problems in an [issue](https://github.com/delmaredigital/payload-better-auth/issues) with "Payload 4" in the title.
 
-The `next` line is a prerelease, renumbered from `0.14.0-next.x` to `0.40.0-next.x` with the 0.14.0 release so the two lines can never collide; pin `0.40.0-next.0` or later. For production, stay on `latest` until Payload 4.0 is stable; at that point the Payload 4 line becomes `latest`, and 0.13.x stays installable for Payload 3.
+The `next` line is a prerelease, renumbered from `0.14.0-next.x` to `0.40.0-next.x` with the 0.14.0 release so the two lines can never collide; pin `0.40.0-next.0` or later. For production, stay on `latest` until Payload 4.0 is stable; at that point the Payload 4 line becomes `latest`, and 0.14.x stays installable for Payload 3.
 
 > **Upgrading from 0.12 to 0.13?** No code, config or data changes are needed; 0.13.0 is not breaking, despite the minor bump. One behavior to know: `payload.auth({ headers })` no longer extends the session unless you pass `canSetHeaders: true` and forward `responseHeaders`, so a call that can't deliver a refreshed cookie is now a pure read. 0.13.2 adds the optional [`roleField`](#naming-the-role-field) setting.
 >
