@@ -886,6 +886,15 @@ details .details-body > :first-child { margin-top: 0; }
 
     <!-- ═══════ UPGRADING ═══════ -->
     <div class="section" id="upgrading">
+      <h2 id="upgrading-better-auth">Upgrading Better Auth</h2>
+      <div class="callout callout-warn">
+        <p>Generated collections follow the <strong>installed Better Auth schema</strong>. With the SQL adapters (Postgres/SQLite), after <strong>any <code>better-auth</code> bump, including a patch</strong>, generate a migration and read the diff before deploying:</p>
+        <pre><span class="lang-tag">bash</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code>payload migrate:create</code></pre>
+        <p style="margin-top:8px">A new <code>NOT NULL</code> column on a populated table needs a backfill before enforcing the constraint; a proposed column drop needs you to confirm nothing still reads it.</p>
+        <p style="margin-top:8px"><code>payload migrate:create</code> compares against the last migration's snapshot, rather than the live database. An empty migration does not prove the database matches; check the actual columns if in doubt. Dev <code>push</code> mode applies the same changes without asking.</p>
+        <p style="margin-top:8px">This repo keeps schema snapshots and runs a daily CI canary against the latest Better Auth to catch drift. The <a href="https://github.com/delmaredigital/payload-better-auth/blob/main/CHANGELOG.md">CHANGELOG</a> documents the Better Auth schema changes this repo detects; review it alongside your own migration diff.</p>
+      </div>
+
       <div class="callout callout-warn">
         <p><strong>Upgrading to 0.12? Array-typed fields changed shape on disk. Use 0.12.1 or later.</strong></p>
 
@@ -909,6 +918,13 @@ details .details-body > :first-child { margin-top: 0; }
         <p style="margin-top:8px"><strong>On 0.12.0 this reported <code>converted: 0</code> against databases that were not clean.</strong> Payload writes these fields to a <code>jsonb</code> column, so a stringified value is stored as a <em>jsonb string</em>; on read node-postgres parses the jsonb and drizzle's <code>PgJsonb.mapFromDriverValue</code> parses it a second time, so the stored string reaches Payload as an array and is indistinguishable from a native one. 0.12.1 censuses the stored shape in SQL instead. If you ran the 0.12.0 migration, re-run it, and check each row reports <code>observedVia: 'stored-shape'</code>.</p>
 
         <p style="margin-top:8px">Verify against the database before dropping any tolerant parsing you added &mdash; <code>SELECT jsonb_typeof(scopes), count(*) FROM oauth_access_tokens GROUP BY 1;</code> should show no <code>string</code> rows. Removing a tolerant parse while unconverted rows remain is what turns this into an incident: raw SQL carries no column type, so it bypasses drizzle's mapper and still sees the string. Better Auth's own reads go through Payload and are laundered, so <code>/oauth2/authorize</code> keeps working &mdash; the damage is confined to code that queries these columns directly.</p>
+      </div>
+
+      <div class="callout callout-warn">
+        <p><strong>Better Auth 1.7.3 reverted the <code>issuer</code> account schema.</strong> Accounts are keyed on <code>(providerId, accountId)</code> again, new rows no longer write <code>issuer</code>, and the generated <code>accounts</code> collection no longer emits the field or its unique index. If you applied the 0.11 migration below, <strong>relax it before upgrading past Better Auth 1.7.2</strong> or every sign-up and account link fails on the <code>NOT NULL</code> constraint:</p>
+        <pre><span class="lang-tag">sql</span><button class="copy-btn" onclick="copyBlock(this)">Copy</button><code>ALTER TABLE accounts ALTER COLUMN issuer DROP NOT NULL;
+DROP INDEX accounts_issuer_account_id_idx; -- use the name Payload generated</code></pre>
+        <p style="margin-top:8px"><code>payload migrate:create</code> then proposes dropping the column and index; applying it is the full cleanup. The backfill guidance in the next callout describes Better Auth 1.7.0&ndash;1.7.2 only. See the <a href="https://better-auth.com/docs/guides/1-7-upgrade-guide#account-identity-keeps-the-provider-key">Better Auth upgrade guide</a>. Separately, Better Auth <strong>1.7.7</strong> fixed a critical Magic Link account takeover (<a href="https://github.com/better-auth/better-auth/security/advisories/GHSA-965c-763c-88jm">GHSA-965c-763c-88jm</a>); run 1.7.7 or later.</p>
       </div>
 
       <div class="callout callout-warn">
@@ -940,14 +956,15 @@ details .details-body > :first-child { margin-top: 0; }
       <table>
         <thead><tr><th>Dependency</th><th>Version</th></tr></thead>
         <tbody>
-          <tr><td><code>payload</code></td><td>&ge; 3.69.0</td></tr>
-          <tr><td><code>@payloadcms/next</code></td><td>&ge; 3.69.0</td></tr>
-          <tr><td><code>@payloadcms/ui</code></td><td>&ge; 3.69.0</td></tr>
-          <tr><td><code>better-auth</code></td><td>&ge; 1.7.0 &lt; 2 &mdash; 1.6 is not supported</td></tr>
-          <tr><td><code>next</code></td><td>&ge; 15.5.16</td></tr>
+          <tr><td><code>payload</code></td><td>&ge; 3.90.0</td></tr>
+          <tr><td><code>@payloadcms/next</code></td><td>&ge; 3.90.0</td></tr>
+          <tr><td><code>@payloadcms/ui</code></td><td>&ge; 3.90.0</td></tr>
+          <tr><td><code>better-auth</code></td><td>&ge; 1.7.7 &lt; 2 &mdash; 1.7.7 fixes a critical Magic Link account takeover; 1.6 is not supported</td></tr>
+          <tr><td><code>next</code></td><td>&ge; 16.4.1</td></tr>
           <tr><td><code>react</code></td><td>&ge; 19.2.1</td></tr>
-          <tr><td><code>@better-auth/api-key</code></td><td>&ge; 1.7.0 &lt; 2 &mdash; optional, only for API keys</td></tr>
-          <tr><td><code>@better-auth/passkey</code></td><td>&ge; 1.7.0 &lt; 2 &mdash; optional, only for passkeys</td></tr>
+          <tr><td><code>@better-auth/api-key</code></td><td>&ge; 1.7.7 &lt; 2 &mdash; optional, only for API keys</td></tr>
+          <tr><td><code>@better-auth/passkey</code></td><td>&ge; 1.7.7 &lt; 2 &mdash; optional, only for passkeys</td></tr>
+          <tr><td>Node</td><td>&ge; 22.23.4 &mdash; Node 20 is end-of-life and unpatched</td></tr>
         </tbody>
       </table>
 

@@ -10,6 +10,8 @@ Better Auth adapter and plugins for Payload CMS. Enables seamless integration be
   <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fdelmaredigital%2Fdd-starter&project-name=my-payload-site&build-command=pnpm%20run%20ci&env=PAYLOAD_SECRET,BETTER_AUTH_SECRET&stores=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22productSlug%22%3A%22neon%22%2C%22integrationSlug%22%3A%22neon%22%7D%2C%7B%22type%22%3A%22blob%22%7D%5D"><img src="https://vercel.com/button" alt="Deploy with Vercel" height="32"></a>
 </p>
 
+> ⚠️ **0.14.0 raises the minimum peer versions, for security fixes only.** Better Auth `>=1.7.7` (critical Magic Link account takeover, fixed 1.7.7), Next.js `>=16.4.1` (two critical RCEs, fixed 16.4.1), Payload `>=3.90.0` (about twenty advisories, several critical, fixed 3.90.0) and Node `>=22.23.4` (Node 20 is end-of-life and unpatched). The plugin's own behaviour is unchanged. **If you applied the 0.11.0 `account.issuer` migration, run the cleanup migration first** (Better Auth 1.7.3 reverted that schema; see below). If you cannot upgrade a peer yet, stay on 0.13.2 and apply the upstream workarounds; details and links in the [CHANGELOG](CHANGELOG.md#0140---2026-10-22).
+
 ## Payload 4
 
 **Payload 4 is in beta, and we're supporting it early.** This plugin is a thin adapter. It talks to Payload only through its public Local API and admin UI exports, so a new Payload major means a small set of mechanical changes rather than a rewrite. We follow Payload's canary releases as they land, and we intend to have a stable release ready when Payload 4.0 ships.
@@ -17,21 +19,23 @@ Better Auth adapter and plugins for Payload CMS. Enables seamless integration be
 | You run | Install | npm tag |
 |---|---|---|
 | Payload 3 (`>=3.69 <4`) | `pnpm add @delmaredigital/payload-better-auth` | `latest` (0.13.x) |
-| Payload 4 beta (`>=4.0.0-canary.37`) | `pnpm add @delmaredigital/payload-better-auth@next` | `next` (0.14.0-next.x) |
+| Payload 4 beta (`>=4.0.0-canary.37`) | `pnpm add @delmaredigital/payload-better-auth@next` | `next` (0.40.0-next.x) |
 
 **Trying it on Payload 4:**
 
 - **Requirements:** `payload` / `@payloadcms/ui` `>=4.0.0-canary.37`, `next` `>=16.2.6`, Node `>=24.15`, plus the rest of [Payload's v4 migration guide](https://github.com/payloadcms/payload/blob/main/docs/migration-guide/v4.mdx). Better Auth requirements are unchanged.
-- **Pin an exact version** (e.g. `@delmaredigital/payload-better-auth@0.14.0-next.0`). Prereleases follow Payload's canaries and can change from one build to the next.
+- **Pin an exact version** (e.g. `@delmaredigital/payload-better-auth@0.40.0-next.0`). Prereleases follow Payload's canaries and can change from one build to the next.
 - **Already handled, on both majors:** the plugin's Local API lookups pass `overrideAccess: true` explicitly (Payload 4 flips the default to `false`), and its generated auth collections opt out of Payload 4's default versioning, so you get no `_versions` tables holding old sessions, tokens or password hashes.
 - **Known gap:** the plugin's admin screens (passkeys, two-factor, API keys) still use Payload 3's `--theme-*` CSS variables, which Payload 4 retires, so their styling is off. Sign-in, sessions and access control are unaffected.
 - **Where the work happens:** the [`payload-4`](https://github.com/delmaredigital/payload-better-auth/tree/payload-4) branch. Please report problems in an [issue](https://github.com/delmaredigital/payload-better-auth/issues) with "Payload 4" in the title.
 
-The `next` line is a prerelease. For production, stay on `latest` until Payload 4.0 is stable; at that point the Payload 4 line becomes `latest`, and 0.13.x stays installable for Payload 3.
+The `next` line is a prerelease, renumbered from `0.14.0-next.x` to `0.40.0-next.x` with the 0.14.0 release so the two lines can never collide; pin `0.40.0-next.0` or later. For production, stay on `latest` until Payload 4.0 is stable; at that point the Payload 4 line becomes `latest`, and 0.13.x stays installable for Payload 3.
 
 > **Upgrading from 0.12 to 0.13?** No code, config or data changes are needed; 0.13.0 is not breaking, despite the minor bump. One behavior to know: `payload.auth({ headers })` no longer extends the session unless you pass `canSetHeaders: true` and forward `responseHeaders`, so a call that can't deliver a refreshed cookie is now a pure read. 0.13.2 adds the optional [`roleField`](#naming-the-role-field) setting.
 >
-> **Upgrading from 0.11 or earlier?** Read the [upgrade guide](https://delmaredigital.github.io/payload-better-auth/#upgrading) before you bump. 0.11 requires Better Auth 1.7 and a database migration that backfills `account.issuer`, and 0.12 changed how array fields are stored ([migration steps](#migrating-stringified-arrays-0120)). Every release's details are in the [CHANGELOG](CHANGELOG.md).
+> **Upgrading from 0.11 or earlier?** Read the [upgrade guide](https://delmaredigital.github.io/payload-better-auth/#upgrading) before you bump. 0.11 requires Better Auth 1.7, and 0.12 changed how array fields are stored ([migration steps](#migrating-stringified-arrays-0120)). Every release's details are in the [CHANGELOG](CHANGELOG.md).
+>
+> **Already ran the 0.11.0 `account.issuer` migration?** Better Auth 1.7.3 reverted that schema. Before moving past Better Auth 1.7.2, drop the `NOT NULL` on `issuer` and the unique `(issuer, accountId)` index, or sign-ups and account links fail. Details in the [CHANGELOG](CHANGELOG.md#0140---2026-10-22).
 
 ---
 
@@ -49,7 +53,7 @@ For AI-assisted exploration: [DeepWiki](https://deepwiki.com/delmaredigital/payl
 pnpm add @delmaredigital/payload-better-auth better-auth
 ```
 
-**Requirements:** `payload` >= 3.69.0 · `better-auth` >= 1.7.0 · `next` >= 15.5.16 · `react` >= 19.2.1 · Node >= 20.9
+**Requirements:** `payload` >= 3.90.0 · `better-auth` >= 1.7.7 · `next` >= 16.4.1 · `react` >= 19.2.1 · Node >= 22.23.4
 
 ## Quick Start
 
@@ -363,6 +367,23 @@ That raw-SQL path is also the real exposure of leaving rows unmigrated. Better
 Auth's own reads go through Payload, where the double-parse launders the value, so
 `/oauth2/authorize` keeps working — the damage is confined to code that queries
 these columns directly.
+
+## Upgrading Better Auth
+
+Generated collections follow the **installed Better Auth schema**. With the SQL
+adapters (Postgres/SQLite), after **any `better-auth` bump, including a patch**,
+run `payload migrate:create` and read the diff before deploying. A new `NOT NULL`
+column on a populated table needs a backfill before enforcing the constraint; a
+proposed column drop needs you to confirm nothing still reads it.
+
+`payload migrate:create` compares against the last migration's snapshot, rather
+than the live database. An empty migration does not prove the database matches;
+check the actual columns if in doubt. Dev `push` mode applies the same changes
+without asking.
+
+This repo keeps schema snapshots and runs a daily CI canary against the latest
+Better Auth to catch drift. The [CHANGELOG](CHANGELOG.md) documents the Better Auth
+schema changes this repo detects; review it alongside your own migration diff.
 
 ---
 

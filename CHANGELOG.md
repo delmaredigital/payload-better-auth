@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-22
+
+Security floors. The minor bump is for the raised peer and Node requirements below; the plugin's own code is unchanged apart from tests and a comment. There is no migration and no API change.
+
+### BREAKING
+
+- **Peer floors raised to the releases that fix critical advisories.** `pnpm install` now warns (or fails, with `engine-strict` / strict peers) below these versions:
+  - **`better-auth`, `@better-auth/api-key`, `@better-auth/passkey` `>=1.7.7`** — 1.7.7 fixes a critical Magic Link account takeover ([GHSA-965c-763c-88jm](https://github.com/better-auth/better-auth/security/advisories/GHSA-965c-763c-88jm), CVSS 9.1: an unauthenticated attacker who knows a user's email gets that user's session) and an OAuth Proxy account takeover ([GHSA-r4xp-prcw-77qf](https://github.com/better-auth/better-auth/security/advisories/GHSA-r4xp-prcw-77qf)). The Magic Link issue needs the `magicLink()` plugin plus a social or generic OAuth provider with database-stored OAuth state, which is the default with this adapter and the setup the admin `LoginView` offers. Neither advisory appears in `pnpm audit` (they are repo-level only). After upgrading, request fresh magic links and restart pending OAuth/SAML flows, as the advisory requires. 1.7.12 is recommended; it also hardens JWT verification and OAuth-proxy callbacks.
+  - **`next` `>=16.4.1 <17`** — 16.4.1 fixes two critical remote code executions ([GHSA-673q-mjm6-r5xr](https://github.com/advisories/GHSA-673q-mjm6-r5xr) in `use cache`, [CVE-2026-96889](https://github.com/advisories/GHSA-2464-fhr4-w9xw) in Image Optimization via sharp) and a Server Actions denial of service ([GHSA-p3m5-59mp-jv5r](https://github.com/advisories/GHSA-p3m5-59mp-jv5r)). Next 15 is dropped from the range: Payload 3.90+ declares no 15.5.x in its own `next` peer range, so the old `>=15.5.16` floor was never installable alongside it.
+  - **`payload`, `@payloadcms/next`, `@payloadcms/ui` `>=3.90.0`** — 3.90.0 closes the October batch of [Payload advisories](https://github.com/payloadcms/payload/security/advisories), including unauthorized document updates (CVE-2026-105859), field access-control bypass on auth collections (CVE-2026-105851), API key disclosure (CVE-2026-105849) and restricted user fields leaking in token-refresh responses (CVE-2026-105853). Several sit in auth collections and API keys, which this plugin manages.
+- **Databases that ran the 0.11.0 `account.issuer` migration need a cleanup migration before this upgrade.** Better Auth 1.7.3+ restores the 1.6 account schema, and the raised floor above means 0.14.0 forces you past 1.7.2. The generated `accounts` collection no longer emits `issuer` or the unique `(issuer, accountId)` index. Better Auth [1.7.3](https://github.com/better-auth/better-auth/releases/tag/v1.7.3) reverted the issuer-keyed account identity introduced in 1.7.0 and keys accounts on `(providerId, accountId)` again, so new account rows no longer carry `issuer`. The collection generator is a projection of Better Auth's schema and follows it automatically; nothing in the adapter changed. 
+
+  **If you applied the 0.11.0 migration** (required `issuer` column + unique index), every sign-up and account link fails on the `NOT NULL` constraint once you upgrade Better Auth past 1.7.2. Relax it before or with the upgrade, per the [Better Auth guide](https://better-auth.com/docs/guides/1-7-upgrade-guide#account-identity-keeps-the-provider-key):
+
+  ```sql
+  ALTER TABLE accounts ALTER COLUMN issuer DROP NOT NULL;
+  DROP INDEX accounts_issuer_account_id_idx;   -- use the name Payload generated; drop the index before any column drop on MySQL
+  ```
+
+  `payload migrate:create` will now propose dropping the `issuer` column and its index; applying that is the full cleanup. The 0.11.0 and 0.11.1 migration notes below describe the 1.7.0–1.7.2 schema and no longer apply.
+- **Node 22.23.4 or later** (`engines`). Node 20 reached end-of-life and did not receive the [October 2026 Node.js security releases](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases), which fix a Brotli decoder out-of-bounds write (CVE-2026-111497) and two TLS hostname-verification bypasses. Patched lines are 22.23.4, 24.22.1 and 26.12.1. CI now tests 22 and 24.
+
+### Fixed
+
+- **Compound-index tests no longer assume the 1.7.0 account schema.** Passthrough is now exercised through a plugin-declared table index, which also covers reference-field renaming (`ownerId` → `owner`) and non-unique indexes.
+
+### Docs
+
+- **Upgrading Better Auth means reviewing the generated migration, even for a patch.** README and the upgrade guide now require `payload migrate:create` after every Better Auth bump, with deliberate backfills for new `NOT NULL` columns and review of proposed column drops.
+
+### Internal
+
+- **The Payload 4 prerelease line is renumbered from `0.14.0-next.x` to `0.40.0-next.x`.** 0.14.0 on `latest` would otherwise outrank the `next` prereleases it does not contain. The `next` dist-tag keeps working; pin `0.40.0-next.0` or later for Payload 4 from now on.
+- Dev dependencies moved to Better Auth 1.7.12, Next 16.4.2, Payload 3.91.0, Vite 7.3.7 and Vitest 4.1.12 (the Vite and Vitest bumps clear the advisories published 2026-10-20/21, all dev-server-only). CI matrix is Node 22 and 24.
+- **Schema snapshots and a daily Better Auth canary catch upstream drift.** Versioned JSON snapshots cover default collections and the plugins used by type generation; the canary checks the latest Better Auth packages and opens or updates an issue when typecheck, tests or build fail.
+
 ## [0.13.2] - 2026-10-07
 
 A configurable role field, and lookups that keep working on Payload 4. Thanks to @mikevocalz for [#44](https://github.com/delmaredigital/payload-better-auth/pull/44) and [#45](https://github.com/delmaredigital/payload-better-auth/pull/45), and to @gregorbg for the request in [#41](https://github.com/delmaredigital/payload-better-auth/issues/41).

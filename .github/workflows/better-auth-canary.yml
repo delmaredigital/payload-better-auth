@@ -1,0 +1,126 @@
+# Catch upstream schema or API drift the day it ships, instead of when someone
+# next bumps the Better Auth devDependency.
+name: Better Auth canary
+
+on:
+  schedule:
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: better-auth-canary
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'pnpm'
+      - name: Install
+        id: install
+        run: pnpm install --frozen-lockfile
+
+      - name: Compare installed and latest versions
+        id: versions
+        run: |
+          pnpm ls --depth=0 --json > "$RUNNER_TEMP/better-auth-installed.json"
+          node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process'
+          import { appendFileSync, readFileSync, writeFileSync } from 'node:fs'
+          const [project] = JSON.parse(readFileSync(`${process.env.RUNNER_TEMP}/better-auth-installed.json`, 'utf8'))
+          const packages = ['better-auth', '@better-auth/api-key', '@better-auth/passkey', '@better-auth/oauth-provider']
+          let changed = false
+          const lines = packages.map((name) => {
+            const installed = (project.devDependencies?.[name] ?? project.dependencies?.[name])?.version
+            const latest = execFileSync('npm', ['view', name, 'version'], { encoding: 'utf8' }).trim()
+            if (installed !== latest) changed = true
+            if (name === 'better-auth') appendFileSync(process.env.GITHUB_OUTPUT, `latest=${latest}\n`)
+            return `${name}: installed ${installed ?? 'missing'}, latest ${latest}`
+          })
+          const summary = lines.join('\n') + '\n'
+          console.log(summary)
+          writeFileSync(`${process.env.RUNNER_TEMP}/better-auth-canary-versions.txt`, summary)
+          appendFileSync(process.env.GITHUB_OUTPUT, `changed=${changed}\n`)
+          if (!changed) console.log('All four versions already match latest; regular CI covered them. Skipping canary checks.')
+          NODE
+
+      - name: Install latest Better Auth packages
+        id: upgrade
+        if: steps.versions.outputs.changed == 'true'
+        run: pnpm add -D better-auth@latest @better-auth/api-key@latest @better-auth/passkey@latest @better-auth/oauth-provider@latest
+
+      - name: Print resolved versions
+        id: resolved
+        if: steps.versions.outputs.changed == 'true'
+        run: |
+          pnpm ls better-auth @better-auth/api-key @better-auth/passkey @better-auth/oauth-provider --depth=0 | tee -a "$RUNNER_TEMP/better-auth-canary-versions.txt"
+
+      - name: Typecheck
+        id: typecheck
+        if: ${{ !cancelled() && steps.upgrade.outcome == 'success' }}
+        run: pnpm typecheck
+      - name: Test
+        id: test
+        if: ${{ !cancelled() && steps.upgrade.outcome == 'success' }}
+        run: pnpm test
+      - name: Build
+        id: build
+        if: ${{ !cancelled() && steps.upgrade.outcome == 'success' }}
+        run: pnpm build
+
+      - name: Report canary failure
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          LATEST: ${{ steps.versions.outputs.latest }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          INSTALL: ${{ steps.install.outcome }}
+          VERSIONS: ${{ steps.versions.outcome }}
+          UPGRADE: ${{ steps.upgrade.outcome }}
+          RESOLVED: ${{ steps.resolved.outcome }}
+          TYPECHECK: ${{ steps.typecheck.outcome }}
+          TEST: ${{ steps.test.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+        run: |
+          body="$RUNNER_TEMP/better-auth-canary-issue.md"
+          {
+            printf 'Better Auth canary failed: %s\n\n' "$RUN_URL"
+            printf 'Step outcomes (failure identifies the failing step):\n\n'
+            printf -- '- Install: %s\n- Resolve latest versions: %s\n- Upgrade: %s\n- Print resolved versions: %s\n- Typecheck: %s\n- Test: %s\n- Build: %s\n\n' "$INSTALL" "$VERSIONS" "$UPGRADE" "$RESOLVED" "$TYPECHECK" "$TEST" "$BUILD"
+            printf 'Versions:\n\n```text\n'
+            if [ -f "$RUNNER_TEMP/better-auth-canary-versions.txt" ]; then
+              cat "$RUNNER_TEMP/better-auth-canary-versions.txt"
+            else
+              printf 'Version resolution did not complete; see the run log.\n'
+            fi
+            printf '```\n\nReview schema snapshot diffs and document migration impact before updating snapshots.\n'
+          } > "$body"
+          if [ "$VERSIONS" != 'success' ]; then
+            title='Better Auth canary could not run'
+          else
+            title="Better Auth canary failed against $LATEST"
+          fi
+          gh label create better-auth-canary --color D93F0B --description 'Upstream Better Auth compatibility failures' --force
+          issue=$(gh issue list --state open --label better-auth-canary --limit 1 --json number --jq '.[0].number // empty')
+          if [ -n "$issue" ]; then
+            gh issue view "$issue" --json body,comments > "$RUNNER_TEMP/better-auth-canary-existing.json"
+            if [ -n "$LATEST" ] && grep -Fq -- "$LATEST" "$RUNNER_TEMP/better-auth-canary-existing.json"; then
+              echo "Issue #$issue already mentions $LATEST; skipping duplicate comment."
+            else
+              gh issue comment "$issue" --body-file "$body"
+            fi
+          else
+            gh issue create --label better-auth-canary --title "$title" --body-file "$body"
+          fi
