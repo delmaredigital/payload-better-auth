@@ -63,7 +63,6 @@ export type SessionPluginFields = {
 export type Session = BaseSessionFields & SessionPluginFields["admin"] & SessionPluginFields["organization"]
 
 export type BaseAccountFields = {
-  issuer: string
   accountId: string
   providerId: string
   userId: string

@@ -1,0 +1,964 @@
+{
+  "collections": [
+    {
+      "fields": [
+        {
+          "name": "accessToken",
+          "type": "text"
+        },
+        {
+          "name": "accessTokenExpiresAt",
+          "type": "date"
+        },
+        {
+          "name": "accountId",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "name": "idToken",
+          "type": "text"
+        },
+        {
+          "name": "password",
+          "type": "text"
+        },
+        {
+          "name": "providerId",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "name": "refreshToken",
+          "type": "text"
+        },
+        {
+          "name": "refreshTokenExpiresAt",
+          "type": "date"
+        },
+        {
+          "name": "scope",
+          "type": "text"
+        },
+        {
+          "index": true,
+          "name": "user",
+          "relationTo": "users",
+          "required": true,
+          "type": "relationship"
+        }
+      ],
+      "slug": "accounts"
+    },
+    {
+      "fields": [
+        {
+          "defaultValue": "default",
+          "name": "configId",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "defaultValue": true,
+          "name": "enabled",
+          "type": "checkbox"
+        },
+        {
+          "name": "expiresAt",
+          "type": "date"
+        },
+        {
+          "name": "key",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "name": "lastRefillAt",
+          "type": "date"
+        },
+        {
+          "name": "lastRequest",
+          "type": "date"
+        },
+        {
+          "name": "metadata",
+          "type": "text"
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "permissions",
+          "type": "text"
+        },
+        {
+          "name": "prefix",
+          "type": "text"
+        },
+        {
+          "defaultValue": true,
+          "name": "rateLimitEnabled",
+          "type": "checkbox"
+        },
+        {
+          "defaultValue": 10,
+          "name": "rateLimitMax",
+          "type": "number"
+        },
+        {
+          "defaultValue": 86400000,
+          "name": "rateLimitTimeWindow",
+          "type": "number"
+        },
+        {
+          "name": "referenceId",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "name": "refillAmount",
+          "type": "number"
+        },
+        {
+          "name": "refillInterval",
+          "type": "number"
+        },
+        {
+          "name": "remaining",
+          "type": "number"
+        },
+        {
+          "defaultValue": 0,
+          "name": "requestCount",
+          "type": "number"
+        },
+        {
+          "name": "start",
+          "type": "text"
+        }
+      ],
+      "slug": "apikeys"
+    },
+    {
+      "fields": [
+        {
+          "name": "email",
+          "required": true,
+          "type": "email"
+        },
+        {
+          "name": "expiresAt",
+          "required": true,
+          "type": "date"
+        },
+        {
+          "index": true,
+          "name": "inviter",
+          "relationTo": "users",
+          "required": true,
+          "type": "relationship"
+        },
+        {
+          "index": true,
+          "name": "organization",
+          "relationTo": "organizations",
+          "required": true,
+          "type": "relationship"
+        },
+        {
+          "name": "role",
+          "type": "text"
+        },
+        {
+          "defaultValue": "pending",
+          "name": "status",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "name": "teamId",
+          "type": "text"
+        }
+      ],
+      "slug": "invitations"
+    },
+    {
+      "fields": [
+        {
+          "name": "alg",
+          "type": "text"
+        },
+        {
+          "name": "crv",
+          "type": "text"
+        },
+        {
+          "name": "expiresAt",
+          "type": "date"
+        },
+        {
+          "name": "privateKey",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "name": "publicKey",
+          "required": true,
+          "type": "text"
+        }
+      ],
+      "slug": "jwks"
+    },
+    {
+      "fields": [
+        {
+          "index": true,
+          "name": "organization",
+          "relationTo": "organizations",
+          "required": true,
+          "type": "relationship"
+        },
+        {
+          "defaultValue": "member",
+          "name": "role",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "index": true,
+          "name": "user",
+          "relationTo": "users",
+          "required": true,
+          "type": "relationship"
+        }
+      ],
+      "slug": "members"
+    },
+    {
+      "fields": [
+        {
+          "name": "authorizationCodeId",
+          "type": "text"
+        },
+        {
+          "name": "clientId",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "name": "confirmation",
+          "type": "json"
+        },
+        {
+          "name": "expiresAt",
+          "type": "date"
+        },
+        {
+          "name": "referenceId",
+          "type": "text"
+        },
+        {
+          "index": true,
+          "name": "refresh",
+          "relationTo": "oauthRefreshTokens",
+          "required": false,
+          "type": "relationship"
+        },
+        {
+          "name": "requestedUserInfoClaims",
+          "type": "json"
+        },
+        {
+          "name": "resources",
+          "type": "json"
+        },
+        {
+          "name": "revoked",
+          "type": "date"
+        },
+        {
+          "name": "scopes",
+          "required": true,
+          "type": "json"
+        },
+        {
+          "index": true,
+          "name": "session",
+          "relationTo": "sessions",
+          "required": false,
+          "type": "relationship"
+        },
+        {
+          "index": true,
+          "name": "token",
+          "type": "text",
+          "unique": true
+        },
+        {
+          "index": true,
+          "name": "user",
+          "relationTo": "users",
+          "required": false,
+          "type": "relationship"
+        }
+      ],
+      "slug": "oauthAccessTokens"
+    },
+    {
+      "fields": [
+        {
+          "name": "expiresAt",
+          "required": true,
+          "type": "date"
+        }
+      ],
+      "slug": "oauthClientAssertions"
+    },
+    {
+      "fields": [
+        {
+          "name": "clientId",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "name": "metadata",
+          "type": "json"
+        },
+        {
+          "name": "resourceId",
+          "required": true,
+          "type": "text"
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "clientId",
+            "resourceId"
+          ],
+          "unique": true
+        }
+      ],
+      "slug": "oauthClientResources"
+    },
+    {
+      "fields": [
+        {
+          "name": "applicationType",
+          "type": "text"
+        },
+        {
+          "name": "backchannelLogoutSessionRequired",
+          "type": "checkbox"
+        },
+        {
+          "name": "backchannelLogoutUri",
+          "type": "text"
+        },
+        {
+          "name": "clientCredentialsScopes",
+          "type": "json"
+        },
+        {
+          "name": "clientDiscoveryId",
+          "type": "text"
+        },
+        {
+          "index": true,
+          "name": "clientId",
+          "required": true,
+          "type": "text",
+          "unique": true
+        },
+        {
+          "name": "clientSecret",
+          "type": "text"
+        },
+        {
+          "name": "contacts",
+          "type": "json"
+        },
+        {
+          "defaultValue": false,
+          "name": "disabled",
+          "type": "checkbox"
+        },
+        {
+          "defaultValue": false,
+          "name": "dpopBoundAccessTokens",
+          "type": "checkbox"
+        },
+        {
+          "name": "enableEndSession",
+          "type": "checkbox"
+        },
+        {
+          "name": "grantTypes",
+          "type": "json"
+        },
+        {
+          "name": "icon",
+          "type": "text"
+        },
+        {
+          "name": "jwks",
+          "type": "text"
+        },
+        {
+          "name": "jwksUri",
+          "type": "text"
+        },
+        {
+          "name": "metadata",
+          "type": "json"
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "policy",
+          "type": "text"
+        },
+        {
+          "name": "postLogoutRedirectUris",
+          "type": "json"
+        },
+        {
+          "name": "redirectUris",
+          "required": true,
+          "type": "json"
+        },
+        {
+          "name": "referenceId",
+          "type": "text"
+        },
+        {
+          "name": "requirePKCE",
+          "type": "checkbox"
+        },
+        {
+          "name": "responseTypes",
+          "type": "json"
+        },
+        {
+          "name": "scopes",
+          "type": "json"
+        },
+        {
+          "name": "skipConsent",
+          "type": "checkbox"
+        },
+        {
+          "name": "softwareId",
+          "type": "text"
+        },
+        {
+          "name": "softwareStatement",
+          "type": "text"
+        },
+        {
+          "name": "softwareVersion",
+          "type": "text"
+        },
+        {
+          "name": "subjectType",
+          "type": "text"
+        },
+        {
+          "name": "tokenEndpointAuthMethod",
+          "type": "text"
+        },
+        {
+          "name": "tos",
+          "type": "text"
+        },
+        {
+          "name": "uri",
+          "type": "text"
+        },
+        {
+          "index": true,
+          "name": "user",
+          "relationTo": "users",
+          "required": false,
+          "type": "relationship"
+        }
+      ],
+      "slug": "oauthClients"
+    },
+    {
+      "fields": [
+        {
+          "name": "clientId",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "name": "referenceId",
+          "type": "text"
+        },
+        {
+          "name": "requestedUserInfoClaims",
+          "type": "json"
+        },
+        {
+          "name": "resources",
+          "type": "json"
+        },
+        {
+          "name": "scopes",
+          "required": true,
+          "type": "json"
+        },
+        {
+          "index": true,
+          "name": "user",
+          "relationTo": "users",
+          "required": false,
+          "type": "relationship"
+        }
+      ],
+      "slug": "oauthConsents"
+    },
+    {
+      "fields": [
+        {
+          "name": "authTime",
+          "type": "date"
+        },
+        {
+          "name": "authorizationCodeId",
+          "type": "text"
+        },
+        {
+          "name": "clientId",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "name": "confirmation",
+          "type": "json"
+        },
+        {
+          "name": "expiresAt",
+          "type": "date"
+        },
+        {
+          "name": "referenceId",
+          "type": "text"
+        },
+        {
+          "name": "requestedUserInfoClaims",
+          "type": "json"
+        },
+        {
+          "name": "resources",
+          "type": "json"
+        },
+        {
+          "name": "revoked",
+          "type": "date"
+        },
+        {
+          "name": "rotatedAt",
+          "type": "date"
+        },
+        {
+          "name": "rotationReplayExpiresAt",
+          "type": "date"
+        },
+        {
+          "name": "rotationReplayResponse",
+          "type": "text"
+        },
+        {
+          "name": "scopes",
+          "required": true,
+          "type": "json"
+        },
+        {
+          "index": true,
+          "name": "session",
+          "relationTo": "sessions",
+          "required": false,
+          "type": "relationship"
+        },
+        {
+          "index": true,
+          "name": "token",
+          "required": true,
+          "type": "text",
+          "unique": true
+        },
+        {
+          "index": true,
+          "name": "user",
+          "relationTo": "users",
+          "required": true,
+          "type": "relationship"
+        }
+      ],
+      "slug": "oauthRefreshTokens"
+    },
+    {
+      "fields": [
+        {
+          "name": "accessTokenTtl",
+          "type": "number"
+        },
+        {
+          "name": "allowedScopes",
+          "type": "json"
+        },
+        {
+          "name": "customClaims",
+          "type": "json"
+        },
+        {
+          "defaultValue": false,
+          "name": "disabled",
+          "type": "checkbox"
+        },
+        {
+          "defaultValue": false,
+          "name": "dpopBoundAccessTokensRequired",
+          "type": "checkbox"
+        },
+        {
+          "index": true,
+          "name": "identifier",
+          "required": true,
+          "type": "text",
+          "unique": true
+        },
+        {
+          "name": "metadata",
+          "type": "json"
+        },
+        {
+          "name": "name",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "defaultValue": 1,
+          "name": "policyVersion",
+          "type": "number"
+        },
+        {
+          "name": "refreshTokenTtl",
+          "type": "number"
+        },
+        {
+          "name": "signingAlgorithm",
+          "type": "text"
+        },
+        {
+          "name": "signingKeyId",
+          "type": "text"
+        }
+      ],
+      "slug": "oauthResources"
+    },
+    {
+      "fields": [
+        {
+          "name": "logo",
+          "type": "text"
+        },
+        {
+          "name": "metadata",
+          "type": "text"
+        },
+        {
+          "name": "name",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "index": true,
+          "name": "slug",
+          "required": true,
+          "type": "text",
+          "unique": true
+        }
+      ],
+      "slug": "organizations"
+    },
+    {
+      "fields": [
+        {
+          "name": "aaguid",
+          "type": "text"
+        },
+        {
+          "name": "backedUp",
+          "required": true,
+          "type": "checkbox"
+        },
+        {
+          "name": "counter",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "name": "credentialID",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "name": "deviceType",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "name": "name",
+          "type": "text"
+        },
+        {
+          "name": "publicKey",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "name": "transports",
+          "type": "text"
+        },
+        {
+          "index": true,
+          "name": "user",
+          "relationTo": "users",
+          "required": true,
+          "type": "relationship"
+        }
+      ],
+      "slug": "passkeys"
+    },
+    {
+      "fields": [
+        {
+          "name": "activeOrganizationId",
+          "type": "text"
+        },
+        {
+          "name": "activeTeamId",
+          "type": "text"
+        },
+        {
+          "name": "expiresAt",
+          "required": true,
+          "type": "date"
+        },
+        {
+          "name": "impersonatedBy",
+          "type": "text"
+        },
+        {
+          "name": "ipAddress",
+          "type": "text"
+        },
+        {
+          "index": true,
+          "name": "token",
+          "required": true,
+          "type": "text",
+          "unique": true
+        },
+        {
+          "index": true,
+          "name": "user",
+          "relationTo": "users",
+          "required": true,
+          "type": "relationship"
+        },
+        {
+          "name": "userAgent",
+          "type": "text"
+        }
+      ],
+      "slug": "sessions"
+    },
+    {
+      "fields": [
+        {
+          "index": true,
+          "name": "membershipKey",
+          "type": "text",
+          "unique": true
+        },
+        {
+          "index": true,
+          "name": "team",
+          "relationTo": "teams",
+          "required": true,
+          "type": "relationship"
+        },
+        {
+          "index": true,
+          "name": "user",
+          "relationTo": "users",
+          "required": true,
+          "type": "relationship"
+        }
+      ],
+      "slug": "teamMembers"
+    },
+    {
+      "fields": [
+        {
+          "defaultValue": 0,
+          "name": "memberCount",
+          "required": true,
+          "type": "number"
+        },
+        {
+          "name": "name",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "index": true,
+          "name": "organization",
+          "relationTo": "organizations",
+          "required": true,
+          "type": "relationship"
+        }
+      ],
+      "slug": "teams"
+    },
+    {
+      "fields": [
+        {
+          "name": "backupCodes",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "defaultValue": 0,
+          "name": "failedVerificationCount",
+          "type": "number"
+        },
+        {
+          "name": "lockedUntil",
+          "type": "date"
+        },
+        {
+          "name": "secret",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "index": true,
+          "name": "user",
+          "relationTo": "users",
+          "required": true,
+          "type": "relationship"
+        },
+        {
+          "defaultValue": true,
+          "name": "verified",
+          "type": "checkbox"
+        }
+      ],
+      "slug": "twoFactors"
+    },
+    {
+      "fields": [
+        {
+          "name": "banExpires",
+          "type": "date"
+        },
+        {
+          "name": "banReason",
+          "type": "text"
+        },
+        {
+          "defaultValue": false,
+          "name": "banned",
+          "type": "checkbox"
+        },
+        {
+          "name": "displayUsername",
+          "type": "text"
+        },
+        {
+          "index": true,
+          "name": "email",
+          "required": true,
+          "type": "email",
+          "unique": true
+        },
+        {
+          "defaultValue": false,
+          "name": "emailVerified",
+          "required": true,
+          "type": "checkbox"
+        },
+        {
+          "name": "image",
+          "type": "text"
+        },
+        {
+          "defaultValue": false,
+          "name": "isAnonymous",
+          "type": "checkbox"
+        },
+        {
+          "name": "name",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "index": true,
+          "name": "phoneNumber",
+          "type": "text",
+          "unique": true
+        },
+        {
+          "name": "phoneNumberVerified",
+          "type": "checkbox"
+        },
+        {
+          "defaultValue": "user",
+          "name": "role",
+          "type": "text"
+        },
+        {
+          "defaultValue": false,
+          "name": "twoFactorEnabled",
+          "type": "checkbox"
+        },
+        {
+          "index": true,
+          "name": "username",
+          "type": "text",
+          "unique": true
+        }
+      ],
+      "slug": "users"
+    },
+    {
+      "fields": [
+        {
+          "name": "expiresAt",
+          "required": true,
+          "type": "date"
+        },
+        {
+          "name": "identifier",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "name": "value",
+          "required": true,
+          "type": "text"
+        }
+      ],
+      "slug": "verifications"
+    }
+  ]
+}

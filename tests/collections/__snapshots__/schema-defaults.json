@@ -1,0 +1,106 @@
+{
+  "collections": [
+    {
+      "fields": [
+        {
+          "name": "accessToken",
+          "type": "text"
+        },
+        {
+          "name": "accessTokenExpiresAt",
+          "type": "date"
+        },
+        {
+          "name": "accountId",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "name": "idToken",
+          "type": "text"
+        },
+        {
+          "name": "password",
+          "type": "text"
+        },
+        {
+          "name": "providerId",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "name": "refreshToken",
+          "type": "text"
+        },
+        {
+          "name": "refreshTokenExpiresAt",
+          "type": "date"
+        },
+        {
+          "name": "scope",
+          "type": "text"
+        },
+        {
+          "index": true,
+          "name": "user",
+          "relationTo": "users",
+          "required": true,
+          "type": "relationship"
+        }
+      ],
+      "slug": "accounts"
+    },
+    {
+      "fields": [
+        {
+          "name": "expiresAt",
+          "required": true,
+          "type": "date"
+        },
+        {
+          "name": "ipAddress",
+          "type": "text"
+        },
+        {
+          "index": true,
+          "name": "token",
+          "required": true,
+          "type": "text",
+          "unique": true
+        },
+        {
+          "index": true,
+          "name": "user",
+          "relationTo": "users",
+          "required": true,
+          "type": "relationship"
+        },
+        {
+          "name": "userAgent",
+          "type": "text"
+        }
+      ],
+      "slug": "sessions"
+    },
+    {
+      "fields": [
+        {
+          "name": "expiresAt",
+          "required": true,
+          "type": "date"
+        },
+        {
+          "name": "identifier",
+          "required": true,
+          "type": "text"
+        },
+        {
+          "name": "value",
+          "required": true,
+          "type": "text"
+        }
+      ],
+      "slug": "verifications"
+    }
+  ]
+}

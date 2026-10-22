@@ -22,8 +22,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Payload 4 requires Node >=24.15.0, which is also the floor in
-        # package.json `engines` and what the publish job builds with.
+        # Payload 4 requires Node >=24.15; package.json `engines` floors at
+        # >=24.22.1, the first 24.x with the October 2026 security fixes. The
+        # publish job builds with 24 as well.
         node: ['24']
 
     steps:

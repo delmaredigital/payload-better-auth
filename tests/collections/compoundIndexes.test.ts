@@ -1,10 +1,13 @@
 /**
  * Better Auth 1.7 moved constraints that used to be implicit into the schema as
- * table-level `indexes`. Generated collections must carry them through. The
- * original carrier — `account`'s unique `(issuer, accountId)` — was reverted
- * upstream in Better Auth 1.7.3 (the 1.7.0–1.7.2 schema needed a backfill BA
- * chose not to impose), so these tests declare the index on a plugin table
- * instead of depending on a core table's shape.
+ * table-level `indexes`, and generated collections carry them through as
+ * Payload compound indexes.
+ *
+ * 1.7.0–1.7.2 declared `account`'s unique `(issuer, accountId)` this way; 1.7.3
+ * restored the 1.6 account schema (keyed on `providerId` + `accountId`, no
+ * `issuer` column, no table-level index). Core tables therefore declare no
+ * indexes today, so the passthrough is exercised through a plugin schema — the
+ * same mechanism a core table would use.
  */
 
 import { describe, it, expect, vi } from 'vitest'
@@ -21,64 +24,71 @@ function find(collections: CollectionConfig[], slug: string) {
   return collections.find((c) => c.slug === slug)
 }
 
-/** A plugin schema declaring a unique compound index on `widget`. */
-const indexedPlugin = {
-  id: 'index-test',
-  schema: {
-    widget: {
-      fields: {
-        label: { type: 'string', required: true },
-        slug: { type: 'string', required: true },
-      },
-      indexes: [{ fields: ['label', 'slug'], unique: true }],
-    },
-  },
-}
-
-function buildWithIndex(options: Parameters<typeof betterAuthCollections>[0] = {}) {
-  return build({
-    ...options,
+/** A plugin whose table declares a compound unique index, like BA 1.7.0's account did. */
+function withIndexedTable(indexes: { fields: string[]; unique?: boolean }[]) {
+  return {
     betterAuthOptions: {
-      ...options.betterAuthOptions,
-      plugins: [indexedPlugin],
+      plugins: [
+        {
+          id: 'index-test',
+          schema: {
+            widget: {
+              fields: {
+                label: { type: 'string', required: true },
+                code: { type: 'string', required: true },
+                ownerId: { type: 'string', required: true, references: { model: 'user', field: 'id' } },
+              },
+              indexes,
+            },
+          },
+        },
+      ],
     } as never,
-  })
+  }
 }
 
 describe('compound index passthrough', () => {
-  it('carries a table-level compound index onto the generated collection', () => {
-    const widgets = find(buildWithIndex(), 'widgets')
+  it('accounts carry no issuer field or index on Better Auth >= 1.7.3', () => {
+    const accounts = find(build(), 'accounts')
+    const names = (accounts?.fields ?? []).map((f) => ('name' in f ? f.name : undefined))
+
+    expect(accounts).toBeDefined()
+    expect(names).not.toContain('issuer')
+    expect(names).toEqual(expect.arrayContaining(['accountId', 'providerId', 'user']))
+    expect(accounts?.indexes).toBeUndefined()
+  })
+
+  it('passes a table-level unique index through as a Payload compound index', () => {
+    const widgets = find(build(withIndexedTable([{ fields: ['label', 'code'], unique: true }])), 'widgets')
 
     expect(widgets).toBeDefined()
-    expect(widgets?.indexes).toEqual([{ fields: ['label', 'slug'], unique: true }])
+    expect(widgets?.indexes).toEqual([{ fields: ['label', 'code'], unique: true }])
   })
 
-  it('generates the indexed fields alongside it', () => {
-    const widgets = find(buildWithIndex(), 'widgets')
-    const label = (widgets?.fields ?? []).find(
-      (f) => 'name' in f && f.name === 'label'
-    ) as { name: string; type: string; required?: boolean } | undefined
+  it('maps reference fields in an index to their relationship name', () => {
+    const widgets = find(build(withIndexedTable([{ fields: ['ownerId', 'code'], unique: true }])), 'widgets')
 
-    expect(label).toBeDefined()
-    expect(label?.type).toBe('text')
-    expect(label?.required).toBe(true)
+    expect(widgets?.indexes).toEqual([{ fields: ['owner', 'code'], unique: true }])
   })
 
-  it('omits `indexes` on collections whose table declares none', () => {
-    const sessions = find(build(), 'sessions')
+  it('omits `unique` on a non-unique index and `indexes` on tables that declare none', () => {
+    const collections = build(withIndexedTable([{ fields: ['label', 'code'] }]))
 
-    expect(sessions).toBeDefined()
-    expect(sessions?.indexes).toBeUndefined()
+    expect(find(collections, 'widgets')?.indexes).toEqual([{ fields: ['label', 'code'] }])
+    expect(find(collections, 'sessions')?.indexes).toBeUndefined()
   })
 
   it('respects usePlural: false for the collection carrying the index', () => {
-    const widget = find(buildWithIndex({ usePlural: false }), 'widget')
+    const widget = find(
+      build({ usePlural: false, ...withIndexedTable([{ fields: ['label', 'code'], unique: true }]) }),
+      'widget'
+    )
 
-    expect(widget?.indexes).toEqual([{ fields: ['label', 'slug'], unique: true }])
+    expect(widget?.indexes).toEqual([{ fields: ['label', 'code'], unique: true }])
   })
 
   it('keeps index field names aligned with the fields it generated', () => {
-    const collections = buildWithIndex()
+    const collections = build(withIndexedTable([{ fields: ['ownerId', 'label'], unique: true }]))
 
     for (const collection of collections) {
       const names = new Set(

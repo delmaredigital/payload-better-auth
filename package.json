@@ -102,12 +102,12 @@
     "prepublishOnly": "pnpm build"
   },
   "peerDependencies": {
-    "@better-auth/api-key": ">=1.7.0 <2",
-    "@better-auth/passkey": ">=1.7.0 <2",
+    "@better-auth/api-key": ">=1.7.7 <2",
+    "@better-auth/passkey": ">=1.7.7 <2",
     "@payloadcms/next": ">=4.0.0-beta.0 <4.0.0-canary.0 || >=4.0.0-canary.37 <5",
     "@payloadcms/ui": ">=4.0.0-beta.0 <4.0.0-canary.0 || >=4.0.0-canary.37 <5",
-    "better-auth": ">=1.7.0 <2",
-    "next": ">=16.2.6 <17",
+    "better-auth": ">=1.7.7 <2",
+    "next": ">=16.4.1 <17",
     "payload": ">=4.0.0-beta.0 <4.0.0-canary.0 || >=4.0.0-canary.37 <5",
     "react": ">=19.2.1 <20"
   },
@@ -126,9 +126,9 @@
     }
   },
   "devDependencies": {
-    "@better-auth/api-key": "^1.7.1",
-    "@better-auth/oauth-provider": "^1.7.1",
-    "@better-auth/passkey": "^1.7.1",
+    "@better-auth/api-key": "^1.7.12",
+    "@better-auth/oauth-provider": "^1.7.12",
+    "@better-auth/passkey": "^1.7.12",
     "@payloadcms/next": "4.0.0-beta.1",
     "@payloadcms/ui": "4.0.0-beta.1",
     "@swc/cli": "^0.6.0",
@@ -139,17 +139,17 @@
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@vitejs/plugin-react": "^5.2.0",
-    "@vitest/coverage-v8": "^4.1.8",
-    "better-auth": "^1.7.1",
+    "@vitest/coverage-v8": "^4.1.12",
+    "better-auth": "^1.7.12",
     "jsdom": "^29.1.1",
-    "next": "^16.3.8",
+    "next": "^16.4.2",
     "payload": "4.0.0-beta.1",
     "react": "19.2.5",
     "react-dom": "19.2.5",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
-    "vite": "^7.3.5",
-    "vitest": "^4.1.8"
+    "vite": "^7.3.7",
+    "vitest": "^4.1.12"
   },
   "keywords": [
     "payload",
@@ -160,7 +160,7 @@
     "adapter"
   ],
   "engines": {
-    "node": ">=24.15.0"
+    "node": ">=24.22.1"
   },
   "author": "Delmare Digital",
   "repository": {

@@ -608,10 +608,10 @@ function generateCollection(
  * Translate Better Auth's table-level `indexes` into Payload compound indexes.
  *
  * Better Auth 1.7 moved constraints that used to be implicit into the schema
- * itself — most importantly `account`'s unique `(issuer, accountId)`, which is
- * what stops one provider identity from being linked to two users. Passing them
- * through keeps the generated collections a faithful projection of Better
- * Auth's schema instead of a lossy one.
+ * itself (1.7.0–1.7.2 declared `account`'s unique `(issuer, accountId)` this
+ * way; 1.7.3 restored the 1.6 account schema, so core tables currently declare
+ * none, but plugins can). Passing them through keeps the generated collections
+ * a faithful projection of Better Auth's schema instead of a lossy one.
  *
  * Index entries name Better Auth fields; relationship fields are renamed on the
  * Payload side (`userId` → `user`), so map through the generated field list and
