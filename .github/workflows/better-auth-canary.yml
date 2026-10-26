@@ -73,6 +73,8 @@ jobs:
       - name: Test
         id: test
         if: ${{ !cancelled() && steps.upgrade.outcome == 'success' }}
+        env:
+          BETTER_AUTH_CANARY: '1'
         run: pnpm test
       - name: Build
         id: build

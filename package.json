@@ -120,9 +120,9 @@
     }
   },
   "devDependencies": {
-    "@better-auth/api-key": "^1.7.12",
-    "@better-auth/oauth-provider": "^1.7.12",
-    "@better-auth/passkey": "^1.7.12",
+    "@better-auth/api-key": "^1.7.13",
+    "@better-auth/oauth-provider": "^1.7.13",
+    "@better-auth/passkey": "^1.7.13",
     "@payloadcms/next": "^3.91.0",
     "@payloadcms/ui": "^3.91.0",
     "@swc/cli": "^0.6.0",
@@ -134,7 +134,7 @@
     "@types/react": "^19.2.14",
     "@vitejs/plugin-react": "^5.2.0",
     "@vitest/coverage-v8": "^4.1.12",
-    "better-auth": "^1.7.12",
+    "better-auth": "^1.7.13",
     "jsdom": "^29.1.1",
     "next": "^16.4.2",
     "payload": "^3.91.0",
