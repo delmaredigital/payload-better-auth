@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.40.0-next.1] - 2026-11-01
+
+Brings in 0.14.1: the `jwt` plugin works at its defaults ([#52](https://github.com/delmaredigital/payload-better-auth/issues/52)). See [0.14.1](#0141---2026-11-01) below. Dev dependencies: Better Auth 1.7.13.
+
 ## [0.40.0-next.0] - 2026-10-22
 
 The Payload 4 prerelease line, renumbered from `0.14.0-next.x` so it can never collide with the Payload 3 line (0.14.0 shipped on `latest` today). Everything in [0.14.0](#0140---2026-10-22) below is included; this entry lists only what differs on the Payload 4 line.
@@ -19,6 +23,12 @@ The Payload 4 prerelease line, renumbered from `0.14.0-next.x` so it can never c
 ### Internal
 
 - Dev dependencies: Better Auth 1.7.12, Next 16.4.2, Vite 7.3.7, Vitest 4.1.12. Payload stays on 4.0.0-beta.1. Schema snapshots were generated on this branch against Payload 4; the daily Better Auth canary also runs here.
+
+## [0.14.1] - 2026-11-01
+
+### Fixed
+
+- **The `jwt` plugin works at its defaults** ([#52](https://github.com/delmaredigital/payload-better-auth/issues/52)). The adapter queried a `jwkss` collection while `betterAuthCollections()` registers `jwks`, so the first token request failed with "The collection with slug jwkss can't be found". The same mismatch affected any model name ending in `s` (`class` queried `classs`). The `schema: { jwks: { modelName: 'jwk' } }` workaround still works and can be removed. If you hand-registered a `jwkss` collection as your own workaround, rename its slug to `jwks`: the adapter now queries `jwks`.
 
 ## [0.14.0] - 2026-10-22
 

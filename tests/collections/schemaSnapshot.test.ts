@@ -4,6 +4,8 @@
  * Two version-free snapshots cover the default and full-plugin schemas; a
  * separate third test records the installed Better Auth version, so failures
  * distinguish a version-only bump from a change to the schema consumers get.
+ * The daily canary sets BETTER_AUTH_CANARY=1 to skip the version stamp, so it
+ * only fails on drift consumers would see, not on every upstream release.
  * Review the diff and document any migration impact in CHANGELOG, then run
  * `pnpm vitest run -u tests/collections/schemaSnapshot.test.ts` — never update blindly.
  */
@@ -92,7 +94,7 @@ function schemaSnapshot(options: Parameters<typeof betterAuthCollections>[0] = {
 }
 
 describe('generated Better Auth schema', () => {
-  it('records the Better Auth version it was generated against', async () => {
+  it.skipIf(process.env.BETTER_AUTH_CANARY === '1')('records the Better Auth version it was generated against', async () => {
     await expect(getBetterAuthVersion() + '\n').toMatchFileSnapshot('__snapshots__/better-auth-version.txt')
   })
 
