@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-11-01
+
 ### Fixed
 
 - **The `jwt` plugin works at its defaults** ([#52](https://github.com/delmaredigital/payload-better-auth/issues/52)). The adapter queried a `jwkss` collection while `betterAuthCollections()` registers `jwks`, so the first token request failed with "The collection with slug jwkss can't be found". The same mismatch affected any model name ending in `s` (`class` queried `classs`). The `schema: { jwks: { modelName: 'jwk' } }` workaround still works and can be removed. If you hand-registered a `jwkss` collection as your own workaround, rename its slug to `jwks`: the adapter now queries `jwks`.
