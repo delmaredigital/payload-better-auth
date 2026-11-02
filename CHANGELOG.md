@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Internal
+
+- Dev dependencies refreshed within their ranges: Better Auth 1.7.15, Payload 3.92.1, Next 16.4.3, React 19.3.1. Generated schema snapshots are unchanged. No change to the published package.
+
 ## [0.14.1] - 2026-11-01
 
 ### Fixed
