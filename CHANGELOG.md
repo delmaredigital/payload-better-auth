@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dev dependencies refreshed within their ranges: Better Auth 1.7.15, Payload 3.92.1, Next 16.4.3, React 19.3.1. Generated schema snapshots are unchanged. No change to the published package.
 - TypeScript 7.0.2 (from 5.9.3). Generated declarations match the previous output apart from quote style in one literal type, and the adapter contract guard still fails on a missing method.
+- Vite 8, Vitest 5, jsdom 30, `@vitejs/plugin-react` 6, `@testing-library/jest-dom` 7 and `@swc/cli` 0.8. Build output is unchanged.
 
 ## [0.14.1] - 2026-11-01
 
