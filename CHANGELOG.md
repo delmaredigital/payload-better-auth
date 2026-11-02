@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Internal
+
+- Dev dependencies refreshed within their ranges: Better Auth 1.7.15, Next 16.4.3, React 19.3.1. Generated schema snapshots are unchanged. No change to the published package.
+- TypeScript 7.0.2 (from 6.0.3).
+- Vite 8, Vitest 5, jsdom 30, `@vitejs/plugin-react` 6, `@testing-library/jest-dom` 7 and `@swc/cli` 0.8.
+
 ## [0.40.0-next.1] - 2026-11-01
 
 Brings in 0.14.1: the `jwt` plugin works at its defaults ([#52](https://github.com/delmaredigital/payload-better-auth/issues/52)). See [0.14.1](#0141---2026-11-01) below. Dev dependencies: Better Auth 1.7.13.
