@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-11-07
+
 ### Security
 
 - **Postgres `incrementOne` and `consumeOne` now use one guarded SQL statement for eligible collections.** The Local API's read-then-write path could lose concurrent counter updates or let multiple callers consume a single-use credential. Counters use `COALESCE(column, 0) + delta`; consumption uses `DELETE … RETURNING`. Both select at most one identity and repeat the caller's guard on the outer write. No migration is required.
