@@ -13,6 +13,7 @@ import {
   type CustomAdapter,
 } from 'better-auth/adapters'
 import type { DBAdapter, BetterAuthOptions } from 'better-auth'
+import { postgresAtomic } from './atomic-postgres.js'
 import type {
   BasePayload,
   Where as PayloadWhere,
@@ -858,22 +859,19 @@ export function payloadAdapter({
             return result.docs.length
           },
 
-          // Better Auth 1.7 requires these two atomic primitives on every
-          // custom adapter — the factory throws rather than falling back.
-          //
-          // Payload's Local API exposes no `DELETE ... RETURNING` or
-          // `SET n = n + d`, so both are read-then-write. We narrow the race
-          // window by re-asserting Better Auth's guard (which already carries
-          // the caller's precondition, e.g. `remaining > 0`) on the write, and
-          // by treating "the write matched nothing" as losing the race rather
-          // than as success. See the README's "Atomic operations" section for
-          // the exact guarantees and their limits.
+          // Postgres uses guarded single-statement primitives. Other stores and
+          // predicates we cannot translate exactly retain the original Local API path.
           consumeOne: async ({ model, where }) => {
             const payload = await getPayload()
             const collection = getCollection(model)
 
             if (enableDebugLogs) {
               debugLog('consumeOne', { collection, model, where })
+            }
+
+            if (resolvedDbType === 'postgres') {
+              const atomic = await postgresAtomic({ payload, collection, where, consume: true })
+              if (atomic !== undefined) return atomic as never
             }
 
             const doc = await findOneDoc(model, where as WhereClause[])
@@ -899,6 +897,11 @@ export function payloadAdapter({
 
             if (enableDebugLogs) {
               debugLog('incrementOne', { collection, model, where, increment, set })
+            }
+
+            if (resolvedDbType === 'postgres') {
+              const atomic = await postgresAtomic({ payload, collection, where, increment, set })
+              if (atomic !== undefined) return atomic as never
             }
 
             const incrementFields = Object.entries(increment)

@@ -279,12 +279,12 @@ Better Auth 1.7 requires every database adapter to implement two atomic primitiv
 | `consumeOne` | Single-use credentials — email verification, password reset, magic links, email OTP, device-authorization codes |
 | `incrementOne` | Guarded counters — API-key quota and rate limits, two-factor backup codes, team member counts |
 
-Payload's Local API has no `DELETE … RETURNING` or `SET n = n + d`, so the adapter implements both as read-then-write and narrows the race window rather than eliminating it:
+On Postgres, supported flat collections and predicates use one guarded SQL statement through Payload's existing Drizzle connection:
 
-- **`consumeOne`** reads the row, then deletes it by id. The row is returned **only if our own delete removed it** — if a concurrent caller got there first, Payload raises a 404 and we return `null`. That is what keeps a magic link or reset token single-use.
-- **`incrementOne`** reads the row, then writes with a guard that re-asserts both Better Auth's own precondition (e.g. `remaining > 0`) and the counter values the write was computed from. A racing writer's update matches no row, so the loser re-reads and retries (up to five times) instead of clobbering the winner.
+- **`consumeOne`** uses `DELETE … RETURNING`, returning the row only to the caller whose statement removed it.
+- **`incrementOne`** uses `UPDATE … SET counter = COALESCE(counter, 0) + delta … RETURNING`, so concurrent increments accumulate without a read-then-write race. Both statements select at most one identity and re-assert the caller's guard on the outer write, where Postgres rechecks it after waiting for a concurrent writer. A guard miss returns `null`.
 
-**The limit:** Payload resolves a `where` by finding rows and then mutating them, so a narrow window remains between its internal read and write. Under heavy concurrency on the *same row*, a quota decrement can be lost or a token consumed twice. This matches the guarantee Better Auth 1.6 provided for these flows, and is fine for typical traffic — but if you need strict cross-process guarantees for API-key quota, enforce it at the database with a `CHECK` constraint or a unique index rather than relying on the adapter alone.
+**Fallback and limits:** Other stores, complex collections (such as localized or has-many fields), and predicates that cannot be translated exactly keep the existing Local API path. Supported predicates are scalar `eq`, `ne`, `lt`, `lte`, `gt`, `gte`, and scalar-array `in`, with the existing AND/OR grouping and NULL semantics. Nested paths, JSON predicates, insensitive mode, and other operators fall back. That path reads before deleting by id or updating with a compare-and-swap guard (up to five attempts); Payload can resolve that guard before its internal write, so concurrent calls can still lose counter updates or consume a token more than once.
 
 ## Migrating stringified arrays (0.12.0)
 

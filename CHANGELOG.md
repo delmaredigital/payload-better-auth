@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **Postgres `incrementOne` and `consumeOne` now use one guarded SQL statement.** Payload's read-then-write Local API path could lose concurrent counter updates or let multiple callers consume a single-use credential. Counter increments now use `COALESCE(column, 0) + delta`, and consumption uses `DELETE … RETURNING`; both re-assert the caller's guard on the write. Other stores and predicates or collection shapes that cannot be translated exactly keep the existing Local API fallback and its concurrency limits. No migration or configuration change is required.
+- `drizzle-orm` (>=0.45.2 <1) is now an optional peer dependency: the atomic Postgres path imports it at runtime and must use the copy your Payload database adapter installs.
+
 ### Internal
 
 - Dev dependencies refreshed within their ranges: Better Auth 1.7.15, Payload 3.92.1, Next 16.4.3, React 19.3.1. Generated schema snapshots are unchanged. No change to the published package.
