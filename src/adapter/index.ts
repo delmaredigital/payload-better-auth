@@ -110,9 +110,11 @@ export type PayloadAdapterConfig = {
 
     /**
      * Postgres incrementOne/consumeOne policy (default: 'auto').
-     * 'auto' requires collections without hooks, trash, versions, or base filters.
+     * 'auto' excludes hooks (except field beforeDuplicate), trash, and versions,
+     * with a warning for each policy refusal.
      * 'always' bypasses hooks after application review, but still falls back for
-     * trash, versions, and base filters. 'never' always uses Payload's Local API.
+     * trash and versions. Other SQL incompatibilities log errors;
+     * 'always' throws for them. 'never' always uses Payload's Local API.
      */
     atomicWrites?: AtomicWrites
 

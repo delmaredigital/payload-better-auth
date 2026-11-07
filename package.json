@@ -96,7 +96,6 @@
     "clean": "rm -rf dist",
     "generate:types": "tsx src/scripts/generate-types.ts",
     "typecheck": "tsc --noEmit",
-    "check": "pnpm typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -110,8 +109,7 @@
     "better-auth": ">=1.7.7 <2",
     "next": ">=16.4.1 <17",
     "payload": ">=3.90.0 <4",
-    "react": ">=19.2.1 <20",
-    "drizzle-orm": ">=0.45.2 <1"
+    "react": ">=19.2.1 <20"
   },
   "peerDependenciesMeta": {
     "@better-auth/api-key": {
@@ -119,15 +117,13 @@
     },
     "@better-auth/passkey": {
       "optional": true
-    },
-    "drizzle-orm": {
-      "optional": true
     }
   },
   "devDependencies": {
     "@better-auth/api-key": "^1.7.15",
     "@better-auth/oauth-provider": "^1.7.15",
     "@better-auth/passkey": "^1.7.15",
+    "@payloadcms/db-postgres": "3.92.1",
     "@payloadcms/next": "^3.92.1",
     "@payloadcms/ui": "^3.92.1",
     "@swc/cli": "^0.8.2",
@@ -148,8 +144,7 @@
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
-    "vitest": "^5.0.5",
-    "drizzle-orm": "^0.45.2"
+    "vitest": "^5.0.5"
   },
   "keywords": [
     "payload",
@@ -172,6 +167,7 @@
   },
   "homepage": "https://delmaredigital.com/developers",
   "dependencies": {
+    "drizzle-orm": "0.45.2",
     "qrcode.react": "^4.2.0"
   }
 }

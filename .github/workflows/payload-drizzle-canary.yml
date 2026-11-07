@@ -1,0 +1,68 @@
+# Detect the latest Payload ORM pin even before we bump our Payload devDependency.
+name: Payload Drizzle canary
+
+on:
+  schedule:
+    - cron: '41 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: payload-drizzle-canary
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Compare latest Payload Drizzle requirement with our pin
+        id: compare
+        run: |
+          node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process'
+          import { appendFileSync, readFileSync } from 'node:fs'
+          const pinned = JSON.parse(readFileSync('package.json', 'utf8')).dependencies['drizzle-orm']
+          const upstream = execFileSync('npm', ['view', '@payloadcms/drizzle@latest', 'dependencies.drizzle-orm'], { encoding: 'utf8' }).trim()
+          if (!pinned || !upstream || /[\r\n]/.test(upstream)) throw new Error('Could not resolve a single upstream Drizzle requirement')
+          const mismatch = pinned !== upstream
+          console.log(`Our Drizzle pin: ${pinned}; latest @payloadcms/drizzle requires: ${upstream}`)
+          appendFileSync(process.env.GITHUB_OUTPUT, `pinned=${pinned}\nupstream=${upstream}\nmismatch=${mismatch}\n`)
+          if (mismatch) process.exitCode = 1
+          NODE
+
+      - name: Report Payload Drizzle dependency drift
+        if: ${{ failure() && steps.compare.outputs.mismatch == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PINNED: ${{ steps.compare.outputs.pinned }}
+          UPSTREAM: ${{ steps.compare.outputs.upstream }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          body="$RUNNER_TEMP/payload-drizzle-canary-issue.md"
+          {
+            printf 'Payload Drizzle dependency drift: %s\n\n' "$RUN_URL"
+            printf 'Drizzle requirement: %s -> %s\n\n' "$PINNED" "$UPSTREAM"
+            printf 'Our package pins drizzle-orm to %s; @payloadcms/drizzle@latest requires %s.\n\n' "$PINNED" "$UPSTREAM"
+            printf 'Review compatibility, update the Payload dev dependencies and our exact Drizzle pin together, and run the full checks including Postgres integration tests before releasing a matching patch.\n'
+          } > "$body"
+          gh label create payload-drizzle-canary --color D93F0B --description 'Upstream Payload Drizzle dependency drift' --force
+          issue=$(gh issue list --state open --label payload-drizzle-canary --limit 1 --json number --jq '.[0].number // empty')
+          if [ -n "$issue" ]; then
+            gh issue view "$issue" --json body,comments > "$RUNNER_TEMP/payload-drizzle-canary-existing.json"
+            if grep -Fq -- "Drizzle requirement: $PINNED -> $UPSTREAM" "$RUNNER_TEMP/payload-drizzle-canary-existing.json"; then
+              echo "Issue #$issue already mentions this pin/requirement pair; skipping duplicate comment."
+            else
+              gh issue comment "$issue" --body-file "$body"
+            fi
+          else
+            gh issue create --label payload-drizzle-canary --title "Payload Drizzle canary: $PINNED -> $UPSTREAM" --body-file "$body"
+          fi
