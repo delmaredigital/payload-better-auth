@@ -279,10 +279,27 @@ Better Auth 1.7 requires every database adapter to implement two atomic primitiv
 | `consumeOne` | Single-use credentials — email verification, password reset, magic links, email OTP, device-authorization codes |
 | `incrementOne` | Guarded counters — API-key quota and rate limits, two-factor backup codes, team member counts |
 
-On Postgres, supported flat collections and predicates use one guarded SQL statement through Payload's existing Drizzle connection:
+On Postgres, eligible flat collections and supported predicates use one guarded SQL statement through Payload's existing Drizzle connection:
 
 - **`consumeOne`** uses `DELETE … RETURNING`, returning the row only to the caller whose statement removed it.
 - **`incrementOne`** uses `UPDATE … SET counter = COALESCE(counter, 0) + delta … RETURNING`, so concurrent increments accumulate without a read-then-write race. Both statements select at most one identity and re-assert the caller's guard on the outer write, where Postgres rechecks it after waiting for a concurrent writer. A guard miss returns `null`.
+
+Configure this behavior with `adapterConfig.atomicWrites`:
+
+```ts
+payloadAdapter({
+  payloadClient: payload,
+  adapterConfig: { atomicWrites: 'auto' }, // default
+})
+```
+
+| Mode | Path selection for `incrementOne` and `consumeOne` |
+| --- | --- |
+| `'auto'` (default) | Uses atomic Postgres only when the sanitized collection has no trash, versions/drafts, base filter, or collection/field hooks of any kind, including nested fields and read hooks. Otherwise uses the Local API. Empty hook arrays are allowed. |
+| `'always'` | Allows atomic Postgres even with hooks, for applications that have reviewed their hooks. Trash, versions/drafts, and configured base filters still force Local API fallback with a warning once per collection. |
+| `'never'` | Always uses the Local API. |
+
+**The atomic SQL path does not run Payload collection or field hooks.** This includes validation, change, delete, operation, and read hooks. Use `'always'` only when bypassing these hooks is acceptable for these two primitives. The policy inspects sanitized collection configuration once per collection and caches its decision for the adapter instance; configure collections before using the adapter. With `enableDebugLogs: true`, it logs the chosen policy and reason once per collection. Other adapter methods continue to use the Local API.
 
 **Fallback and limits:** Other stores, complex collections (such as localized or has-many fields), and predicates that cannot be translated exactly keep the existing Local API path. Supported predicates are scalar `eq`, `ne`, `lt`, `lte`, `gt`, `gte`, and scalar-array `in`, with the existing AND/OR grouping and NULL semantics. Nested paths, JSON predicates, insensitive mode, and other operators fall back. That path reads before deleting by id or updating with a compare-and-swap guard (up to five attempts); Payload can resolve that guard before its internal write, so concurrent calls can still lose counter updates or consume a token more than once.
 

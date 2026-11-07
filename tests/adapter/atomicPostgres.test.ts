@@ -1,12 +1,14 @@
 import * as orm from 'drizzle-orm'
 import { pgTable, uuid, numeric, text, timestamp, boolean, PgDialect } from 'drizzle-orm/pg-core'
 import { drizzle } from 'drizzle-orm/pg-proxy'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { BasePayload } from 'payload'
 import type { BetterAuthOptions } from 'better-auth'
 import * as mod from '../../src/adapter/atomic-postgres.js'
-import { payloadAdapter } from '../../src/adapter/index.js'
+import { payloadAdapter, type PayloadAdapterConfig } from '../../src/adapter/index.js'
 import { createMockPayload } from './mocks.js'
+
+afterEach(() => vi.restoreAllMocks())
 
 const table = pgTable('custom_auth_counters', {
   id: uuid('id'), count: numeric('failed_verification_count', { mode: 'number' }),
@@ -176,16 +178,135 @@ describe('Postgres selection through the Better Auth adapter factory', () => {
       lockedUntil: { type: 'date' }, enabled: { type: 'boolean' },
     } },
   }
-  function adapterFixture(rows: Record<string, unknown>[] = []) {
+  function adapterFixture(
+    rows: Record<string, unknown>[] = [],
+    adapterConfig: PayloadAdapterConfig['adapterConfig'] = {},
+    configOverrides: Record<string, unknown> = {},
+  ) {
     const f = fixture(rows)
     const payload = createMockPayload({ documents: { sessions: [{ id, count: 1, label: 'safe' }] } })
-    const config = { ...f.payload.collections.twoFactors.config, slug: 'sessions' }
+    const config = { ...f.payload.collections.twoFactors.config, slug: 'sessions', ...configOverrides }
     Object.assign(payload, {
       db: { ...f.payload.db, tableNameMap: new Map([['sessions', 'custom_auth_counters']]) },
       collections: { sessions: { config } },
     })
-    return { ...f, payload, adapter: payloadAdapter({ payloadClient: payload })(options) }
+    return { ...f, payload, config, adapter: payloadAdapter({ payloadClient: payload, adapterConfig })(options) }
   }
+
+  const hook = () => undefined
+  const shapes = [
+    { shape: 'no hooks', config: {}, safe: true },
+    { shape: 'empty sanitized hooks', config: { hooks: { beforeChange: [] }, fields: [{ ...fields.count, hooks: { afterRead: [] } }] }, safe: true },
+    { shape: 'collection hook', config: { hooks: { beforeChange: [hook] } }, safe: false },
+    { shape: 'field hook', config: { flattenedFields: [{ ...fields.count, hooks: { beforeChange: [hook] } }] }, safe: false },
+    { shape: 'trash', config: { trash: true }, safe: false },
+    { shape: 'versions', config: { versions: { drafts: false } }, safe: false },
+    { shape: 'drafts', config: { versions: { drafts: {} } }, safe: false },
+    { shape: 'base filter', config: { admin: { baseFilter: hook } }, safe: false },
+    { shape: 'legacy base filter', config: { admin: { baseListFilter: hook } }, safe: false },
+  ]
+  describe.each(['auto', 'always', 'never'] as const)('atomicWrites %s', (atomicWrites) => {
+    it.each(shapes)('selects the right path for $shape for both primitives', async ({ config, shape, safe }) => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const atomic = atomicWrites !== 'never' && (safe || atomicWrites === 'always' && ['collection hook', 'field hook'].includes(shape))
+      for (const method of ['incrementOne', 'consumeOne'] as const) {
+        const f = adapterFixture([{ id, count: 2, lockedUntil: null, updatedAt: null }], { atomicWrites }, config)
+        const result = await f.adapter[method]({ model: 'session', where: [{ field: 'id', value: id }], increment: { count: 1 } })
+        expect(result).toMatchObject({ id, count: atomic || method === 'incrementOne' ? 2 : 1 })
+        expect(f.statements).toHaveLength(atomic ? 1 : 0)
+        expect(f.payload.findByID).toHaveBeenCalledTimes(atomic ? 0 : 1)
+        expect(method === 'incrementOne' ? f.payload.update : f.payload.delete).toHaveBeenCalledTimes(atomic ? 0 : 1)
+      }
+      expect(warn).toHaveBeenCalledTimes(atomicWrites === 'always' && !atomic ? 2 : 0)
+    })
+  })
+
+  it('defaults to auto and preserves hook-bearing collections through the Local API', async () => {
+    const f = adapterFixture([], {}, { hooks: { beforeValidate: [hook] } })
+    await f.adapter.consumeOne({ model: 'session', where: [{ field: 'id', value: id }] })
+    expect(f.statements).toEqual([])
+    expect(f.payload.delete).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['auto', 'always', 'never'] as const)('%s falls back when collection metadata is unavailable', async (atomicWrites) => {
+    const f = adapterFixture([], { atomicWrites })
+    Reflect.deleteProperty(f.payload, 'collections')
+    await f.adapter.consumeOne({ model: 'session', where: [{ field: 'id', value: id }] })
+    expect(f.statements).toEqual([])
+    expect(f.payload.delete).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    'beforeValidate', 'beforeChange', 'afterChange', 'beforeDelete', 'afterDelete',
+    'beforeOperation', 'afterOperation', 'beforeRead', 'afterRead', 'afterError',
+    'afterForgotPassword', 'beforeLogin', 'afterLogin', 'afterLogout', 'afterMe',
+    'afterRefresh', 'me', 'refresh',
+  ])('auto rejects collection %s hooks', async (name) => {
+    const f = adapterFixture([], {}, { hooks: { [name]: [hook] } })
+    await f.adapter.consumeOne({ model: 'session', where: [{ field: 'id', value: id }] })
+    expect(f.statements).toEqual([])
+    expect(f.payload.delete).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['beforeValidate', 'beforeChange', 'afterChange', 'afterRead', 'beforeDuplicate'])('auto rejects field %s hooks', async (name) => {
+    const f = adapterFixture([], {}, { fields: [{ ...fields.count, hooks: { [name]: [hook] } }] })
+    await f.adapter.consumeOne({ model: 'session', where: [{ field: 'id', value: id }] })
+    expect(f.statements).toEqual([])
+    expect(f.payload.delete).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['fields', 'tabs', 'blocks', 'flattenedFields'])('auto finds hooks nested under %s', async (key) => {
+    const f = adapterFixture([], {}, { fields: [{ [key]: [{ fields: [{ ...fields.count, hooks: { afterRead: [hook] } }] }] }] })
+    await f.adapter.consumeOne({ model: 'session', where: [{ field: 'id', value: id }] })
+    expect(f.statements).toEqual([])
+    expect(f.payload.delete).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([false, true])('caches the %s hook decision across both primitives and logs it once', async (withHooks) => {
+    const debug = vi.spyOn(console, 'debug').mockImplementation(() => {})
+    const f = adapterFixture([{ id, count: 2, lockedUntil: null, updatedAt: null }], { enableDebugLogs: true })
+    const inspectHooks = vi.fn(() => ({ afterRead: withHooks ? [hook] : [] }))
+    Object.defineProperty(f.config, 'hooks', { get: inspectHooks })
+    await Promise.all([
+      f.adapter.incrementOne({ model: 'session', where: [{ field: 'id', value: id }], increment: { count: 1 } }),
+      f.adapter.consumeOne({ model: 'session', where: [{ field: 'id', value: id }] }),
+    ])
+    expect(inspectHooks).toHaveBeenCalledTimes(1)
+    expect(f.statements).toHaveLength(withHooks ? 0 : 2)
+    expect(debug).toHaveBeenCalledTimes(1)
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining(withHooks ? 'Local API: collection hooks' : 'atomic Postgres (when SQL-compatible): no trash'))
+  })
+
+  it('caches decisions separately per collection', async () => {
+    const debug = vi.spyOn(console, 'debug').mockImplementation(() => {})
+    const f = adapterFixture([{ id, count: 2, lockedUntil: null, updatedAt: null }], { enableDebugLogs: true })
+    const inspectHooks = vi.fn(() => ({ beforeDelete: [hook] }))
+    const config = { ...f.config, slug: 'accounts' }
+    Object.defineProperty(config, 'hooks', { get: inspectHooks })
+    Object.assign(f.payload.collections, { accounts: { config } })
+    for (const model of ['session', 'account', 'session', 'account']) {
+      await f.adapter.consumeOne({ model, where: [{ field: 'id', value: id }] })
+    }
+    expect(f.statements).toHaveLength(2)
+    expect(inspectHooks).toHaveBeenCalledTimes(1)
+    expect(debug).toHaveBeenCalledTimes(2)
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining("'accounts': Local API: collection hooks"))
+  })
+
+  it.each([
+    { trash: true }, { versions: { drafts: true } }, { trash: true, versions: { drafts: true } },
+    { admin: { baseFilter: hook } },
+  ])('always warns once per collection when read semantics force fallback: %j', async (config) => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const f = adapterFixture([], { atomicWrites: 'always' }, config)
+    for (let i = 0; i < 2; i++) {
+      await f.adapter.incrementOne({ model: 'session', where: [{ field: 'id', value: id }], increment: { count: 1 } })
+      await f.adapter.consumeOne({ model: 'session', where: [{ field: 'id', value: id }] })
+    }
+    expect(f.statements).toEqual([])
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("atomicWrites 'always' on 'sessions' falls back to the Local API"))
+  })
   it.each(['incrementOne', 'consumeOne'] as const)('%s returns the SQL row with relationship and date transforms', async (method) => {
     const f = adapterFixture([{ id, count: '3', label: 'returned', user: id, lockedUntil: '2026-11-06 12:00:00+00', enabled: false, updatedAt: null }])
     const result = await f.adapter[method]({ model: 'session', where: [{ field: 'userId', value: id }], increment: { count: 1 } })

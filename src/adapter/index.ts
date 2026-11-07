@@ -13,7 +13,7 @@ import {
   type CustomAdapter,
 } from 'better-auth/adapters'
 import type { DBAdapter, BetterAuthOptions } from 'better-auth'
-import { postgresAtomic } from './atomic-postgres.js'
+import { createPostgresAtomic, type AtomicWrites } from './atomic-postgres.js'
 import type {
   BasePayload,
   Where as PayloadWhere,
@@ -107,6 +107,14 @@ export type PayloadAdapterConfig = {
      * Enable debug logging for troubleshooting
      */
     enableDebugLogs?: boolean
+
+    /**
+     * Postgres incrementOne/consumeOne policy (default: 'auto').
+     * 'auto' requires collections without hooks, trash, versions, or base filters.
+     * 'always' bypasses hooks after application review, but still falls back for
+     * trash, versions, and base filters. 'never' always uses Payload's Local API.
+     */
+    atomicWrites?: AtomicWrites
 
     /**
      * Database type. Auto-detected from Payload's database adapter if not set.
@@ -295,6 +303,10 @@ export function payloadAdapter({
     let resolvedPayload: BasePayload | null = null
     let resolvePromise: Promise<BasePayload> | null = null
     let resolvedDbType: DbType | null = adapterConfig.dbType ?? null
+    const postgresAtomic = createPostgresAtomic({
+      atomicWrites: adapterConfig.atomicWrites,
+      enableDebugLogs,
+    })
 
     const getPayload = async (): Promise<BasePayload> => {
       if (resolvedPayload) return resolvedPayload

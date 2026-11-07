@@ -25,11 +25,77 @@ type PostgresAdapter = {
   tableNameMap?: Map<string, string>
 }
 
+export type AtomicWrites = 'auto' | 'always' | 'never'
+
+/** Detect hooks on every field shape, including unnamed tabs/rows and blocks. */
+function hasFieldHooks(value: unknown, seen = new Set<object>()): boolean {
+  if (!value || typeof value !== 'object' || seen.has(value)) return false
+  seen.add(value)
+  if (Array.isArray(value)) return value.some(field => hasFieldHooks(field, seen))
+  const field = value as Record<string, unknown>
+  return hasHooks(field.hooks) || ['fields', 'flattenedFields', 'tabs', 'blocks']
+    .some(key => hasFieldHooks(field[key], seen))
+}
+
+function hasHooks(hooks: unknown): boolean {
+  return !!hooks && typeof hooks === 'object' && Object.values(hooks)
+    .some(value => Array.isArray(value) ? value.length > 0 : typeof value === 'function')
+}
+
+/** One policy decision per collection and Payload instance, shared by both writes. */
+export function createPostgresAtomic({ atomicWrites = 'auto', enableDebugLogs = false }: {
+  atomicWrites?: AtomicWrites
+  enableDebugLogs?: boolean
+} = {}) {
+  const decisions = new WeakMap<BasePayload, Map<CollectionSlug, boolean>>()
+  return async (args: Parameters<typeof executePostgresAtomic>[0]) => {
+    const { payload, collection } = args
+    const { name, drizzle } = (payload.db ?? {}) as PostgresAdapter
+    if (name !== 'postgres' || !drizzle) return undefined
+    let collections = decisions.get(payload)
+    if (!collections) {
+      collections = new Map()
+      decisions.set(payload, collections)
+    }
+    if (!collections.has(collection)) {
+      const config = payload.collections?.[collection]?.config
+      const reasons: string[] = []
+      if (atomicWrites === 'never') reasons.push('atomicWrites is never')
+      else if (!config) reasons.push('collection config is unavailable')
+      else {
+        if (config.trash) reasons.push('trash is enabled')
+        if (config.versions) reasons.push('versions/drafts are enabled')
+        if (config.admin?.baseFilter || config.admin?.baseListFilter) reasons.push('a base filter is configured')
+        if (atomicWrites === 'auto') {
+          if (hasHooks(config.hooks)) reasons.push('collection hooks are configured')
+          if (hasFieldHooks(config.fields) || hasFieldHooks(config.flattenedFields)) reasons.push('field hooks are configured')
+        }
+      }
+      const atomic = reasons.length === 0
+      // Set before logging or awaiting so concurrent calls share the decision.
+      collections.set(collection, atomic)
+      const reason = reasons.join('; ') || (atomicWrites === 'always'
+        ? 'atomicWrites is always; hooks are bypassed'
+        : 'no trash, versions, base filter, or hooks')
+      if (enableDebugLogs) {
+        console.debug(`[payload-adapter] atomicWrites '${collection}': ${atomic ? 'atomic Postgres (when SQL-compatible)' : 'Local API'}: ${reason}`)
+      }
+      if (atomicWrites === 'always' && !atomic && config) {
+        console.warn(`[payload-adapter] atomicWrites 'always' on '${collection}' falls back to the Local API: ${reason}. These read semantics cannot be reproduced by the atomic path.`)
+      }
+    }
+    if (!collections.get(collection)) return undefined
+    return executePostgresAtomic(args)
+  }
+}
+
+export const postgresAtomic = createPostgresAtomic()
+
 /**
  * `undefined` means unsupported: use the original Local API fallback. A supported
  * statement returns a Payload-shaped document or null, never a pre-read.
  */
-export async function postgresAtomic({
+async function executePostgresAtomic({
   payload, collection, where, increment, set, consume = false,
 }: {
   payload: BasePayload
@@ -48,7 +114,7 @@ export async function postgresAtomic({
   const table = tableName === undefined ? undefined : tables?.[tableName]
   if (!table) return undefined
 
-  // Load Drizzle only for SQL stores. The package declares it as a runtime dependency.
+  // Load the optional Drizzle peer only for SQL stores.
   const orm = await import('drizzle-orm')
   const columns = orm.getTableColumns(table)
   const fields: AtomicFields = Object.fromEntries(
