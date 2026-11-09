@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.40.0-next.2] - 2026-11-09
+
+### Security
+
+- **Brings 0.14.2's atomic Postgres `incrementOne`/`consumeOne` to the Payload 4 line, and makes it take effect there.** Payload 4 defaults `authorship` on, injecting `createdBy`/`updatedBy` fields whose hooks make the default `'auto'` policy refuse every collection and fall back to the racy Local API path. Generated Better Auth collections now set `authorship: false`: Better Auth writes without a request user, so those fields would always be null. A value set through `customizeCollection` still wins (and restores the fallback). Collections you define yourself for a Better Auth model must set `authorship: false` themselves.
+- **Schema note for Payload 4 apps that already migrated:** run `payload migrate:create` and read the diff. It drops the `<table>_rels` tables (columns `path`, `users_id`, …) that held `createdBy`/`updatedBy` for the Better Auth tables, unless something you added through `customizeCollection` also stores relationships there.
+
 ### Documentation
 
 - Documentation moved to https://plugins.delmaredigital.com/docs/better-auth. The GitHub Pages site now redirects there.
