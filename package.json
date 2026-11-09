@@ -152,6 +152,8 @@
     "payload-plugin",
     "better-auth",
     "authentication",
+    "payload-auth",
+    "nextjs",
     "adapter"
   ],
   "engines": {
@@ -165,7 +167,7 @@
   "bugs": {
     "url": "https://github.com/delmaredigital/payload-better-auth/issues"
   },
-  "homepage": "https://delmaredigital.com/developers",
+  "homepage": "https://plugins.delmaredigital.com/better-auth",
   "dependencies": {
     "drizzle-orm": "0.45.2",
     "qrcode.react": "^4.2.0"

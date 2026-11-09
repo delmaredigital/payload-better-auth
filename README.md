@@ -10,6 +10,8 @@ Better Auth adapter and plugins for Payload CMS. Enables seamless integration be
   <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fdelmaredigital%2Fdd-starter&project-name=my-payload-site&build-command=pnpm%20run%20ci&env=PAYLOAD_SECRET,BETTER_AUTH_SECRET&stores=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22productSlug%22%3A%22neon%22%2C%22integrationSlug%22%3A%22neon%22%7D%2C%7B%22type%22%3A%22blob%22%7D%5D"><img src="https://vercel.com/button" alt="Deploy with Vercel" height="32"></a>
 </p>
 
+**Documentation:** [plugins.delmaredigital.com/docs/better-auth](https://plugins.delmaredigital.com/docs/better-auth) · [Overview](https://plugins.delmaredigital.com/better-auth)
+
 > ⚠️ **0.14.0 raises the minimum peer versions, for security fixes only.** Better Auth `>=1.7.7` (critical Magic Link account takeover, fixed 1.7.7), Next.js `>=16.4.1` (two critical RCEs, fixed 16.4.1), Payload `>=3.90.0` (about twenty advisories, several critical, fixed 3.90.0) and Node `>=22.23.4` (Node 20 is end-of-life and unpatched). The plugin's own behaviour is unchanged. **If you applied the 0.11.0 `account.issuer` migration, run the cleanup migration first** (Better Auth 1.7.3 reverted that schema; see below). If you cannot upgrade a peer yet, stay on 0.13.2 and apply the upstream workarounds; details and links in the [CHANGELOG](CHANGELOG.md#0140---2026-10-22).
 
 ## Payload 4
@@ -33,15 +35,13 @@ The `next` line is a prerelease, renumbered from `0.14.0-next.x` to `0.40.0-next
 
 > **Upgrading from 0.12 to 0.13?** No code, config or data changes are needed; 0.13.0 is not breaking, despite the minor bump. One behavior to know: `payload.auth({ headers })` no longer extends the session unless you pass `canSetHeaders: true` and forward `responseHeaders`, so a call that can't deliver a refreshed cookie is now a pure read. 0.13.2 adds the optional [`roleField`](#naming-the-role-field) setting.
 >
-> **Upgrading from 0.11 or earlier?** Read the [upgrade guide](https://delmaredigital.github.io/payload-better-auth/#upgrading) before you bump. 0.11 requires Better Auth 1.7, and 0.12 changed how array fields are stored ([migration steps](#migrating-stringified-arrays-0120)). Every release's details are in the [CHANGELOG](CHANGELOG.md).
+> **Upgrading from 0.11 or earlier?** Read the [upgrade guide](https://plugins.delmaredigital.com/docs/better-auth/upgrading) before you bump. 0.11 requires Better Auth 1.7, and 0.12 changed how array fields are stored ([migration steps](#migrating-stringified-arrays-0120)). Every release's details are in the [CHANGELOG](CHANGELOG.md).
 >
 > **Already ran the 0.11.0 `account.issuer` migration?** Better Auth 1.7.3 reverted that schema. Before moving past Better Auth 1.7.2, drop the `NOT NULL` on `issuer` and the unique `(issuer, accountId)` index, or sign-ups and account links fail. Details in the [CHANGELOG](CHANGELOG.md#0140---2026-10-22).
 
 ---
 
 ## Documentation
-
-**[Full Documentation](https://delmaredigital.github.io/payload-better-auth/)** — API reference, guides, recipes, UI components, and more.
 
 For AI-assisted exploration: [DeepWiki](https://deepwiki.com/delmaredigital/payload-better-auth)
 
@@ -412,7 +412,7 @@ schema changes this repo detects; review it alongside your own migration diff.
 
 ---
 
-For MongoDB setup, API reference, customization, access control helpers, API key scopes, plugin compatibility, UI components (2FA, passkeys, password reset, passwordless login via magic-link & email-OTP), recipes, and types — see the **[full documentation](https://delmaredigital.github.io/payload-better-auth/)**.
+For MongoDB setup, API reference, customization, access control helpers, API key scopes, plugin compatibility, UI components (2FA, passkeys, password reset, passwordless login via magic-link & email-OTP), recipes, and types — see the **[full documentation](https://plugins.delmaredigital.com/docs/better-auth)**.
 
 ## License
 

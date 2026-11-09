@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- Documentation moved to https://plugins.delmaredigital.com/docs/better-auth. The GitHub Pages site now redirects there.
+
 ## [0.14.2] - 2026-11-07
 
 ### Security
