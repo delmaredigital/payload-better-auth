@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- Documentation moved to https://plugins.delmaredigital.com/docs/better-auth. The GitHub Pages site now redirects there.
+
+## [0.14.2] - 2026-11-07
+
+### Security
+
+- **Postgres `incrementOne` and `consumeOne` now use one guarded SQL statement for eligible collections.** The Local API's read-then-write path could lose concurrent counter updates or let multiple callers consume a single-use credential. Counters use `COALESCE(column, 0) + delta`; consumption uses `DELETE … RETURNING`. Both select at most one identity and repeat the caller's guard on the outer write. No migration is required.
+- **`adapterConfig.atomicWrites` defaults to `'auto'`.** Sanitized collection/field hooks (except field `beforeDuplicate`), trash, and versions/drafts force the non-atomic Local API path. These policy refusals now warn once per collection and reason, including guidance to review hooks before opting into `'always'`. Payload's duplicate-only defaults on unique fields do not disqualify OAuth token/client or rate-limit collections. Admin base filters do not apply to these Local API writes and no longer cause refusal. Virtual, `join`, and `ui` fields are skipped during column eligibility checks; stored nested/has-many/localized shapes remain unsupported. Table lookup follows Payload's exact snake-case rules.
+- **`'always'` bypasses hooks after application review and throws for SQL incompatibility.** Missing connection/table/column metadata, unsupported stored fields or writes, and untranslatable predicates always log `console.error` once per collection and distinct reason; `'auto'` falls back to the Local API, while `'always'` throws. Trash and versions/drafts still require Payload's lifecycle operations and warn before falling back even under `'always'`. A future Better Auth predicate shape that cannot be translated will throw under `'always'` until patched; this is why `'auto'` is the default. `'never'` explicitly uses the Local API. Debug logging additionally reports the first atomic execution and first fallback per collection. Other stores retain the Local API and its concurrency limits.
+- **Malformed ID guards fail closed.** This is stricter than Payload's query builder, which validates primary-key UUIDs but passes relationship UUIDs through. Invalid UUIDs and nonnumeric serial primary/relationship IDs are nonmatching, including `ne`, rather than allowing an invalid exclusion to broaden a credential write to every non-null row. Better Auth's coercion of malformed serial IDs to `NaN` is covered. Explicit NULL semantics are preserved.
+- **`drizzle-orm` 0.45.2 is now a regular dependency, installed automatically with no consumer action.** Static imports match Payload 3.92.1 and include the atomic SQL path in production Next.js/Vercel/standalone bundles without runtime adapter discovery. A test compares the pin with installed dev Payload; a separate daily Payload Drizzle canary compares the latest published `@payloadcms/drizzle` requirement and opens or updates an issue labelled `payload-drizzle-canary` on drift before dev Payload is bumped.
+- CI runs the real Postgres 17 integration suite for both UUID and default serial IDs: concurrent increments, single-use consumption, OAuth refresh-token guards, malformed identifiers, row-shape parity, and Better Auth's ten-failure TOTP lockout (900 seconds). The job rejects an empty database URL or a report with skipped tests/fewer than 16 passing tests.
+
 ### Internal
 
 - Dev dependencies refreshed within their ranges: Better Auth 1.7.15, Next 16.4.3, React 19.3.1. Generated schema snapshots are unchanged. No change to the published package.

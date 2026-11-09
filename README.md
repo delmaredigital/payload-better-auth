@@ -10,6 +10,8 @@ Better Auth adapter and plugins for Payload CMS. Enables seamless integration be
   <a href="https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fdelmaredigital%2Fdd-starter&project-name=my-payload-site&build-command=pnpm%20run%20ci&env=PAYLOAD_SECRET,BETTER_AUTH_SECRET&stores=%5B%7B%22type%22%3A%22integration%22%2C%22protocol%22%3A%22storage%22%2C%22productSlug%22%3A%22neon%22%2C%22integrationSlug%22%3A%22neon%22%7D%2C%7B%22type%22%3A%22blob%22%7D%5D"><img src="https://vercel.com/button" alt="Deploy with Vercel" height="32"></a>
 </p>
 
+**Documentation:** [plugins.delmaredigital.com/docs/better-auth](https://plugins.delmaredigital.com/docs/better-auth) · [Overview](https://plugins.delmaredigital.com/better-auth)
+
 > ⚠️ **0.40.0-next.0 raises the minimum peer versions, for security fixes only.** Better Auth `>=1.7.7` (critical Magic Link account takeover, fixed 1.7.7), Next.js `>=16.4.1` (two critical RCEs, fixed 16.4.1) and Node `>=24.22.1` (the first 24.x with the October 2026 Node.js security fixes). The Payload 4 range is unchanged; the betas already contain Payload's October fixes. The plugin's own behaviour is unchanged. **If you applied the 0.11.0 `account.issuer` migration, run the cleanup migration first** (Better Auth 1.7.3 reverted that schema; see below). This line was renumbered from `0.14.0-next.x`; details in the [CHANGELOG](CHANGELOG.md).
 
 ## Payload 4
@@ -33,15 +35,13 @@ The `next` line is a prerelease, renumbered from `0.14.0-next.x` to `0.40.0-next
 
 > **Upgrading from 0.12 to 0.13?** No code, config or data changes are needed; 0.13.0 is not breaking, despite the minor bump. One behavior to know: `payload.auth({ headers })` no longer extends the session unless you pass `canSetHeaders: true` and forward `responseHeaders`, so a call that can't deliver a refreshed cookie is now a pure read. 0.13.2 adds the optional [`roleField`](#naming-the-role-field) setting.
 >
-> **Upgrading from 0.11 or earlier?** Read the [upgrade guide](https://delmaredigital.github.io/payload-better-auth/#upgrading) before you bump. 0.11 requires Better Auth 1.7, and 0.12 changed how array fields are stored ([migration steps](#migrating-stringified-arrays-0120)). Every release's details are in the [CHANGELOG](CHANGELOG.md).
+> **Upgrading from 0.11 or earlier?** Read the [upgrade guide](https://plugins.delmaredigital.com/docs/better-auth/upgrading) before you bump. 0.11 requires Better Auth 1.7, and 0.12 changed how array fields are stored ([migration steps](#migrating-stringified-arrays-0120)). Every release's details are in the [CHANGELOG](CHANGELOG.md).
 >
 > **Already ran the 0.11.0 `account.issuer` migration?** Better Auth 1.7.3 reverted that schema. Before moving past Better Auth 1.7.2, drop the `NOT NULL` on `issuer` and the unique `(issuer, accountId)` index, or sign-ups and account links fail. Details in the [CHANGELOG](CHANGELOG.md#0140---2026-10-22).
 
 ---
 
 ## Documentation
-
-**[Full Documentation](https://delmaredigital.github.io/payload-better-auth/)** — API reference, guides, recipes, UI components, and more.
 
 For AI-assisted exploration: [DeepWiki](https://deepwiki.com/delmaredigital/payload-better-auth)
 
@@ -281,12 +281,37 @@ Better Auth 1.7 requires every database adapter to implement two atomic primitiv
 | `consumeOne` | Single-use credentials — email verification, password reset, magic links, email OTP, device-authorization codes |
 | `incrementOne` | Guarded counters — API-key quota and rate limits, two-factor backup codes, team member counts |
 
-Payload's Local API has no `DELETE … RETURNING` or `SET n = n + d`, so the adapter implements both as read-then-write and narrows the race window rather than eliminating it:
+On Postgres, eligible flat collections and supported predicates use one guarded SQL statement through Payload's existing Drizzle connection:
 
-- **`consumeOne`** reads the row, then deletes it by id. The row is returned **only if our own delete removed it** — if a concurrent caller got there first, Payload raises a 404 and we return `null`. That is what keeps a magic link or reset token single-use.
-- **`incrementOne`** reads the row, then writes with a guard that re-asserts both Better Auth's own precondition (e.g. `remaining > 0`) and the counter values the write was computed from. A racing writer's update matches no row, so the loser re-reads and retries (up to five times) instead of clobbering the winner.
+- **`consumeOne`** uses `DELETE … RETURNING`, returning the row only to the caller whose statement removed it.
+- **`incrementOne`** uses `UPDATE … SET counter = COALESCE(counter, 0) + delta … RETURNING`, so concurrent increments accumulate without a read-then-write race. Both statements select at most one identity and re-assert the caller's guard on the outer write, where Postgres rechecks it after waiting for a concurrent writer. A guard miss returns `null`.
 
-**The limit:** Payload resolves a `where` by finding rows and then mutating them, so a narrow window remains between its internal read and write. Under heavy concurrency on the *same row*, a quota decrement can be lost or a token consumed twice. This matches the guarantee Better Auth 1.6 provided for these flows, and is fine for typical traffic — but if you need strict cross-process guarantees for API-key quota, enforce it at the database with a `CHECK` constraint or a unique index rather than relying on the adapter alone.
+Configure this behavior with `adapterConfig.atomicWrites`:
+
+```ts
+payloadAdapter({
+  payloadClient: payload,
+  adapterConfig: { atomicWrites: 'auto' }, // default
+})
+```
+
+| Mode | Path selection for `incrementOne` and `consumeOne` |
+| --- | --- |
+| `'auto'` (default) | Uses atomic Postgres when the sanitized collection has no trash, versions/drafts, or collection/field hooks other than field `beforeDuplicate`. Nested fields and read hooks are included in the check; empty hook arrays are allowed. Each refusal warns once per collection and reason, then uses the non-atomic Local API. |
+| `'always'` | Allows atomic Postgres even with hooks, after application review. Throws if an otherwise eligible collection/request cannot run atomically. Trash and versions/drafts still require the Local API, with a warning once per collection and reason. |
+| `'never'` | Always uses the Local API. |
+
+**The atomic SQL path does not run Payload collection or field hooks.** This includes validation, change, delete, operation, and read hooks. For a hook-only refusal, review the hooks before choosing `'always'` to bypass them. Payload's default `beforeDuplicate` hooks on unique fields do not disqualify a collection because they never run on update/delete. Admin `baseFilter`/`baseListFilter` do not apply to these Local API operations and do not disqualify atomic writes. Virtual, `join`, and `ui` fields have no stored columns and are ignored during column eligibility checks.
+
+The policy inspects sanitized collection configuration once per collection and caches its decision for the adapter instance; configure collections before using the adapter. Policy refusals in `'auto'` and `'always'` always emit `console.warn` once per collection and distinct reason. SQL compatibility failures (missing connection/table/column metadata, unsupported stored fields or writes, untranslatable predicates) always emit `console.error` once per collection and distinct reason. In `'auto'`, these failures use the Local API and its concurrency limits; `'always'` throws instead. With `enableDebugLogs: true`, the adapter additionally logs the first atomic execution and first fallback per collection. Other adapter methods continue to use the Local API.
+
+Under `'always'`, an untranslatable predicate shape introduced by a future Better Auth release will throw until this adapter is patched, which is why `'auto'` is the default.
+
+**Dependency:** `drizzle-orm` is a regular dependency pinned to `0.45.2`, matching Payload 3.92.1, and is installed automatically with this package; no consumer action is needed. Static imports include atomic SQL in production Next.js/Vercel/standalone bundles without runtime adapter-package discovery. A compatibility test compares our pin with the installed dev Payload dependency. Separately, the daily [Payload Drizzle canary](.github/workflows/payload-drizzle-canary.yml) compares the latest published `@payloadcms/drizzle` requirement with our pin and opens or updates an issue labelled `payload-drizzle-canary` on drift, even before we bump dev Payload.
+
+**Fallback and limits:** Other stores keep the existing Local API path. On Postgres, unsupported stored shapes (such as localized or has-many fields) and untranslatable predicates log an error and fall back in `'auto'`, or throw in `'always'`. Supported predicates are scalar `eq`, `ne`, `lt`, `lte`, `gt`, `gte`, and scalar-array `in`, with the existing AND/OR grouping and explicit NULL semantics. Unsupported predicates include nested paths, JSON predicates, insensitive mode, and other operators.
+
+Malformed IDs are handled more strictly than Payload's query builder, which validates primary-key UUIDs but passes relationship UUIDs through: here invalid UUIDs or nonnumeric serial primary/relationship IDs never match, including for `ne`. This prevents an invalid exclusion from broadening a credential write to all non-null rows. Explicit `null` keeps its existing semantics. The Local API fallback reads before deleting by id or updating with a compare-and-swap guard (up to five attempts); Payload can resolve that guard before its internal write, so concurrent calls can still lose counter updates or consume a token more than once.
 
 ## Migrating stringified arrays (0.12.0)
 
@@ -389,7 +414,7 @@ schema changes this repo detects; review it alongside your own migration diff.
 
 ---
 
-For MongoDB setup, API reference, customization, access control helpers, API key scopes, plugin compatibility, UI components (2FA, passkeys, password reset, passwordless login via magic-link & email-OTP), recipes, and types — see the **[full documentation](https://delmaredigital.github.io/payload-better-auth/)**.
+For MongoDB setup, API reference, customization, access control helpers, API key scopes, plugin compatibility, UI components (2FA, passkeys, password reset, passwordless login via magic-link & email-OTP), recipes, and types — see the **[full documentation](https://plugins.delmaredigital.com/docs/better-auth)**.
 
 ## License
 

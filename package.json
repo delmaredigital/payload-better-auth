@@ -129,6 +129,7 @@
     "@better-auth/api-key": "^1.7.15",
     "@better-auth/oauth-provider": "^1.7.15",
     "@better-auth/passkey": "^1.7.15",
+    "@payloadcms/db-postgres": "4.0.0-beta.1",
     "@payloadcms/next": "4.0.0-beta.1",
     "@payloadcms/ui": "4.0.0-beta.1",
     "@swc/cli": "^0.8.2",
@@ -157,6 +158,8 @@
     "payload-plugin",
     "better-auth",
     "authentication",
+    "payload-auth",
+    "nextjs",
     "adapter"
   ],
   "engines": {
@@ -170,8 +173,9 @@
   "bugs": {
     "url": "https://github.com/delmaredigital/payload-better-auth/issues"
   },
-  "homepage": "https://delmaredigital.com/developers",
+  "homepage": "https://plugins.delmaredigital.com/better-auth",
   "dependencies": {
+    "drizzle-orm": "0.45.2",
     "qrcode.react": "^4.2.0"
   }
 }

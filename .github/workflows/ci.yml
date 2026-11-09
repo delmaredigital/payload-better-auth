@@ -51,3 +51,60 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  atomic-postgres:
+    name: Atomic writes (Postgres 17, UUID and serial IDs)
+    runs-on: ubuntu-latest
+    env:
+      ATOMIC_PG_URL: postgres://postgres:postgres@localhost:5432/atomic_test
+      PAYLOAD_FORCE_DRIZZLE_PUSH: 'true'
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: atomic_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d atomic_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require the Postgres connection URL
+        run: |
+          if [ -z "${ATOMIC_PG_URL:-}" ]; then
+            echo 'ATOMIC_PG_URL must be set; refusing to skip the integration suite.' >&2
+            exit 1
+          fi
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Test atomic writes against real Postgres
+        run: |
+          pnpm vitest run tests/adapter/atomicPostgres.int.test.ts --reporter=json --outputFile="$RUNNER_TEMP/atomic-postgres-results.json"
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs'
+          const report = JSON.parse(readFileSync(`${process.env.RUNNER_TEMP}/atomic-postgres-results.json`, 'utf8'))
+          const tests = report.testResults.flatMap(suite => suite.assertionResults)
+          if (report.success !== true || report.numPassedTests < 16 || report.numFailedTests !== 0 ||
+              report.numPendingTests !== 0 || report.numTodoTests !== 0 || tests.length < 16 ||
+              tests.some(test => test.status !== 'passed')) {
+            throw new Error('Postgres integration suite must pass at least 16 tests with zero skipped, todo, pending or failed tests')
+          }
+          console.log(`Verified ${report.numPassedTests} passing Postgres integration tests with zero skipped tests.`)
+          NODE
