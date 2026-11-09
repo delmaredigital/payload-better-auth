@@ -286,6 +286,8 @@ On Postgres, eligible flat collections and supported predicates use one guarded 
 - **`consumeOne`** uses `DELETE … RETURNING`, returning the row only to the caller whose statement removed it.
 - **`incrementOne`** uses `UPDATE … SET counter = COALESCE(counter, 0) + delta … RETURNING`, so concurrent increments accumulate without a read-then-write race. Both statements select at most one identity and re-assert the caller's guard on the outer write, where Postgres rechecks it after waiting for a concurrent writer. A guard miss returns `null`.
 
+On the Payload 4 line, generated collections set `authorship: false` so Payload's injected `createdBy`/`updatedBy` hooks do not disable atomic writes. Re-enabling authorship through `customizeCollection`, or defining a Better Auth model's collection yourself without `authorship: false`, restores those hooks and the default policy's Local API fallback.
+
 Configure this behavior with `adapterConfig.atomicWrites`:
 
 ```ts

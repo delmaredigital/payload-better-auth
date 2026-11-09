@@ -601,6 +601,11 @@ function generateCollection(
     // to opt out. Inert on Payload 3, and a `versions` set through
     // `customizeCollection` (which runs after this) still wins.
     versions: false,
+    // Better Auth writes server-side without a request user, so createdBy and
+    // updatedBy would always be null. Payload 4's default authorship also adds
+    // `_rels` tables and field hooks that disable the atomic Postgres path.
+    // An `authorship` set through `customizeCollection` still wins.
+    authorship: false,
   }
 }
 
